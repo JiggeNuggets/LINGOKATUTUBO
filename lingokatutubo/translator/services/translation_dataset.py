@@ -514,6 +514,16 @@ class TranslationDataset:
         target_key = f"{target_lang}_source"
         src_index = self._phrase_indices.get(source_lang, {})
 
+        # Safe terminal punctuation (. ? ! ,) is set aside purely for
+        # re-attachment to the translated result below. Lookup itself still
+        # runs against the untouched original text -- the normalized/diacritic
+        # variants already ignore punctuation for matching purposes, and
+        # leaving the raw/exact variant untouched preserves exact_phrase
+        # matches for dataset rows that legitimately carry the same trailing
+        # punctuation as the query (e.g. a corpus sentence stored with its
+        # own period).
+        _, trailing_punctuation = _split_trailing_punctuation(original)
+
         # 1. Exact/normalized dataset match. The first variant is the cleaned
         # raw text; later variants are punctuation/case/diacritic tolerant.
         for variant_index, norm in enumerate(_lookup_variants(original)):
@@ -521,8 +531,11 @@ class TranslationDataset:
             if result:
                 method = "exact_phrase" if variant_index == 0 else "normalized_phrase"
                 self._log_lookup(method, source_lang, target_lang, True, key=norm)
+                translated = _reattach_trailing_punctuation(
+                    _preserve_case(original, result), trailing_punctuation
+                )
                 return _translation_result(
-                    _preserve_case(original, result),
+                    translated,
                     method,
                     1.0,
                 )
@@ -613,6 +626,44 @@ def _preserve_case(original: str, translated: str) -> str:
     if original and original[0].isupper():
         return translated[0].upper() + translated[1:]
     return translated
+
+
+# Terminal punctuation safe to carry across languages unchanged. Internal
+# punctuation (e.g. the apostrophe in "I'll") is never touched, since only a
+# trailing run of these exact characters is ever captured or re-attached.
+_SAFE_TERMINAL_PUNCTUATION = ".?!,"
+_TRAILING_PUNCTUATION_RE = re.compile(r"[.?!,]+$")
+
+
+def _split_trailing_punctuation(text: str) -> "tuple[str, str]":
+    """Split safe terminal punctuation from the end of text.
+
+    Returns (core, trailing). `trailing` is the longest trailing run of
+    `_SAFE_TERMINAL_PUNCTUATION` found at the end of `text`, to be re-attached
+    to the translated output by `_reattach_trailing_punctuation`. `core` is
+    `text` with that run (and the whitespace immediately before it) removed;
+    callers that only need `trailing` for re-attachment (lookup itself is
+    left punctuation-sensitive on its raw/exact variant -- see the call site
+    in translate_phrase_with_metadata) can discard it.
+    """
+    match = _TRAILING_PUNCTUATION_RE.search(text)
+    if not match:
+        return text, ""
+    return text[: match.start()].rstrip(), match.group(0)
+
+
+def _reattach_trailing_punctuation(translated: str, trailing: str) -> str:
+    """Re-attach punctuation captured by `_split_trailing_punctuation`.
+
+    Skips re-attaching if there was nothing captured, if the translation is
+    empty, or if the translation already ends in one of the safe terminal
+    marks (avoids doubling, e.g. "...mapun..").
+    """
+    if not trailing or not translated:
+        return translated
+    if translated[-1] in _SAFE_TERMINAL_PUNCTUATION:
+        return translated
+    return translated + trailing
 
 
 # ------------------------------------------------------------------

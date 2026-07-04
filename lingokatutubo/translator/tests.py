@@ -9005,3 +9005,348 @@ class AppendixLJsonApiTests(TestCase):
         response = self.client.get(reverse("translator:job_detail", args=[job.id]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"].split(";")[0], "text/html")
+
+
+# ============================================================
+# Preview artifact source audit (2026-07-04) — regression tests
+# ============================================================
+#
+# Confirmed root cause (Phase 1): pipeline_service.py's "Phase 5: Create
+# bilingual preview" used to compute
+#     original_preview_source = input_file_path if file_type == FileType.PDF else output_pdf_path
+# For non-PDF uploads (DOCX/TXT/JPG/PNG) this resolved to the *translated*
+# output PDF, so both the "original" and "translated" preview image sets were
+# rendered from the same translated file.
+#
+# Fixed (Phase 2): PDF/JPG/PNG now use input_file_path directly (untouched
+# upload); DOCX/TXT now render from a backend-only source-preview PDF built
+# via PipelineService._build_source_preview_pdf (same layout as the
+# translated output, but drawing the original extracted text).
+
+
+class PreviewOriginalArtifactSourceTests(TestCase):
+    """Regression tests for the preview-artifact bug fix, covering non-PDF
+    uploads. Each test runs the real PipelineService.process_translation
+    end-to-end (real extraction, real translation lookup, real reconstruction);
+    only ReconstructionService.create_preview_images is replaced with a
+    recorder, so the test can see exactly which source path each
+    "original"/"translated" preview call received, without needing to
+    rasterize real PNGs.
+    """
+
+    def setUp(self):
+        self.fixture_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.fixture_dir.cleanup)
+        self.fixture_root = Path(self.fixture_dir.name)
+
+    def _make_docx(self, text: str, name: str = "source.docx") -> str:
+        from docx import Document as DocxDocument
+        doc = DocxDocument()
+        doc.add_paragraph(text)
+        path = str(self.fixture_root / name)
+        doc.save(path)
+        return path
+
+    def _make_txt(self, text: str, name: str = "source.txt") -> str:
+        path = self.fixture_root / name
+        path.write_text(text, encoding="utf-8")
+        return str(path)
+
+    def _make_pdf(self, text: str, name: str = "source.pdf") -> str:
+        import fitz
+        doc = fitz.open()
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((72, 100), text, fontsize=12)
+        path = str(self.fixture_root / name)
+        doc.save(path)
+        doc.close()
+        return path
+
+    def _run_pipeline_and_capture_preview_sources(self, input_path, file_type, job_id):
+        """Run the real pipeline end-to-end with only create_preview_images
+        patched to record its call arguments, returning [(source_path, prefix), ...]
+        without needing real PNG rendering."""
+        from translator.services.pipeline_service import PipelineService
+        from translator.services.reconstruction_service import ReconstructionService
+
+        calls = []
+
+        def fake_create_preview_images(pdf_path, preview_dir, max_pages=1, prefix="original"):
+            calls.append((pdf_path, prefix))
+            return [f"{prefix}_page_0.png"]
+
+        with patch.object(
+            ReconstructionService,
+            "create_preview_images",
+            side_effect=fake_create_preview_images,
+        ):
+            pipeline = PipelineService()
+            success = pipeline.process_translation(
+                job_id=job_id,
+                input_file_path=input_path,
+                file_type=file_type,
+                source_language="english",
+                target_language="tagabawa",
+            )
+
+        self.assertTrue(
+            success,
+            "Pipeline must complete successfully for this regression test to be "
+            "meaningful (a pipeline failure would hide the preview-source bug, "
+            "not prove it fixed)",
+        )
+        return calls
+
+    def _source_for_prefix(self, calls, prefix):
+        matches = [path for path, called_prefix in calls if called_prefix == prefix]
+        self.assertEqual(
+            len(matches), 1,
+            f"Expected exactly one create_preview_images call with prefix={prefix!r}, got {matches}",
+        )
+        return matches[0]
+
+    @staticmethod
+    def _pdf_text(pdf_path: str) -> str:
+        import fitz
+        doc = fitz.open(pdf_path)
+        try:
+            return "".join(page.get_text() for page in doc)
+        finally:
+            doc.close()
+
+    # ---- Requirement 1 & 3: DOCX/TXT original preview source must not be
+    #      output_pdf_path/translated.pdf; the original preview must represent
+    #      source/original English content and the translated preview must
+    #      represent translated Bagobo Tagabawa content (adjusted per Phase 2
+    #      approval: for DOCX/TXT the backend now builds a separate
+    #      source-preview PDF from extracted source text rather than reusing
+    #      the raw uploaded DOCX/TXT file, since that can't be rasterized
+    #      directly). ----
+
+    def test_docx_original_preview_source_is_not_translated_output_pdf(self):
+        """pipeline_service.py Phase 5 must never hand the translated PDF to
+        the "original" preview call for a DOCX upload."""
+        from translator.services.models import FileType
+
+        input_path = self._make_docx("Close the window.")
+        calls = self._run_pipeline_and_capture_preview_sources(
+            input_path, FileType.DOCX, "preview-source-test-docx"
+        )
+        original_source = self._source_for_prefix(calls, "original")
+        translated_source = self._source_for_prefix(calls, "translated")
+
+        self.assertNotEqual(
+            original_source, translated_source,
+            "Original and translated previews must use different source "
+            "artifacts for a DOCX upload",
+        )
+        original_text = self._pdf_text(original_source).lower()
+        translated_text = self._pdf_text(translated_source).lower()
+        self.assertIn(
+            "close the window", original_text,
+            "Original preview must represent the source/original English content",
+        )
+        self.assertNotIn(
+            "close the window", translated_text,
+            "Translated preview must not contain the untranslated English source text",
+        )
+        self.assertNotEqual(
+            original_text, translated_text,
+            "Original and translated previews must render different content",
+        )
+
+    def test_txt_original_preview_source_is_not_translated_output_pdf(self):
+        """Same requirement as above, for FileType.TXT."""
+        from translator.services.models import FileType
+
+        input_path = self._make_txt("Open the door.")
+        calls = self._run_pipeline_and_capture_preview_sources(
+            input_path, FileType.TXT, "preview-source-test-txt"
+        )
+        original_source = self._source_for_prefix(calls, "original")
+        translated_source = self._source_for_prefix(calls, "translated")
+
+        self.assertNotEqual(
+            original_source, translated_source,
+            "Original and translated previews must use different source "
+            "artifacts for a TXT upload",
+        )
+        original_text = self._pdf_text(original_source).lower()
+        translated_text = self._pdf_text(translated_source).lower()
+        self.assertIn(
+            "open the door", original_text,
+            "Original preview must represent the source/original English content",
+        )
+        self.assertNotIn(
+            "open the door", translated_text,
+            "Translated preview must not contain the untranslated English source text",
+        )
+        self.assertNotEqual(
+            original_text, translated_text,
+            "Original and translated previews must render different content",
+        )
+
+    # ---- Requirement 2: translated preview source may remain output_pdf_path ----
+
+    def test_docx_translated_preview_source_is_not_the_original_upload(self):
+        """The translated side is not the bug -- it already correctly renders
+        from the translated output PDF, not from the original upload. This
+        must keep passing both before and after the fix."""
+        from translator.services.models import FileType
+
+        input_path = self._make_docx("Bring me a Coke.")
+        calls = self._run_pipeline_and_capture_preview_sources(
+            input_path, FileType.DOCX, "preview-source-test-docx-translated-side"
+        )
+        translated_source = self._source_for_prefix(calls, "translated")
+
+        self.assertNotEqual(
+            translated_source, input_path,
+            "Translated preview must not be rendered from the original uploaded file",
+        )
+
+    # ---- Requirement 5: existing PDF behavior must remain unchanged ----
+
+    def test_pdf_original_preview_source_already_uses_input_file_correctly(self):
+        """Baseline regression guard: for FileType.PDF, original_preview_source
+        already correctly resolves to input_file_path today. This must keep
+        passing both before AND after the DOCX/TXT/image fix -- a fix that
+        breaks this would be worse than the bug it's fixing."""
+        from translator.services.models import FileType
+
+        input_path = self._make_pdf("Let's go now.")
+        calls = self._run_pipeline_and_capture_preview_sources(
+            input_path, FileType.PDF, "preview-source-test-pdf"
+        )
+        original_source = self._source_for_prefix(calls, "original")
+        translated_source = self._source_for_prefix(calls, "translated")
+
+        self.assertEqual(
+            original_source, input_path,
+            "Original preview for a PDF upload must be rendered from the uploaded PDF",
+        )
+        self.assertNotEqual(
+            original_source, translated_source,
+            "Original and translated previews must use different source "
+            "artifacts for PDF uploads",
+        )
+
+    # ---- Requirement 4: original uploaded file must never be overwritten ----
+
+    def test_docx_uploaded_file_is_not_overwritten_by_pipeline_run(self):
+        """The pipeline must never write into the original uploaded file,
+        regardless of the preview-source bug above. Protects against a future
+        fix that 'solves' the preview bug by mutating the original file in
+        place instead of pointing at it."""
+        from translator.services.models import FileType
+
+        input_path = self._make_docx("I don't know.")
+        original_bytes = Path(input_path).read_bytes()
+        original_mtime = os.path.getmtime(input_path)
+
+        self._run_pipeline_and_capture_preview_sources(
+            input_path, FileType.DOCX, "preview-source-test-docx-no-overwrite"
+        )
+
+        self.assertEqual(
+            Path(input_path).read_bytes(), original_bytes,
+            "Uploaded DOCX file's bytes must be unchanged after the pipeline runs",
+        )
+        self.assertEqual(
+            os.path.getmtime(input_path), original_mtime,
+            "Uploaded DOCX file's mtime must be unchanged after the pipeline runs",
+        )
+
+
+# ============================================================
+# Punctuation preservation audit (Phase 3) — regression tests
+# ============================================================
+#
+# Confirmed issue: translate_phrase_with_metadata normalized away ALL
+# punctuation for phrasebook lookup and never re-attached any of it to the
+# translated output, so "I'll return it this afternoon." (trailing period)
+# returned "Ulian ku dad kanik mapun" with no period.
+#
+# Fixed: translation_dataset.py now splits safe terminal punctuation
+# (. ? ! ,) off the source text with _split_trailing_punctuation before
+# lookup, and re-attaches it with _reattach_trailing_punctuation after a
+# match -- unless the translated text already ends with one of those marks
+# (avoids doubling). Internal punctuation (e.g. the apostrophe in "I'll")
+# is never touched, since only a trailing run at the very end of the string
+# is ever captured.
+
+
+class TranslationPunctuationPreservationTests(TestCase):
+    """Regression tests for safe terminal punctuation preservation in the
+    phrasebook translation cascade (translator/services/translation_dataset.py).
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        import os as _os
+        from translator.services.translation_dataset import TranslationDataset
+        dataset_path = _os.path.join(_os.path.dirname(__file__), "services", "translation_data.json")
+        cls.dataset = TranslationDataset(dataset_path=dataset_path)
+
+    def test_period_is_preserved_after_phrasebook_match(self):
+        """Confirmed bug example: a trailing period on the source sentence
+        must survive onto the translated Tagabawa phrase."""
+        result = self.dataset.translate_phrase_with_metadata(
+            "I'll return it this afternoon.", "english", "tagabawa"
+        )
+        self.assertEqual(
+            result["translated"], "Ulián ku dád kanik mapun.",
+            "Trailing period must be re-attached to the translated phrase",
+        )
+        self.assertIn(result["method"], ("exact_phrase", "normalized_phrase"))
+
+    def test_question_mark_is_preserved_after_phrasebook_match(self):
+        result = self.dataset.translate_phrase_with_metadata("Hello?", "english", "tagabawa")
+        self.assertEqual(
+            result["translated"], "Madigár?",
+            "Trailing question mark must be re-attached to the translated phrase",
+        )
+
+    def test_exclamation_point_is_preserved_after_phrasebook_match(self):
+        result = self.dataset.translate_phrase_with_metadata("Come ahead!", "english", "tagabawa")
+        self.assertEqual(
+            result["translated"], "Allus kó!",
+            "Trailing exclamation point must be re-attached to the translated phrase",
+        )
+
+    def test_comma_is_preserved_after_phrasebook_match(self):
+        result = self.dataset.translate_phrase_with_metadata("Sit down,", "english", "tagabawa")
+        self.assertEqual(
+            result["translated"], "Unsad kó,",
+            "Trailing comma must be re-attached to the translated phrase",
+        )
+
+    def test_no_double_punctuation_when_translated_already_ends_with_it(self):
+        """Real dataset row where BOTH source and stored translation already
+        end with '!' -- must not become '!!' after re-attachment."""
+        result = self.dataset.translate_phrase_with_metadata("Oh, it's you!", "english", "tagabawa")
+        self.assertEqual(
+            result["translated"], "Áskiyu kannê!",
+            "Translation that already ends with the same punctuation must not be doubled",
+        )
+        self.assertFalse(
+            result["translated"].endswith("!!"),
+            "Punctuation must never be duplicated",
+        )
+
+    def test_unknown_for_review_keeps_original_text_and_punctuation_unchanged(self):
+        """Unmatched text must keep returning the verbatim original (including
+        its own punctuation) via unknown_for_review, exactly as before this
+        fix -- the punctuation fix must not alter the no-match path."""
+        from translator.services.translation_dataset import UNKNOWN_FOR_REVIEW
+
+        original = "Xyzzy plugh wibble, a truly unmatched sentence."
+        result = self.dataset.translate_phrase_with_metadata(original, "english", "tagabawa")
+        self.assertEqual(result["method"], "unknown_for_review")
+        self.assertEqual(
+            result["translated"], original,
+            "unknown_for_review must return the original text verbatim, punctuation included",
+        )
+        self.assertNotEqual(result["translated"], UNKNOWN_FOR_REVIEW)
+        self.assertTrue(result["needs_review"])

@@ -561,7 +561,25 @@ class PipelineService:
             original_previews = []
             translated_previews = []
             try:
-                original_preview_source = input_file_path if file_type == FileType.PDF else output_pdf_path
+                if file_type in (FileType.PDF, FileType.JPG, FileType.PNG):
+                    # The uploaded file is itself a renderable page (a PDF, or
+                    # an image PyMuPDF can open directly as a single-page
+                    # document) -- use it untouched so the "original" preview
+                    # never renders translated content.
+                    original_preview_source = input_file_path
+                else:
+                    # DOCX/TXT have no directly renderable original page.
+                    # Build a backend-only source-preview PDF that reuses the
+                    # translated output's exact layout but draws the original
+                    # extracted text instead of the translation.
+                    original_preview_source = self._build_source_preview_pdf(
+                        job_id,
+                        layout_data,
+                        translations,
+                        input_file_path,
+                        file_type,
+                        layout_warnings=layout_warnings,
+                    )
                 original_previews = self.reconstruction_service.create_preview_images(
                     original_preview_source,
                     preview_dir,
@@ -1486,6 +1504,50 @@ class PipelineService:
             job.metadata.setdefault("ocr_warnings", []).extend(language_warnings)
 
         return layout_data, ocr_unavailable_msg
+
+    def _build_source_preview_pdf(
+        self,
+        job_id: str,
+        layout_data: list,
+        translations: Dict[str, Dict[str, Any]],
+        input_file_path: str,
+        file_type: FileType,
+        layout_warnings: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Build a backend-only "source preview" PDF for file types with no
+        directly renderable original page (DOCX, TXT). Reuses the exact same
+        layout as the translated output, but draws the original extracted
+        text instead of the translation, so the "original" preview panel
+        never shows translated content.
+        """
+        source_translations: Dict[str, Dict[str, Any]] = {}
+        for key, record in translations.items():
+            if not isinstance(record, dict):
+                continue
+            source_record = dict(record)
+            # "identity" is a reserved method name in _create_output_pdf that
+            # causes same-text lines to be skipped entirely; use a distinct
+            # marker so the original text is always drawn.
+            source_record["translated"] = source_record.get("original", "")
+            source_record["method"] = "source_preview"
+            source_record["cascade_stage"] = "source_preview"
+            source_translations[key] = source_record
+
+        source_preview_path = self.file_service.get_output_path(job_id, "original_preview.pdf")
+        success = self._create_output_pdf(
+            layout_data,
+            source_translations,
+            source_preview_path,
+            input_file_path=input_file_path,
+            file_type=file_type,
+            layout_warnings=layout_warnings,
+        )
+        if not success:
+            raise Exception(
+                "Failed to build backend source preview PDF for the original document panel"
+            )
+        return source_preview_path
 
     def _create_output_pdf(
         self,
