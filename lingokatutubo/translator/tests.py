@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -848,14 +849,23 @@ class TranslatorAuthAndJobTests(TestCase):
         self.assertIn("Needs Review", detail_body)
         # Normal users see a plain-language note, not the raw "1 of 2" count.
         self.assertNotIn("1 of 2", detail_body)
-        self.assertIn("Some parts may need teacher review.", detail_body)
+        self.assertIn(
+            "Some text may remain unchanged because it was not found in the "
+            "validated translation dataset and may need review.",
+            detail_body,
+        )
 
         self.assertEqual(preview_response.status_code, 200)
         preview_body = preview_response.content.decode("utf-8")
-        self.assertIn("40%", preview_body)
+        # Preview's technical summary strip (confidence %, raw counts) is staff-only.
         self.assertNotIn("1 of 2", preview_body)
         self.assertNotIn("Needs Review", preview_body)
-        self.assertNotIn("Some parts may need teacher review.", preview_body)
+        # Normal users still get a plain-language review note on the preview page.
+        self.assertIn(
+            "Some text may remain unchanged because it was not found in the "
+            "validated translation dataset and may need review.",
+            preview_body,
+        )
 
     def test_phase_5b_translation_quality_technical_counts_visible_to_staff(self):
         """Staff/admin still see the exact Needs Review counts and segment table."""
@@ -2249,7 +2259,7 @@ class TranslatorUIRefreshTests(TestCase):
 
     # ---- Phase 1: recent/history card simplification ----
 
-    def test_completed_job_history_card_shows_preview_only(self):
+    def test_completed_job_history_card_shows_preview_and_remove(self):
         job = self._create_job(TranslationJob.Status.COMPLETED)
         out = self.media_root / "jobs" / job.job_id / "translated.pdf"
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -2264,11 +2274,12 @@ class TranslatorUIRefreshTests(TestCase):
         body = response.content.decode("utf-8")
         self.assertIn("document-card-action", body)
         self.assertIn(">Preview<", body)
+        self.assertIn(">Remove<", body)
+        self.assertIn(reverse("translator:job_delete_confirm", args=[job.id]), body)
         self.assertNotIn(">Download<", body)
-        self.assertNotIn(">Remove<", body)
 
-    def test_processing_job_history_card_has_no_preview_link(self):
-        self._create_job(TranslationJob.Status.PROCESSING)
+    def test_processing_job_history_card_has_remove_but_no_preview_link(self):
+        job = self._create_job(TranslationJob.Status.PROCESSING)
         self.client.force_login(self.alice)
 
         response = self.client.get(reverse("translator:history"))
@@ -2276,10 +2287,31 @@ class TranslatorUIRefreshTests(TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
         self.assertNotIn(">Preview<", body)
+        self.assertIn(">Remove<", body)
+        self.assertIn(reverse("translator:job_delete_confirm", args=[job.id]), body)
         self.assertIn("Preview available once processing completes.", body)
 
+    def test_translate_page_shows_file_required_message_with_disabled_button(self):
+        self.client.force_login(self.alice)
+
+        response = self.client.get(reverse("translator:translate"))
+
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode("utf-8")
+        self.assertIn('id="file-required-message"', body)
+        self.assertIn("Please select a file to start translation.", body)
+        button_start = body.index('id="translate-button"')
+        button_html = body[button_start:body.index("</button>", button_start)]
+        self.assertIn("disabled", button_html)
+
+        app_js = Path(settings.BASE_DIR) / "static" / "js" / "app.js"
+        script = app_js.read_text(encoding="utf-8")
+        self.assertIn("fileRequiredMessage", script)
+        self.assertIn("setHidden(fileRequiredMessage, false)", script)
+        self.assertIn("setHidden(fileRequiredMessage, true)", script)
+
     def test_failed_job_history_card_shows_failed_indicator_not_preview(self):
-        self._create_job(TranslationJob.Status.FAILED)
+        job = self._create_job(TranslationJob.Status.FAILED)
         self.client.force_login(self.alice)
 
         response = self.client.get(reverse("translator:history"))
@@ -2287,6 +2319,8 @@ class TranslatorUIRefreshTests(TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
         self.assertNotIn(">Preview<", body)
+        self.assertIn(">Remove<", body)
+        self.assertIn(reverse("translator:job_delete_confirm", args=[job.id]), body)
         self.assertIn("Translation failed safely.", body)
 
     def test_completed_job_recent_sidebar_card_shows_preview_only(self):
@@ -2299,6 +2333,7 @@ class TranslatorUIRefreshTests(TestCase):
         body = response.content.decode("utf-8")
         self.assertIn(">Preview<", body)
         self.assertNotIn(">Download<", body)
+        self.assertNotIn(">Remove<", body)
 
     # ---- Phase 2: completion notification ----
 
@@ -6062,8 +6097,12 @@ class AppendixFBilingualPreviewTests(TestCase):
                          "Normal users must not see the technical 'Needs review' badge")
         self.assertNotIn("Needs Review", body,
                          "Normal users must not see technical review summary labels")
-        self.assertNotIn("Some parts may need teacher review.", body,
-                         "Normal users must not see review-detail messaging in the preview")
+        self.assertIn(
+            "Some text may remain unchanged because it was not found in the "
+            "validated translation dataset and may need review.",
+            body,
+            "Normal users must see a plain-language review note when segments are unmatched",
+        )
         self.assertIn("Completely unknown phrase A", body,
                       "Source text must remain visible even when the translation is unknown")
         self.assertIn("Completely unknown phrase B", body,
