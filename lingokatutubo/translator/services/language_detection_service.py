@@ -20,6 +20,21 @@ _LANGDETECT_MAP = {
     "ceb": "cebuano",
 }
 
+# langdetect ships no Cebuano profile, so Cebuano text is otherwise reported
+# as Tagalog/Filipino. These marker words separate Cebuano from Filipino.
+# STRONG markers are distinctively Cebuano (their Filipino equivalents differ:
+# unsa/ano, kaayo/napaka-, karon/ngayon, buntag/umaga, ...). WEAK markers also
+# occur in Filipino, so they only ever *support* a strong match and never
+# trigger Cebuano detection on their own.
+_CEBUANO_STRONG_MARKERS = {
+    "unsa", "unsaon", "kinsa", "ngano", "diin",
+    "kaayo", "ug", "og", "nimo", "nako", "kanimo", "kanako",
+    "dili", "kini", "karon", "unya", "gyud", "jud", "bitaw", "naa",
+    "maayong", "buntag", "gabii", "kaninyong",
+    "pinulungan", "kahibalo", "magsulti", "mananap",
+}
+_CEBUANO_WEAK_MARKERS = {"nga", "man", "mo", "inyong", "ba", "ta"}
+
 
 class LanguageDetectionService:
     """
@@ -66,7 +81,7 @@ class LanguageDetectionService:
             {
               "language": str,
               "confidence": float,
-              "method": "dictionary" | "langdetect" | "fallback",
+              "method": "dictionary" | "cebuano_markers" | "langdetect" | "fallback",
               "alternatives": list
             }
         """
@@ -77,13 +92,27 @@ class LanguageDetectionService:
 
         text_clean = text.strip()
 
-        # 1. Try Tagabawa dictionary match first
+        # 1. Dictionary/marker checks for the two languages langdetect cannot
+        # identify. Both are evaluated so shared cognates cannot short-circuit
+        # one before the other is considered; the stronger signal wins, and
+        # ties keep the dataset-driven Tagabawa result.
         tagabawa = self._check_tagabawa(text_clean)
-        if tagabawa["is_match"]:
+        cebuano = self._check_cebuano(text_clean)
+
+        if tagabawa["is_match"] and not (
+            cebuano["is_match"] and cebuano["confidence"] > tagabawa["confidence"]
+        ):
             return {
                 "language": "tagabawa",
                 "confidence": tagabawa["confidence"],
                 "method": "dictionary",
+                "alternatives": [],
+            }
+        if cebuano["is_match"]:
+            return {
+                "language": "cebuano",
+                "confidence": cebuano["confidence"],
+                "method": "cebuano_markers",
                 "alternatives": [],
             }
 
@@ -128,10 +157,43 @@ class LanguageDetectionService:
 
         matched = text_words & self.tagabawa_words
         ratio = len(matched) / len(text_words)
+        # The Tagabawa word set is built from whole dataset phrases, so it
+        # contains particles shared with Filipino/Cebuano. A single common
+        # word must never classify a short caption as Tagabawa: require
+        # either broad evidence (>= 4 matched words) or, for short text,
+        # a majority of matched words (>= 2 matched at >= 50% coverage).
+        is_match = (len(matched) >= 4 and ratio > 0.30) or (
+            len(matched) >= 2 and ratio >= 0.50
+        )
         return {
-            "is_match": ratio > 0.30,
+            "is_match": is_match,
             "confidence": min(ratio * 1.5, 1.0),
             "matched_words": len(matched),
+        }
+
+    def _check_cebuano(self, text: str) -> Dict:
+        """Marker-word heuristic for Cebuano, which langdetect cannot detect.
+
+        Fires only with at least one distinctively Cebuano (strong) marker:
+        two strong markers always match; a single strong marker needs either
+        a supporting weak marker or a high marker density (short captions).
+        Weak markers alone never match, because Filipino shares them.
+        """
+        text_words = set(re.findall(r"\b\w+\b", text.lower()))
+        if not text_words:
+            return {"is_match": False, "confidence": 0.0, "strong_matches": 0}
+
+        strong = len(text_words & _CEBUANO_STRONG_MARKERS)
+        weak = len(text_words & _CEBUANO_WEAK_MARKERS)
+        marker_ratio = (strong + weak) / len(text_words)
+
+        is_match = strong >= 2 or (
+            strong == 1 and (weak >= 1 or marker_ratio >= 0.25)
+        )
+        return {
+            "is_match": is_match,
+            "confidence": min(1.0, 0.6 + 0.1 * strong) if is_match else 0.0,
+            "strong_matches": strong,
         }
 
     # ------------------------------------------------------------------

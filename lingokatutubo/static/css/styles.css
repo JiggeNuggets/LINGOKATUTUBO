@@ -104,6 +104,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 a {
   color: var(--primary);
   text-decoration: none;
@@ -276,25 +280,56 @@ p  { margin-top: 0; line-height: var(--lh-body); }
 /* ==========================================================================
    4. MESSAGES / NOTIFICATIONS
    ========================================================================== */
+/* Messages render as a fixed top-right toast stack: page content never
+   shifts, and server-rendered Django messages and JS status messages
+   (showStatusMessage) share the same look. Sits above the remove modal
+   (z-index 1000) so confirmations stay visible. */
 .messages {
-  max-width: 980px;
-  margin: var(--space-4) auto 0;
-  padding: 0 var(--space-6);
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: min(360px, calc(100vw - 2 * var(--space-4)));
   display: grid;
   gap: var(--space-2);
+  z-index: 1100;
+  pointer-events: none;
 }
 
 .message {
+  pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 12px var(--space-4);
+  padding: 10px var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--paper);
-  font-size: var(--fs-body);
-  animation: riseFade 240ms ease both;
+  font-size: var(--fs-helper);
+  box-shadow: var(--shadow-card);
+  animation: toast-slide-in 220ms ease both;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* The reusable JS error banner lives outside the messages region; pin it to
+   the same corner so it reads as a toast rather than an in-flow alert. */
+#js-error-banner {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: min(360px, calc(100vw - 2 * var(--space-4)));
+  z-index: 1100;
+  box-shadow: var(--shadow-card);
 }
 
 .message.success {
@@ -1082,7 +1117,8 @@ h1 {
 }
 
 .document-card-list.compact .document-card {
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: var(--space-3);
   padding: var(--space-3);
 }
 
@@ -1098,9 +1134,20 @@ h1 {
   transition: box-shadow var(--transition), transform var(--transition);
 }
 
+.document-card.is-removing {
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+}
+
 .document-card:hover {
   box-shadow: var(--shadow-card);
   transform: translateY(-1px);
+}
+
+.document-card.is-removing:hover {
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-4px);
 }
 
 .document-card-body {
@@ -1128,6 +1175,10 @@ h1 {
 }
 
 .document-card-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   margin-top: var(--space-3);
   padding-top: var(--space-2);
   border-top: 1px solid var(--line);
@@ -1182,6 +1233,100 @@ h1 {
 .document-thumb.file-jpg,
 .document-thumb.file-png  { background: linear-gradient(135deg, hsl(39 69% 45%), hsl(154 67% 25%)); }
 .document-thumb.file-txt  { background: linear-gradient(135deg, hsl(145 7% 42%), hsl(214 55% 39%)); }
+
+/* ==========================================================================
+   TRANSLATE PAGE — COMPACT LAYOUT (translate.html only, via .translate-page
+   and .document-card-compact; does not affect History's full cards)
+   ========================================================================== */
+.translate-page {
+  padding-top: var(--space-5);
+  padding-bottom: var(--space-5);
+}
+
+.translate-page .page-heading.compact {
+  margin-bottom: var(--space-3);
+}
+
+.translate-page .document-dashboard {
+  gap: var(--space-4);
+}
+
+@media (min-width: 901px) {
+  .translate-page .document-dashboard {
+    grid-template-columns: 250px minmax(0, 1fr) 280px;
+  }
+}
+
+.document-dashboard .recent-sidebar,
+.document-dashboard .workflow-panel,
+.document-dashboard .upload-panel {
+  padding: var(--space-4);
+}
+
+.document-dashboard .drop-zone {
+  min-height: 160px;
+  padding: var(--space-5);
+}
+
+.document-card-list.compact {
+  gap: var(--space-2);
+}
+
+/* "View all history" link under the three newest recent documents. */
+.recent-sidebar .view-all-history {
+  display: inline-block;
+  margin-top: var(--space-3);
+}
+
+.document-card-compact .document-thumb {
+  width: 44px;
+  aspect-ratio: 1 / 1;
+  font-size: 0.625rem;
+}
+
+.document-card-compact .document-card-top {
+  margin-bottom: 2px;
+  gap: var(--space-2);
+}
+
+.document-card-compact .document-card-title {
+  display: block;
+  font-size: var(--fs-body);
+  margin: 0 0 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.document-card-compact .document-card-body p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 0;
+}
+
+/* The status pill collides with the filename at sidebar width; hide it here.
+   History's full cards keep their status pill. */
+.document-card-compact .document-card-top .status-pill {
+  display: none;
+}
+
+.document-card-compact .document-card-action {
+  margin-top: 2px;
+  padding-top: 0;
+  border-top: 0;
+  justify-content: flex-end;
+}
+
+.document-card-compact .document-card-action .button-link::after {
+  content: " \2192";
+}
+
+.document-card-compact .button-sm {
+  min-height: 28px;
+  padding: 5px 10px;
+  font-size: var(--fs-helper);
+}
 
 /* ==========================================================================
    15. HISTORY PAGE
@@ -1445,6 +1590,17 @@ h1 {
 
 .preview-header-actions {
   flex-shrink: 0;
+}
+
+/* Compact back-to-history button on the preview page */
+.preview-back-link {
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: var(--fs-helper);
+}
+
+.preview-page .breadcrumb {
+  margin-bottom: var(--space-3);
 }
 
 .preview-page {
@@ -2095,6 +2251,103 @@ h1 {
 .confirm-delete-actions form { margin: 0; }
 
 /* ==========================================================================
+   19b. REMOVE DOCUMENT MODAL
+   ========================================================================== */
+.remove-document-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: hsl(145 19% 11% / 0.44);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.remove-document-modal.is-visible {
+  opacity: 1;
+}
+
+.remove-document-dialog {
+  width: min(460px, 100%);
+  padding: var(--space-6);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  box-shadow: var(--shadow-lift);
+  transform: translateY(8px) scale(0.98);
+  transition: transform var(--transition);
+}
+
+.remove-document-modal.is-visible .remove-document-dialog {
+  transform: translateY(0) scale(1);
+}
+
+.remove-document-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.remove-document-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-section-title);
+  line-height: var(--lh-heading);
+}
+
+.remove-document-close {
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  background: var(--paper);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.remove-document-close:hover,
+.remove-document-close:focus-visible {
+  color: var(--danger);
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.remove-document-message {
+  margin: 0 0 var(--space-5);
+  color: var(--muted);
+  line-height: var(--lh-body);
+  overflow-wrap: anywhere;
+}
+
+.remove-document-error {
+  margin: 0 0 var(--space-4);
+  padding: 10px var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  background: var(--danger-bg);
+  font-size: var(--fs-helper);
+  font-weight: 700;
+}
+
+.remove-document-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
    20. STAFF HEALTH PAGE
    ========================================================================== */
 .health-layout {
@@ -2392,6 +2645,9 @@ h1 {
   .confirm-delete-card { padding: var(--space-8) var(--space-5); }
   .confirm-delete-actions { flex-direction: column; }
   .confirm-delete-actions .button { width: 100%; }
+  .remove-document-dialog { padding: var(--space-5); }
+  .remove-document-actions { flex-direction: column-reverse; }
+  .remove-document-actions .button { width: 100%; }
 
   .status-timeline { grid-template-columns: 1fr; }
   .timeline-step { grid-template-columns: 32px minmax(0, 1fr); align-items: center; }
@@ -2698,6 +2954,9 @@ details[open] .ocr-warnings-summary::before { transform: rotate(90deg); }
     animation: none;
   }
   .preview-page {
+    animation: none;
+  }
+  .message {
     animation: none;
   }
 }

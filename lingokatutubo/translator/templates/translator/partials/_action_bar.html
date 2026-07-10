@@ -16,8 +16,15 @@
   </div>
 
   <div class="top-action-bar-danger">
-    <a class="button danger-outline" href="{% url 'translator:job_delete_confirm' job.id %}" aria-label="Remove this document from history">
+    <button
+      type="button"
+      class="button danger-outline"
+      data-remove-document
+      data-delete-url="{% url 'translator:job_delete' job.id %}"
+      data-document-title="{{ document_title|default:job.original_filename }}"
+      aria-label="Remove this document from history"
+    >
       Remove
-    </a>
+    </button>
   </div>
 </div>

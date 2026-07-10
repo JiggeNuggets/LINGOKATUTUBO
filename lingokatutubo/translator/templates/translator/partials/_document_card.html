@@ -1,5 +1,5 @@
 {% with job=state.job %}
-<article class="document-card{% if card_compact %} document-card-compact{% endif %}">
+<article class="document-card{% if card_compact %} document-card-compact{% endif %}" data-document-card>
   <div class="document-thumb {{ state.file_icon_class }}" aria-hidden="true">
     {% if state.thumbnail_url %}
       <img src="{{ state.thumbnail_url }}" alt="">
@@ -25,9 +25,25 @@
       <p class="text-muted small">Preview available once processing completes.</p>
     {% endif %}
 
-    {% if state.can_preview %}
+    {% if state.can_preview or show_remove %}
       <div class="document-card-action">
-        <a class="button primary js-preview-link" data-loading-text="Preparing bilingual preview&hellip;" href="{% url 'translator:job_preview' job.id %}" aria-label="Preview bilingual document for {{ state.document_title }}">Preview</a>
+        {% if state.can_preview %}
+          {% if card_compact %}
+            <a class="button-link js-preview-link" data-loading-text="Preparing bilingual preview&hellip;" href="{% url 'translator:job_preview' job.id %}" aria-label="Preview bilingual document for {{ state.document_title }}">Preview</a>
+          {% else %}
+            <a class="button primary js-preview-link" data-loading-text="Preparing bilingual preview&hellip;" href="{% url 'translator:job_preview' job.id %}" aria-label="Preview bilingual document for {{ state.document_title }}">Preview</a>
+          {% endif %}
+        {% endif %}
+        {% if show_remove %}
+          <button
+            type="button"
+            class="button danger-outline{% if card_compact %} button-sm{% endif %}"
+            data-remove-document
+            data-delete-url="{% url 'translator:job_delete' job.id %}"
+            data-document-title="{{ state.document_title }}"
+            aria-label="Remove {{ state.document_title }} from history"
+          >Remove</button>
+        {% endif %}
       </div>
     {% endif %}
   </div>

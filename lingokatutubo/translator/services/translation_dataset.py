@@ -105,6 +105,13 @@ def _normalize_lookup_text(value: str, *, strip_diacritics: bool = False) -> str
     text = clean_invisible_unicode(value).strip().lower()
     if strip_diacritics:
         text = _strip_diacritics(text)
+    # Underscore runs are fill-in-the-blank filler from worksheets/forms
+    # ("Kahibalo ka ba magsulti ug Tagalog? ____________"), not language.
+    # Underscores count as \w so the punctuation strip below keeps them;
+    # convert them to spaces first so normalized variants can match the
+    # dataset phrase. Index keys are built with this same function, so
+    # lookup and index stay consistent.
+    text = re.sub(r"_+", " ", text)
     text = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE)
     text = re.sub(r"\s+", " ", text).strip()
     return text
@@ -124,6 +131,34 @@ def _lookup_variants(value: str) -> List[str]:
     return output
 
 
+# Straight and curly quote characters that extraction may glue onto phrases.
+_QUOTE_CHARS = "\"'“”‘’"
+
+# Sentence boundary for safe re-segmentation of extracted lines: after a
+# terminal mark, before whitespace, a quote character, or an uppercase letter
+# (extraction sometimes drops the space entirely: "masabtan.Makasulti").
+_SENTENCE_BOUNDARY_RE = re.compile(
+    r"(?<=[.?!])(?=[\s\"'“”‘’A-ZÀ-Ý])"
+)
+
+
+def _split_sentence_parts(text: str) -> List[str]:
+    """Split an extracted line into sentence-like lookup candidates.
+
+    Surrounding quotes and whitespace are stripped from each part; parts with
+    no letters or digits (dangling quotes, underscore blanks) are dropped as
+    extraction noise. Returns [] when the line does not split into at least
+    two candidate parts.
+    """
+    parts = []
+    for raw_part in _SENTENCE_BOUNDARY_RE.split(clean_invisible_unicode(text)):
+        candidate = raw_part.strip().strip(_QUOTE_CHARS + " \t").strip()
+        # \w includes underscores, so require a real letter or digit.
+        if re.search(r"[^\W_]", candidate, flags=re.UNICODE):
+            parts.append(candidate)
+    return parts if len(parts) >= 2 else []
+
+
 class TranslationDataset:
     """Manages cross-lingual phrase lookups from the multilingual phrasebook."""
 
@@ -131,6 +166,8 @@ class TranslationDataset:
         self,
         dataset_path: Optional[str] = None,
         include_default_corpus: Optional[bool] = None,
+        include_validated_imports: Optional[bool] = None,
+        validated_imports_dir: Optional[str] = None,
     ):
         default_runtime_dataset = dataset_path is None
         self.include_default_corpus = (
@@ -138,6 +175,15 @@ class TranslationDataset:
             if include_default_corpus is None
             else bool(include_default_corpus)
         )
+        # SME-validated phrasebook exports (datasets/validated/*.csv) join the
+        # runtime dataset additively. Isolated datasets (tests, training
+        # exports) stay unaffected unless they opt in explicitly.
+        self.include_validated_imports = (
+            default_runtime_dataset
+            if include_validated_imports is None
+            else bool(include_validated_imports)
+        )
+        self.validated_imports_dir = validated_imports_dir
 
         if dataset_path is None:
             base = os.path.dirname(__file__)
@@ -226,6 +272,9 @@ class TranslationDataset:
         if self.include_default_corpus:
             self._load_default_text_corpus()
 
+        if self.include_validated_imports:
+            self._load_validated_imports()
+
         # --- Common outcome ---
         if not self.data:
             safe_print(
@@ -287,6 +336,41 @@ class TranslationDataset:
         safe_print(
             f"[Translation] Text corpus loaded: {len(rows)} entries from {corpus_path}"
         )
+
+    def _load_validated_imports(self) -> None:
+        """Append SME-validated phrasebook exports to the runtime dataset.
+
+        Loads every CSV under datasets/validated/ (or the injected directory).
+        Fail-safe by design: a malformed file is logged and skipped so it can
+        never break base dataset loading — the base JSON/corpus always wins.
+        """
+        validated_dir = self.validated_imports_dir
+        if not validated_dir:
+            project_root = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..")
+            )
+            validated_dir = os.path.join(project_root, "datasets", "validated")
+        if not os.path.isdir(validated_dir):
+            return
+
+        for path in sorted(_glob.glob(os.path.join(validated_dir, "*.csv"))):
+            try:
+                rows = self._normalize_rows(self._load_csv(path))
+            except Exception as exc:
+                safe_print(
+                    f"[Translation] WARNING: skipping malformed validated CSV "
+                    f"{path}: {exc}"
+                )
+                continue
+            for row in rows:
+                row.setdefault("source", "validated_import")
+                row.setdefault("dataset_role", "validated_import")
+            if rows:
+                self.data.extend(rows)
+                safe_print(
+                    f"[Translation] Validated imports loaded: {len(rows)} "
+                    f"entries from {path}"
+                )
 
     # ------------------------------------------------------------------
     # File discovery
@@ -485,6 +569,8 @@ class TranslationDataset:
         text: str,
         source_lang: str = "english",
         target_lang: str = "tagabawa",
+        *,
+        _allow_segmentation: bool = True,
     ) -> Dict:
         """
         Translate text and return frontend/API metadata.
@@ -540,8 +626,63 @@ class TranslationDataset:
                     1.0,
                 )
 
+        # 2. Whole-line lookup missed: extraction sometimes fuses two dataset
+        # sentences into one line ("masabtan.Makasulti...") or merges a
+        # question with its quoted answer. Split on sentence boundaries and
+        # translate the parts — but only claim a translation when EVERY
+        # linguistic part matches the dataset. A line with any unmatched part
+        # stays original and flagged, so segmentation can never invent text.
+        if _allow_segmentation:
+            segmented = self._translate_segmented(original, source_lang, target_lang)
+            if segmented is not None:
+                return segmented
+
         self._log_lookup("unknown_for_review", source_lang, target_lang, False)
         return _translation_result(original, "unknown_for_review", 0.0, True)
+
+    def _translate_segmented(
+        self,
+        original: str,
+        source_lang: str,
+        target_lang: str,
+    ) -> Optional[Dict]:
+        """Translate a fused multi-sentence line part by part, or None.
+
+        Returns a segmented_phrase result only when every part resolves via
+        exact_phrase/normalized_phrase. Any unknown part means the caller
+        keeps the whole-line unknown_for_review marker — partial hybrid
+        output is deliberately not produced, so unknown text always remains
+        original and review-flagged.
+        """
+        parts = _split_sentence_parts(original)
+        if not parts:
+            return None
+
+        translated_parts: List[str] = []
+        for part in parts:
+            result = self.translate_phrase_with_metadata(
+                part,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                _allow_segmentation=False,
+            )
+            if result["method"] not in {"exact_phrase", "normalized_phrase"}:
+                return None
+            translated_parts.append(result["translated"])
+
+        self._log_lookup(
+            "segmented_phrase",
+            source_lang,
+            target_lang,
+            True,
+            key=" / ".join(parts)[:80],
+        )
+        return _translation_result(
+            " ".join(translated_parts),
+            "segmented_phrase",
+            1.0,
+            False,
+        )
 
     @staticmethod
     def _log_lookup(

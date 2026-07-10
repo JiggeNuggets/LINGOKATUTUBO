@@ -1,3 +1,4 @@
+import csv
 import json
 import sys
 import tempfile
@@ -498,17 +499,18 @@ class TranslatorAuthAndJobTests(TestCase):
         self.assertNotIn("Needs Review", body)
         self.assertNotIn("Needs review", body)
 
-        # Staff: same content, plus the technical segment table showing the
-        # known segment's method/confidence and the unknown segment flagged
-        # for review with its original text (never fabricated).
+        # Staff: the preview is intentionally the same clean UI for all
+        # users — same content, no technical segment table, methods, or
+        # review markers.
         self.alice.is_staff = True
         self.alice.save(update_fields=["is_staff"])
         staff_response = self.client.get(reverse("translator:job_preview", args=[job.id]))
         staff_body = staff_response.content.decode("utf-8")
         self.assertIn("Madigár", staff_body)
-        self.assertIn("exact_phrase", staff_body)
         self.assertIn("This sentence is not in the dataset.", staff_body)
-        self.assertIn("needs-review", staff_body)
+        self.assertNotIn("exact_phrase", staff_body)
+        self.assertNotIn("needs-review", staff_body)
+        self.assertNotIn("View Segment Details", staff_body)
 
     def test_preview_renders_translated_panel_when_translated_preview_missing(self):
         job = self._create_job(self.alice, status=TranslationJob.Status.COMPLETED)
@@ -551,7 +553,9 @@ class TranslatorAuthAndJobTests(TestCase):
         # other — pages are aligned by page number in a single shared flow.
         self.assertNotIn(".document-panel-body", css)
 
-    def test_preview_renders_fit_width_zoom_controls(self):
+    def test_preview_renders_fit_width_without_zoom_controls(self):
+        """Clean preview: the fit-width layout still applies by default, but
+        the zoom toolbar is intentionally removed for all users."""
         job = self._create_job(self.alice, status=TranslationJob.Status.COMPLETED)
         self.client.force_login(self.alice)
 
@@ -560,11 +564,12 @@ class TranslatorAuthAndJobTests(TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
         self.assertIn('data-preview-scope', body)
-        self.assertIn('data-preview-zoom-action="fit"', body)
-        self.assertIn("Fit Width", body)
-        self.assertIn("Zoom In", body)
-        self.assertIn("Zoom Out", body)
-        self.assertIn("Reset Zoom", body)
+        self.assertIn("is-fit-width", body)
+        self.assertNotIn('data-preview-zoom-action', body)
+        self.assertNotIn("Fit Width", body)
+        self.assertNotIn("Zoom In", body)
+        self.assertNotIn("Zoom Out", body)
+        self.assertNotIn("Reset Zoom", body)
 
     def test_preview_page_count_uses_pipeline_metadata_when_images_missing(self):
         job = self._create_job(self.alice, status=TranslationJob.Status.COMPLETED)
@@ -580,12 +585,16 @@ class TranslatorAuthAndJobTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("3 pages", body)
+        # Page rows still derive from pipeline metadata; the page-count
+        # badge itself is intentionally removed from the clean preview.
+        self.assertNotIn("3 pages", body)
+        self.assertNotIn("segment-count-badge", body)
         self.assertIn("Original page 3", body)
         self.assertIn("Translated page 3", body)
 
-    def test_preview_segment_details_visible_to_staff(self):
-        """Staff/admin still get the full technical segment table."""
+    def test_preview_segment_details_hidden_for_staff(self):
+        """Clean preview: the technical segment table is intentionally
+        removed for all users, staff/admin included."""
         job = self._create_job(self.alice, status=TranslationJob.Status.COMPLETED)
         TranslationSegment.objects.create(
             job=job,
@@ -606,11 +615,13 @@ class TranslatorAuthAndJobTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("View Segment Details", body)
-        self.assertIn("Bilingual aligned segment details", body)
-        self.assertIn("phrasebook_exact", body)
-        self.assertIn("Confidence 0.88", body)
-        self.assertIn("Needs review", body)
+        self.assertNotIn("View Segment Details", body)
+        self.assertNotIn("Bilingual aligned segment details", body)
+        self.assertNotIn("phrasebook_exact", body)
+        self.assertNotIn("Confidence 0.88", body)
+        self.assertNotIn("Needs review", body)
+        self.assertIn("Original Document", body)
+        self.assertIn("Translated Document", body)
 
     def test_history_empty_state_has_upload_cta(self):
         self.client.force_login(self.alice)
@@ -857,18 +868,20 @@ class TranslatorAuthAndJobTests(TestCase):
 
         self.assertEqual(preview_response.status_code, 200)
         preview_body = preview_response.content.decode("utf-8")
-        # Preview's technical summary strip (confidence %, raw counts) is staff-only.
+        # The clean preview intentionally carries no quality summary at all —
+        # no counts, no review labels, no review note (review messaging lives
+        # on the Job Details page instead).
         self.assertNotIn("1 of 2", preview_body)
         self.assertNotIn("Needs Review", preview_body)
-        # Normal users still get a plain-language review note on the preview page.
-        self.assertIn(
+        self.assertNotIn(
             "Some text may remain unchanged because it was not found in the "
             "validated translation dataset and may need review.",
             preview_body,
         )
 
     def test_phase_5b_translation_quality_technical_counts_visible_to_staff(self):
-        """Staff/admin still see the exact Needs Review counts and segment table."""
+        """Staff/admin still see the exact Needs Review counts on Job Details;
+        the preview page is intentionally clean for staff too."""
         job = self._create_job(self.alice, status=TranslationJob.Status.COMPLETED)
         TranslationSegment.objects.create(
             job=job,
@@ -905,8 +918,8 @@ class TranslatorAuthAndJobTests(TestCase):
 
         self.assertEqual(preview_response.status_code, 200)
         preview_body = preview_response.content.decode("utf-8")
-        self.assertIn("Translation Details", preview_body)
-        self.assertIn("1 of 2", preview_body)
+        self.assertNotIn("Translation Details", preview_body)
+        self.assertNotIn("1 of 2", preview_body)
 
     def test_phase_5b_quality_summary_is_exposed_by_status_and_preview_api(self):
         job = self._create_job(self.alice, status=TranslationJob.Status.COMPLETED)
@@ -1212,16 +1225,23 @@ class TranslatorPhase4SystemTests(TestCase):
             username="sysbob", email="sysbob@example.test", password=self.password
         )
 
-    def _create_job(self, owner, status="completed", metadata=None):
+    def _create_job(self, owner, status="completed", metadata=None, original_filename="test_doc.pdf"):
         return TranslationJob.objects.create(
             owner=owner,
-            original_filename="test_doc.pdf",
+            original_filename=original_filename,
             file_type="pdf",
             status=status,
             source_language="english",
             target_language="tagabawa",
             metadata=metadata or {},
         )
+
+    def _write_job_file(self, job, *parts_and_content):
+        *parts, content = parts_and_content
+        path = self.media_root.joinpath("jobs", job.job_id, *parts)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return path
 
     def test_scanned_pdf_uses_ocr_automatically(self):
         from translator.services.detection_service import DetectionService, DetectionType
@@ -1601,6 +1621,49 @@ class TranslatorPhase4SystemTests(TestCase):
         self.client.force_login(self.alice)
         response = self.client.get(reverse("translator:job_delete", args=[job.id]))
         self.assertEqual(response.status_code, 405)
+        job.refresh_from_db()
+        self.assertFalse(job.is_deleted)
+
+    def test_ajax_delete_returns_json_ok(self):
+        job = self._create_job(self.alice, original_filename="ajax_remove.pdf")
+        self.client.force_login(self.alice)
+
+        response = self.client.post(
+            reverse("translator:job_delete", args=[job.id]),
+            HTTP_ACCEPT="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/json")
+        self.assertJSONEqual(
+            response.content,
+            {"ok": True, "message": "Document removed from history."},
+        )
+        job.refresh_from_db()
+        self.assertTrue(job.is_deleted)
+
+    def test_deleting_one_job_does_not_break_other_preview_or_download(self):
+        deleted_job = self._create_job(self.alice, original_filename="remove_me.pdf")
+        kept_job = self._create_job(
+            self.alice,
+            status=TranslationJob.Status.COMPLETED,
+            original_filename="keep_available.pdf",
+        )
+        output_path = self._write_job_file(kept_job, "translated.pdf", b"%PDF-1.4\n%%EOF")
+        kept_job.output_file_path = str(output_path)
+        kept_job.save(update_fields=["output_file_path"])
+        self.client.force_login(self.alice)
+
+        self.client.post(reverse("translator:job_delete", args=[deleted_job.id]))
+
+        preview_response = self.client.get(reverse("translator:job_preview", args=[kept_job.id]))
+        download_response = self.client.get(reverse("translator:job_download", args=[kept_job.id]))
+
+        self.assertEqual(preview_response.status_code, 200)
+        self.assertEqual(download_response.status_code, 200)
+        self.assertEqual(download_response.headers["Content-Type"], "application/pdf")
+        download_response.close()
 
     def test_admin_extraction_method_display_handles_missing_metadata(self):
         from translator.admin import TranslationJobAdmin
@@ -1868,7 +1931,9 @@ class TranslatorUploadValidationTests(TestCase):
 
 
 class TranslatorPreviewPaginationTests(TestCase):
-    """Verify that the bilingual preview paginates segments correctly."""
+    """The clean preview no longer renders the technical segment table or its
+    pagination for anyone; these tests verify the full document text still
+    renders and no pagination artifacts leak through."""
 
     password = "Bagobo-Paginate-2026!"
 
@@ -1912,15 +1977,10 @@ class TranslatorPreviewPaginationTests(TestCase):
             for i in range(count)
         ])
 
-    def test_preview_first_page_shows_first_25_segments(self):
-        """The staff-only technical segment table paginates at 25 rows.
-
-        Note: the normal-user-facing Original/Translated panels intentionally
-        show the full concatenated document text regardless of this
-        pagination, so "Source segment 26" existing elsewhere on the page is
-        expected — only the table's own page window and nav label matter
-        here.
-        """
+    def test_preview_shows_full_document_text_without_table_pagination(self):
+        """The Original/Translated panels show the full concatenated document
+        text; the removed segment table's 25-row pagination no longer windows
+        or labels anything."""
         job = self._create_completed_job()
         self._bulk_create_segments(job, 30)
         self.client.force_login(self.alice)
@@ -1931,9 +1991,11 @@ class TranslatorPreviewPaginationTests(TestCase):
         body = response.content.decode("utf-8")
         self.assertIn("Source segment 1", body)
         self.assertIn("Source segment 25", body)
-        self.assertIn("Page 1 of 2", body)
+        self.assertIn("Source segment 30", body)
+        self.assertNotIn("Page 1 of 2", body)
 
-    def test_preview_second_page_shows_remaining_segments(self):
+    def test_preview_page_query_param_is_harmless(self):
+        """A stale ?page=2 link still renders the same clean preview safely."""
         job = self._create_completed_job()
         self._bulk_create_segments(job, 30)
         self.client.force_login(self.alice)
@@ -1944,11 +2006,10 @@ class TranslatorPreviewPaginationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("Source segment 26", body)
         self.assertIn("Source segment 30", body)
-        self.assertIn("Page 2 of 2", body)
+        self.assertNotIn("Page 2 of 2", body)
 
-    def test_preview_total_segment_count_shown_correctly(self):
+    def test_preview_total_segment_count_badge_not_shown(self):
         job = self._create_completed_job()
         self._bulk_create_segments(job, 30)
         self.client.force_login(self.alice)
@@ -1956,8 +2017,8 @@ class TranslatorPreviewPaginationTests(TestCase):
         response = self.client.get(reverse("translator:job_preview", args=[job.id]))
 
         body = response.content.decode("utf-8")
-        # Total segments badge should show 30, not just the current page count (25)
-        self.assertIn("30 segments", body)
+        # The "30 segments" badge belonged to the removed technical panel.
+        self.assertNotIn("30 segments", body)
 
     def test_preview_no_pagination_for_small_document(self):
         job = self._create_completed_job()
@@ -2275,7 +2336,9 @@ class TranslatorUIRefreshTests(TestCase):
         self.assertIn("document-card-action", body)
         self.assertIn(">Preview<", body)
         self.assertIn(">Remove<", body)
-        self.assertIn(reverse("translator:job_delete_confirm", args=[job.id]), body)
+        self.assertIn("data-remove-document", body)
+        self.assertIn(f'data-delete-url="{reverse("translator:job_delete", args=[job.id])}"', body)
+        self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', body)
         self.assertNotIn(">Download<", body)
 
     def test_processing_job_history_card_has_remove_but_no_preview_link(self):
@@ -2288,7 +2351,9 @@ class TranslatorUIRefreshTests(TestCase):
         body = response.content.decode("utf-8")
         self.assertNotIn(">Preview<", body)
         self.assertIn(">Remove<", body)
-        self.assertIn(reverse("translator:job_delete_confirm", args=[job.id]), body)
+        self.assertIn("data-remove-document", body)
+        self.assertIn(f'data-delete-url="{reverse("translator:job_delete", args=[job.id])}"', body)
+        self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', body)
         self.assertIn("Preview available once processing completes.", body)
 
     def test_translate_page_shows_file_required_message_with_disabled_button(self):
@@ -2320,10 +2385,12 @@ class TranslatorUIRefreshTests(TestCase):
         body = response.content.decode("utf-8")
         self.assertNotIn(">Preview<", body)
         self.assertIn(">Remove<", body)
-        self.assertIn(reverse("translator:job_delete_confirm", args=[job.id]), body)
+        self.assertIn("data-remove-document", body)
+        self.assertIn(f'data-delete-url="{reverse("translator:job_delete", args=[job.id])}"', body)
+        self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', body)
         self.assertIn("Translation failed safely.", body)
 
-    def test_completed_job_recent_sidebar_card_shows_preview_only(self):
+    def test_completed_job_recent_sidebar_card_shows_preview_and_remove(self):
         self._create_job(TranslationJob.Status.COMPLETED)
         self.client.force_login(self.alice)
 
@@ -2333,7 +2400,31 @@ class TranslatorUIRefreshTests(TestCase):
         body = response.content.decode("utf-8")
         self.assertIn(">Preview<", body)
         self.assertNotIn(">Download<", body)
-        self.assertNotIn(">Remove<", body)
+        self.assertIn(">Remove<", body)
+        self.assertIn("data-remove-document", body)
+
+    def test_translate_recent_documents_remain_limited_to_three_with_remove_controls(self):
+        for _index in range(4):
+            self._create_job(TranslationJob.Status.COMPLETED)
+        self.client.force_login(self.alice)
+
+        response = self.client.get(reverse("translator:translate"))
+
+        body = response.content.decode("utf-8")
+        self.assertEqual(len(response.context["recent_jobs"]), 3)
+        self.assertEqual(body.count("data-document-card"), 3)
+        self.assertEqual(body.count("data-remove-document"), 3)
+
+    def test_app_js_contains_remove_modal_fetch_flow(self):
+        app_js = Path(settings.BASE_DIR) / "static" / "js" / "app.js"
+        script = app_js.read_text(encoding="utf-8")
+
+        self.assertIn("function initDocumentRemoveModal()", script)
+        self.assertIn('event.target.closest("[data-remove-document]")', script)
+        self.assertIn("fetch(deleteUrl", script)
+        self.assertIn('"X-CSRFToken": csrfToken()', script)
+        self.assertIn('event.key === "Escape"', script)
+        self.assertIn('showStatusMessage(data.message || "Document removed from history."', script)
 
     # ---- Phase 2: completion notification ----
 
@@ -2399,7 +2490,9 @@ class TranslatorUIRefreshTests(TestCase):
         bar_html = body[body.index('class="top-action-bar"'):body.index('class="job-detail-layout"')]
         self.assertIn("History", bar_html)
         self.assertIn("Preview Bilingual", bar_html)
-        self.assertIn(reverse("translator:job_delete_confirm", args=[job.id]), bar_html)
+        self.assertIn("data-remove-document", bar_html)
+        self.assertIn(f'data-delete-url="{reverse("translator:job_delete", args=[job.id])}"', bar_html)
+        self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', bar_html)
 
     def test_top_action_bar_shows_download_only_when_output_exists(self):
         job_no_output = self._create_job(TranslationJob.Status.COMPLETED)
@@ -2438,7 +2531,9 @@ class TranslatorUIRefreshTests(TestCase):
         self.assertNotIn("Preview Bilingual", bar_html)
         self.assertNotIn(">Download<", bar_html)
         # The danger action stays available regardless of job status.
-        self.assertIn(reverse("translator:job_delete_confirm", args=[job.id]), bar_html)
+        self.assertIn("data-remove-document", bar_html)
+        self.assertIn(f'data-delete-url="{reverse("translator:job_delete", args=[job.id])}"', bar_html)
+        self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', bar_html)
 
     # ---- Phase 3: preview loading-state hook ----
 
@@ -2540,10 +2635,49 @@ class TranslatorUIRefreshTests(TestCase):
         row_one = body.index("Page 1 comparison")
         row_two = body.index("Page 2 comparison")
         self.assertLess(row_one, row_two)
-        # Top actions (History / Job Details) must still be reachable
-        # without scrolling past the page rows.
-        self.assertIn("Job Details", body)
-        self.assertLess(body.index("Job Details"), row_one)
+        # The History back button must still be reachable without scrolling
+        # past the page rows. Job Details is intentionally removed from the
+        # clean preview for all users.
+        self.assertIn("preview-back-link", body)
+        self.assertLess(body.index("preview-back-link"), row_one)
+        self.assertNotIn("Job Details", body)
+
+    def test_preview_clean_ui_shows_core_elements_for_all_users(self):
+        """The clean preview shows exactly its core elements — History back
+        button, filename, Download, and the original/translated panels — and
+        renders identically for normal and staff users."""
+        job = self._create_job(TranslationJob.Status.COMPLETED)
+        out = self.media_root / "jobs" / job.job_id / "translated.pdf"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"%PDF-1.4\n%%EOF")
+        job.output_file_path = str(out)
+        job.save(update_fields=["output_file_path"])
+
+        for is_staff in (False, True):
+            self.alice.is_staff = is_staff
+            self.alice.save(update_fields=["is_staff"])
+            self.client.force_login(self.alice)
+
+            response = self.client.get(reverse("translator:job_preview", args=[job.id]))
+
+            self.assertEqual(response.status_code, 200)
+            body = response.content.decode("utf-8")
+            role = "staff" if is_staff else "normal"
+            self.assertIn("preview-back-link", body,
+                          f"{role}: History back button must be present")
+            self.assertIn("ui_refresh.pdf", body,
+                          f"{role}: filename must be shown")
+            self.assertIn("Download Translated PDF", body,
+                          f"{role}: download action must be available")
+            self.assertIn("Original Document", body,
+                          f"{role}: original panel must be present")
+            self.assertIn("Translated Document", body,
+                          f"{role}: translated panel must be present")
+            for removed in ("Job Details", "Fit Width", "Zoom In", "Zoom Out",
+                            "Reset Zoom", "View Segment Details", "Language Pair",
+                            "OCR Confidence", "may need review", "segment-count-badge"):
+                self.assertNotIn(removed, body,
+                                 f"{role}: '{removed}' is intentionally removed from the clean preview")
 
 
 class TranslatorDocxPaginationTests(TestCase):
@@ -5224,7 +5358,9 @@ class AppendixDOCRTests(TestCase):
 
     # ------------------------------------------------------------------ TC-D06
     def test_tc_d06_low_confidence_is_marked_for_review(self):
-        """Low OCR confidence (< 0.60) triggers has_low_quality_warning=True; preview page renders the warning section."""
+        """Low OCR confidence (< 0.60) still triggers has_low_quality_warning=True
+        in the OCR service; the clean preview intentionally renders no warning
+        box for anyone (staff included) — the metadata stays on the job."""
         from translator.services.ocr_stage.ocr_service import OCRService
 
         pages_data = [{"blocks": [{"confidence": 0.40}]}]
@@ -5244,16 +5380,18 @@ class AppendixDOCRTests(TestCase):
                 "ocr_warnings": [warning_msg],
             },
         )
-        # Raw OCR warning text is technical detail — staff/admin only.
         self.alice.is_staff = True
         self.alice.save(update_fields=["is_staff"])
         self.client.force_login(self.alice)
         response = self.client.get(reverse("translator:preview", args=[job.id]))
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Low OCR confidence detected", response.content,
-                      "Preview page must display OCR low-confidence warning from job metadata")
-        self.assertIn(b"warning-box", response.content,
-                      "Preview page must render the warning-box section for low-confidence OCR jobs")
+        self.assertNotIn(b"Low OCR confidence detected", response.content,
+                         "The clean preview must not display raw OCR warnings, even to staff")
+        self.assertNotIn(b"warning-box", response.content,
+                         "The clean preview must not render the warning-box section")
+        # The warning is still preserved untouched in job metadata.
+        job.refresh_from_db()
+        self.assertEqual(job.metadata["ocr_warnings"], [warning_msg])
 
     def test_tc_d06_low_confidence_warning_hidden_from_normal_user(self):
         """Normal users never see the raw OCR warning box or its message."""
@@ -6001,8 +6139,9 @@ class AppendixFBilingualPreviewTests(TestCase):
         self.assertNotIn("FAKE_PREVIEW_TEXT_XYZ_HARDCODED", body,
                          "Preview must not contain any hardcoded demo text not stored in TranslationSegment")
 
-    def test_tc_f01_segment_count_badge_visible_to_staff(self):
-        """Staff/admin see the exact segment count badge in the technical panel."""
+    def test_tc_f01_segment_count_badge_hidden_on_clean_preview(self):
+        """The segment-count badge is intentionally removed from the clean
+        preview for all users, staff/admin included."""
         job = self._create_job(self.alice)
         self._create_segment(job, 1, "Madigár source Alpha", "Allus kó translation Alpha", confidence=1.0)
         self._create_segment(job, 2, "Madigár source Beta", "Unsad kó translation Beta", confidence=0.95)
@@ -6014,13 +6153,16 @@ class AppendixFBilingualPreviewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("2 segments", body,
-                      "Segment count badge must reflect the actual number of TranslationSegment records (2)")
+        self.assertNotIn("2 segments", body,
+                         "The clean preview must not show a segment-count badge, even to staff")
+        self.assertNotIn("segment-count-badge", body,
+                         "The clean preview must not render any count badges")
 
     # ------------------------------------------------------------------ TC-F02
-    def test_tc_f02_source_and_target_languages_are_displayed(self):
-        """Preview info panel shows a Language Pair row with the exact source_language and target_language
-        values stored on TranslationJob — not hardcoded labels."""
+    def test_tc_f02_language_pair_not_displayed_on_clean_preview(self):
+        """The summary strip (including the Language Pair row) is intentionally
+        removed from the clean preview for all users. Language metadata remains
+        on the job record and the Job Details page."""
         job = self._create_job(self.alice, source_language="cebuano", target_language="filipino")
         self.client.force_login(self.alice)
 
@@ -6028,12 +6170,14 @@ class AppendixFBilingualPreviewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("Language Pair", body,
-                      "Preview info panel must include a 'Language Pair' label")
-        self.assertIn("cebuano", body,
-                      "Preview must display the job's source_language value ('cebuano') from the DB")
-        self.assertIn("filipino", body,
-                      "Preview must display the job's target_language value ('filipino') from the DB")
+        self.assertNotIn("Language Pair", body,
+                         "The clean preview must not show the 'Language Pair' summary row")
+        self.assertNotIn("preview-summary-strip", body,
+                         "The clean preview must not render the technical summary strip")
+        # The languages are still stored untouched on the job itself.
+        job.refresh_from_db()
+        self.assertEqual(job.source_language, "cebuano")
+        self.assertEqual(job.target_language, "filipino")
 
     # ------------------------------------------------------------------ TC-F03
     def test_tc_f03_segments_remain_aligned_and_ordered(self):
@@ -6097,11 +6241,12 @@ class AppendixFBilingualPreviewTests(TestCase):
                          "Normal users must not see the technical 'Needs review' badge")
         self.assertNotIn("Needs Review", body,
                          "Normal users must not see technical review summary labels")
-        self.assertIn(
+        self.assertNotIn(
             "Some text may remain unchanged because it was not found in the "
             "validated translation dataset and may need review.",
             body,
-            "Normal users must see a plain-language review note when segments are unmatched",
+            "The review note is intentionally absent from the clean preview "
+            "(review messaging lives on the Job Details page)",
         )
         self.assertIn("Completely unknown phrase A", body,
                       "Source text must remain visible even when the translation is unknown")
@@ -6110,8 +6255,9 @@ class AppendixFBilingualPreviewTests(TestCase):
         self.assertNotIn("invented translation placeholder", body,
                          "The preview must never fabricate a translation for unmatched phrases")
 
-    def test_tc_f04_needs_review_badge_visible_to_staff(self):
-        """Staff/admin still see the per-segment 'Needs review' badge."""
+    def test_tc_f04_needs_review_badge_hidden_on_clean_preview(self):
+        """The per-segment 'Needs review' badge is intentionally removed from
+        the clean preview for all users, staff/admin included."""
         job = self._create_job(self.alice)
         self._create_segment(
             job, 1,
@@ -6129,14 +6275,14 @@ class AppendixFBilingualPreviewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("Needs review", body)
+        self.assertNotIn("Needs review", body)
 
     # ------------------------------------------------------------------ TC-F05
-    def test_tc_f05_low_ocr_confidence_warning_is_displayed(self):
-        """OCR confidence is stored at job/page level, NOT per-segment. The preview sidebar shows the
-        job-level percentage. High-confidence OCR shows the percentage but no '⚠ Low' badge.
-        Direct-extraction jobs (direct_pdf_text) do not show the OCR Confidence row at all."""
-        # Part A: OCR job with high confidence — shows percentage, no ⚠ Low badge on PREVIEW page
+    def test_tc_f05_ocr_confidence_not_displayed_on_clean_preview(self):
+        """OCR confidence is stored at job/page level, NOT per-segment — but the
+        clean preview intentionally shows no OCR Confidence row to anyone
+        (staff included), for OCR and direct-extraction jobs alike."""
+        # Part A: OCR job with high confidence — row absent on the clean preview
         ocr_job = self._create_job(
             self.alice,
             metadata={
@@ -6150,14 +6296,14 @@ class AppendixFBilingualPreviewTests(TestCase):
         ocr_response = self.client.get(reverse("translator:job_preview", args=[ocr_job.id]))
         self.assertEqual(ocr_response.status_code, 200)
         ocr_body = ocr_response.content.decode("utf-8")
-        self.assertIn("OCR Confidence", ocr_body,
-                      "Preview sidebar must show 'OCR Confidence' row for jobs with extraction_method=ocr_image")
-        self.assertIn("92%", ocr_body,
-                      "Preview sidebar must display the stored OCR confidence percentage (92%)")
+        self.assertNotIn("OCR Confidence", ocr_body,
+                         "The clean preview must not show the 'OCR Confidence' row, even to staff")
+        self.assertNotIn("92%", ocr_body,
+                         "The clean preview must not show the OCR confidence percentage")
         self.assertNotIn("⚠ Low", ocr_body,
-                         "High-confidence OCR (0.92) must NOT display the '⚠ Low' badge in the preview")
+                         "The clean preview must not show OCR quality badges")
 
-        # Part B: Direct PDF extraction job — OCR Confidence row must be absent on PREVIEW page
+        # Part B: Direct PDF extraction job — likewise absent
         digital_job = self._create_job(
             self.alice,
             metadata={"extraction_method": "direct_pdf_text"},
@@ -6166,8 +6312,7 @@ class AppendixFBilingualPreviewTests(TestCase):
         self.assertEqual(digital_response.status_code, 200)
         digital_body = digital_response.content.decode("utf-8")
         self.assertNotIn("OCR Confidence", digital_body,
-                         "Preview sidebar must NOT show 'OCR Confidence' row for direct-extraction "
-                         "(digital PDF) jobs — OCR was never run on these documents")
+                         "The clean preview must not show 'OCR Confidence' for direct-extraction jobs")
 
     # ------------------------------------------------------------------ TC-F06
     def test_tc_f06_unfinished_and_failed_jobs_cannot_preview(self):
@@ -6230,8 +6375,10 @@ class AppendixFBilingualPreviewTests(TestCase):
         self.assertNotIn("Segment 1", body,
                          "Zero-segment preview must not fabricate or display any segment rows")
 
-    def test_tc_f_empty_segment_collection_technical_empty_state_for_staff(self):
-        """Staff/admin see the technical segment table's own empty-state copy."""
+    def test_tc_f_empty_segment_collection_no_technical_empty_state_for_staff(self):
+        """The technical segment panel (and its empty-state copy) is
+        intentionally removed from the clean preview for all users; staff see
+        the same safe empty state as everyone else."""
         job = self._create_job(self.alice)
         self.alice.is_staff = True
         self.alice.save(update_fields=["is_staff"])
@@ -6241,7 +6388,8 @@ class AppendixFBilingualPreviewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("No translated segments available yet", body)
+        self.assertNotIn("No translated segments available yet", body)
+        self.assertIn("No translated preview available", body)
 
     # ------------------------------------------------------------------ Additional: unauthenticated access requires login
     def test_tc_f_unauthenticated_preview_requires_login(self):
@@ -8539,9 +8687,10 @@ class TranslatorNeuralPreviewDisplayTests(TestCase):
             target_language="english",
         )
 
-    def test_preview_displays_byt5_method_and_needs_review_badge(self):
-        """Staff/admin see the ByT5 method badge and review marker; normal
-        users never see internal method names like byt5_neural."""
+    def test_preview_hides_byt5_method_and_review_badge_for_staff(self):
+        """The clean preview shows the translated text but no ByT5 method
+        badge, review marker, or confidence markers — for staff too. Internal
+        method names like byt5_neural never render for anyone."""
         from translator.services.neural_translation_service import NEURAL_METHOD
 
         job = self._create_job()
@@ -8564,12 +8713,13 @@ class TranslatorNeuralPreviewDisplayTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("ByT5 Neural Translation", body)
-        self.assertIn("Needs review", body)
         self.assertIn("Good day", body)
-        self.assertIn("No confidence score", body)
+        self.assertNotIn("ByT5 Neural Translation", body)
+        self.assertNotIn("byt5_neural", body)
+        self.assertNotIn("Needs review", body)
+        self.assertNotIn("No confidence score", body)
         # No fabricated confidence score should ever be rendered for a
-        # confidence=None segment (the confidence-badge <p> is conditional).
+        # confidence=None segment.
         self.assertNotIn("confidence-badge", body)
 
     def test_preview_hides_byt5_method_name_from_normal_user(self):
@@ -8832,21 +8982,24 @@ class AppendixKBilingualPreviewUXTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        # Allowed for normal users: filename, status, languages, simple
-        # confidence summary, original/translated panels, download/back.
+        # The clean preview shows only: back button, filename, download (when
+        # available), and the original/translated panels.
         self.assertIn("clean.pdf", body)
-        self.assertIn("Completed", body)
-        self.assertIn("english", body)
-        self.assertIn("tagabawa", body)
         self.assertIn("Original Document", body)
         self.assertIn("Translated Document", body)
-        self.assertIn("Back to History", body)
-        # Hidden from normal users: technical/debug surfaces.
+        self.assertIn("preview-back-link", body)
+        self.assertIn("Visiting", body)
+        self.assertIn("Pagdalaw", body)
+        # Hidden from everyone: technical/debug surfaces.
         self.assertNotIn("View Segment Details", body)
         self.assertNotIn("byt5_neural", body)
         self.assertNotIn("Technical Details", body)
         self.assertNotIn("OCR Confidence", body)
         self.assertNotIn("badge-method", body)
+        self.assertNotIn("Job Details", body)
+        self.assertNotIn("Fit Width", body)
+        self.assertNotIn("segment-count-badge", body)
+        self.assertNotIn("may need review", body)
 
 
 class AppendixLJsonApiTests(TestCase):
@@ -9388,4 +9541,735 @@ class TranslationPunctuationPreservationTests(TestCase):
             "unknown_for_review must return the original text verbatim, punctuation included",
         )
         self.assertNotEqual(result["translated"], UNKNOWN_FOR_REVIEW)
+        self.assertTrue(result["needs_review"])
+
+
+class LanguageAutoDetectHeuristicTests(TestCase):
+    """Plan B auto-detect fixes.
+
+    langdetect ships no Cebuano profile, so Cebuano needs a marker-word
+    heuristic; and the Tagabawa dictionary check must not fire on short
+    Filipino/English text that shares a single common particle with the
+    Tagabawa word set. These tests pin both behaviors with a small fixed
+    Tagabawa vocabulary so they do not depend on the runtime dataset files.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # langdetect seeds its detector randomly per process; pin it so the
+        # langdetect-backed assertions below are deterministic.
+        try:
+            from langdetect import DetectorFactory
+
+            DetectorFactory.seed = 0
+        except ImportError:
+            pass
+
+    def _service(self):
+        from translator.services.language_detection_service import (
+            LanguageDetectionService,
+        )
+
+        fake_dataset = SimpleNamespace(
+            is_loaded=True,
+            data=[
+                # Realistic shape: whole Tagabawa phrases, including the
+                # particles "ka"/"ko" that Filipino shares. The old >0.30
+                # ratio rule let a single shared particle classify a short
+                # Filipino caption as Tagabawa.
+                {"tagabawa_source": "Madigar allow"},
+                {"tagabawa_source": "Sadan ka"},
+                {"tagabawa_source": "Yakan ko dad"},
+            ],
+        )
+        return LanguageDetectionService(fake_dataset)
+
+    def test_cebuano_sentence_detects_as_cebuano(self):
+        result = self._service().detect_language(
+            "Maayong buntag kaninyong tanan, kumusta na man mo karon?"
+        )
+        self.assertEqual(result["language"], "cebuano")
+        self.assertEqual(result["method"], "cebuano_markers")
+        self.assertGreaterEqual(result["confidence"], 0.5)
+
+    def test_cebuano_short_caption_detects_as_cebuano(self):
+        result = self._service().detect_language("Lami kaayo ang pagkaon")
+        self.assertEqual(result["language"], "cebuano")
+
+    def test_filipino_short_phrase_must_not_detect_as_tagabawa(self):
+        # "ko" is in the Tagabawa word set; before the fix this caption hit
+        # ratio 1/3 > 0.30 and was misclassified as Tagabawa, which then made
+        # tagabawa-target jobs return identity "translations" with no review
+        # flag.
+        result = self._service().detect_language("Ang pamilya ko")
+        self.assertNotEqual(result["language"], "tagabawa")
+        self.assertEqual(result["language"], "filipino")
+
+    def test_filipino_sentence_with_shared_weak_markers_stays_filipino(self):
+        # "inyong"/"man"/"mo"/"nga" also occur in Filipino; weak markers
+        # alone must never classify text as Cebuano.
+        result = self._service().detect_language(
+            "Magandang umaga po sa inyong lahat, kumusta na kayo?"
+        )
+        self.assertEqual(result["language"], "filipino")
+
+    def test_english_sentence_detects_as_english(self):
+        result = self._service().detect_language(
+            "Good morning, how are you today my friend?"
+        )
+        self.assertEqual(result["language"], "english")
+
+    def test_english_with_one_stray_marker_stays_english(self):
+        # A lone strong marker in a longer non-Cebuano sentence must not
+        # flip detection to Cebuano.
+        result = self._service().detect_language(
+            "Do you know what og means in that song"
+        )
+        self.assertEqual(result["language"], "english")
+
+    def test_strong_tagabawa_phrase_detects_as_tagabawa(self):
+        result = self._service().detect_language("Madigar allow. Sadan ka?")
+        self.assertEqual(result["language"], "tagabawa")
+        self.assertEqual(result["method"], "dictionary")
+
+    def test_single_shared_word_never_detects_as_tagabawa(self):
+        # One common particle is not evidence of Tagabawa, no matter how
+        # short the text is.
+        result = self._service().detect_language("ka")
+        self.assertNotEqual(result["language"], "tagabawa")
+
+    def test_document_level_detection_returns_cebuano(self):
+        result = self._service().detect_document_language(
+            [
+                "Maayong buntag kaninyong tanan",
+                "Unsa may imong gibuhat karon?",
+                "Lami kaayo ang pagkaon",
+            ]
+        )
+        self.assertEqual(result["primary_language"], "cebuano")
+
+    def test_document_level_detection_short_filipino_not_tagabawa(self):
+        # A document of short Filipino captions must not vote its way into
+        # Tagabawa (the silent identity-translation failure mode).
+        result = self._service().detect_document_language(
+            [
+                "Ang pamilya ko",
+                "Mga hayop sa bukid",
+                "Magandang umaga po",
+            ]
+        )
+        self.assertNotEqual(result["primary_language"], "tagabawa")
+
+
+class CrosslingualDirectionTests(TestCase):
+    """Plan G — every supported explicit language direction must translate.
+
+    Uses an isolated fixture dataset with clearly synthetic target strings
+    (TGB-/FIL-/CEB- prefixes) so direction correctness is asserted
+    mechanically without inventing real Bagobo-Tagabawa translations, plus
+    one test against the shipped runtime dataset so a data regression in
+    translation_data.json cannot pass unnoticed.
+    """
+
+    DIRECTIONS = [
+        ("english", "tagabawa"),
+        ("filipino", "tagabawa"),
+        ("cebuano", "tagabawa"),
+        ("tagabawa", "english"),
+        ("tagabawa", "filipino"),
+        ("tagabawa", "cebuano"),
+    ]
+
+    FIXTURE_ROWS = [
+        {
+            "id": 1,
+            "english": "Good morning",
+            "tagabawa": "TGB-good-morning",
+            "filipino": "FIL-good-morning",
+            "cebuano": "CEB-good-morning",
+        },
+        {
+            "id": 2,
+            "english": "Thank you",
+            "tagabawa": "TGB-thank-you",
+            "filipino": "FIL-thank-you",
+            "cebuano": "CEB-thank-you",
+        },
+    ]
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from translator.services.translation_dataset import TranslationDataset
+
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".json", encoding="utf-8", delete=False
+        ) as handle:
+            json.dump({"rows": cls.FIXTURE_ROWS}, handle)
+            fixture_path = handle.name
+        cls.addClassCleanup(lambda: Path(fixture_path).unlink(missing_ok=True))
+
+        # Explicit dataset_path keeps the fixture isolated from the runtime
+        # phrasebook and the cleaned text corpus.
+        cls.dataset = TranslationDataset(dataset_path=fixture_path)
+
+    def _row_value(self, row_id, lang):
+        row = next(r for r in self.FIXTURE_ROWS if r["id"] == row_id)
+        return row[lang]
+
+    def test_all_six_explicit_directions_translate_known_phrase(self):
+        for source_lang, target_lang in self.DIRECTIONS:
+            with self.subTest(direction=f"{source_lang}->{target_lang}"):
+                source_text = self._row_value(1, source_lang)
+                expected = self._row_value(1, target_lang)
+                result = self.dataset.translate_phrase_with_metadata(
+                    source_text, source_lang=source_lang, target_lang=target_lang
+                )
+                self.assertEqual(result["translated"], expected)
+                self.assertEqual(result["method"], "exact_phrase")
+                self.assertEqual(result["confidence"], 1.0)
+                self.assertFalse(result["needs_review"])
+
+    def test_normalized_match_works_in_both_directions(self):
+        # Case/punctuation-tolerant lookup must also hold per direction.
+        result = self.dataset.translate_phrase_with_metadata(
+            "good morning!", source_lang="english", target_lang="tagabawa"
+        )
+        self.assertEqual(result["translated"], "TGB-good-morning!")
+        self.assertEqual(result["method"], "normalized_phrase")
+        self.assertEqual(result["confidence"], 1.0)
+        self.assertFalse(result["needs_review"])
+
+        reverse = self.dataset.translate_phrase_with_metadata(
+            "tgb-thank-you", source_lang="tagabawa", target_lang="english"
+        )
+        self.assertEqual(reverse["translated"].lower(), "thank you")
+        self.assertIn(reverse["method"], ("exact_phrase", "normalized_phrase"))
+        self.assertEqual(reverse["confidence"], 1.0)
+        self.assertFalse(reverse["needs_review"])
+
+    def test_bisaya_alias_behaves_as_cebuano_target(self):
+        result = self.dataset.translate_phrase_with_metadata(
+            "Good morning", source_lang="english", target_lang="bisaya"
+        )
+        self.assertEqual(result["translated"], "CEB-good-morning")
+        self.assertEqual(result["method"], "exact_phrase")
+        self.assertEqual(result["confidence"], 1.0)
+        self.assertFalse(result["needs_review"])
+
+    def test_bisaya_alias_behaves_as_cebuano_source(self):
+        result = self.dataset.translate_phrase_with_metadata(
+            "CEB-good-morning", source_lang="Bisaya", target_lang="tagabawa"
+        )
+        self.assertEqual(result["translated"], "TGB-good-morning")
+        self.assertEqual(result["method"], "exact_phrase")
+        self.assertEqual(result["confidence"], 1.0)
+        self.assertFalse(result["needs_review"])
+
+    def test_unknown_phrase_stays_original_in_every_direction(self):
+        unknown = "Xylo qwerty zzz unmatched"
+        for source_lang, target_lang in self.DIRECTIONS:
+            with self.subTest(direction=f"{source_lang}->{target_lang}"):
+                result = self.dataset.translate_phrase_with_metadata(
+                    unknown, source_lang=source_lang, target_lang=target_lang
+                )
+                self.assertEqual(result["translated"], unknown)
+                self.assertEqual(result["method"], "unknown_for_review")
+                self.assertEqual(result["confidence"], 0.0)
+                self.assertTrue(result["needs_review"])
+
+    def test_runtime_dataset_supports_all_six_directions(self):
+        """The shipped translation_data.json must keep serving every
+        direction, not just the engine. Uses a row whose text is unique in
+        each language index so the expected target is unambiguous even if
+        other rows share normalized keys."""
+        from translator.services.translation_dataset import (
+            SUPPORTED_LANGS,
+            TranslationDataset,
+        )
+
+        dataset = TranslationDataset()
+
+        def is_unambiguous(row):
+            for lang in SUPPORTED_LANGS:
+                value = (row.get(f"{lang}_source") or "").strip()
+                if not value or value[-1] in ".?!,":
+                    return False
+                bucket = dataset._phrase_indices[lang].get(value.lower(), [])
+                if len(bucket) != 1:
+                    return False
+            return True
+
+        row = next((r for r in dataset.data if is_unambiguous(r)), None)
+        self.assertIsNotNone(
+            row,
+            "Runtime dataset has no row with all four languages populated "
+            "and unique lookup keys; direction coverage cannot be asserted.",
+        )
+
+        for source_lang, target_lang in self.DIRECTIONS:
+            with self.subTest(direction=f"{source_lang}->{target_lang}"):
+                source_text = row[f"{source_lang}_source"]
+                expected = row[f"{target_lang}_source"]
+                result = dataset.translate_phrase_with_metadata(
+                    source_text, source_lang=source_lang, target_lang=target_lang
+                )
+                self.assertEqual(result["translated"].lower(), expected.lower())
+                self.assertEqual(result["method"], "exact_phrase")
+                self.assertEqual(result["confidence"], 1.0)
+                self.assertFalse(result["needs_review"])
+
+
+class PhraseCleanupAndSegmentationTests(TestCase):
+    """Extraction sometimes emits a line that is not exactly one dataset
+    phrase: worksheet fill-in blanks glued on, two sentences fused without a
+    space, or a question merged with its quoted answer. These tests pin the
+    underscore-filler normalization and the safe segmented_phrase stage, and
+    — critically — that segmentation can never invent text: any line with an
+    unmatched part stays original and review-flagged. Real phrases from the
+    shipped dataset are used so the whole path is covered end to end.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from translator.services.translation_dataset import TranslationDataset
+
+        cls.dataset = TranslationDataset()
+
+    def _translate(self, text, source_lang="cebuano", target_lang="english"):
+        return self.dataset.translate_phrase_with_metadata(
+            text, source_lang=source_lang, target_lang=target_lang
+        )
+
+    def test_phrase_with_trailing_underscores_still_translates(self):
+        result = self._translate("Kahibalo ka ba magsulti ug Tagalog? ____________")
+        self.assertEqual(result["translated"], "Can you speak Tagalog?")
+        self.assertEqual(result["method"], "normalized_phrase")
+        self.assertEqual(result["confidence"], 1.0)
+        self.assertFalse(result["needs_review"])
+
+    def test_phrase_with_glued_underscores_still_translates(self):
+        result = self._translate("Kahibalo ka ba magsulti ug Bisaya?______________")
+        self.assertEqual(result["translated"], "Can you speak Visayan?")
+        self.assertEqual(result["method"], "normalized_phrase")
+        self.assertFalse(result["needs_review"])
+
+    def test_underscores_do_not_match_unrelated_phrases(self):
+        # Filler must be treated as absence of text, never as a wildcard.
+        result = self._translate("____________")
+        self.assertEqual(result["method"], "unknown_for_review")
+        self.assertTrue(result["needs_review"])
+
+    def test_fused_sentences_translate_as_two_known_phrases(self):
+        # Missing space after the period: "masabtan.Makasulti".
+        result = self._translate(
+            "Gamay lang ang akong masabtan.Makasulti na ko ug gamay."
+        )
+        self.assertEqual(
+            result["translated"],
+            "I can only understand a little. I can speak it a little.",
+        )
+        self.assertEqual(result["method"], "segmented_phrase")
+        self.assertEqual(result["cascade_stage"], "segmented_phrase")
+        self.assertEqual(result["confidence"], 1.0)
+        self.assertFalse(result["needs_review"])
+
+    def test_fused_sentences_with_space_also_split(self):
+        result = self._translate(
+            "Gamay lang ang akong masabtan. Makasulti na ko ug gamay."
+        )
+        self.assertEqual(
+            result["translated"],
+            "I can only understand a little. I can speak it a little.",
+        )
+        self.assertEqual(result["method"], "segmented_phrase")
+
+    def test_question_with_quoted_answer_splits_and_translates(self):
+        result = self._translate("Kinsa ang naghimo niana?  “Akoy naghimo. ”")
+        self.assertEqual(result["translated"], "Who made it? I made it myself.")
+        self.assertEqual(result["method"], "segmented_phrase")
+        self.assertEqual(result["confidence"], 1.0)
+        self.assertFalse(result["needs_review"])
+
+    def test_fully_unknown_fused_line_stays_original(self):
+        original = "Xyzzy plugh wibble. Qwerty asdf zzz."
+        result = self._translate(original)
+        self.assertEqual(result["translated"], original)
+        self.assertEqual(result["method"], "unknown_for_review")
+        self.assertEqual(result["confidence"], 0.0)
+        self.assertTrue(result["needs_review"])
+
+    def test_partially_known_fused_line_stays_original_no_hallucination(self):
+        # One part is a known dataset phrase, the other is not. Segmentation
+        # must NOT produce hybrid output — the whole line stays original and
+        # review-flagged so unknown text is never silently passed off as
+        # translated.
+        original = "Kinsa ang naghimo niana? Xyzzy plugh wibble."
+        result = self._translate(original)
+        self.assertEqual(result["translated"], original)
+        self.assertEqual(result["method"], "unknown_for_review")
+        self.assertTrue(result["needs_review"])
+
+    def test_single_sentence_lines_do_not_use_segmentation(self):
+        # Whole-line exact/normalized matching still wins; segmentation only
+        # runs after a whole-line miss.
+        result = self._translate("Unsay kahulugan niini?")
+        self.assertEqual(result["method"], "exact_phrase")
+        self.assertEqual(result["translated"], "What does that mean?")
+
+    def test_punctuation_preservation_still_works(self):
+        result = self._translate("Hello?", source_lang="english", target_lang="tagabawa")
+        self.assertEqual(result["translated"], "Madigár?")
+        self.assertEqual(result["method"], "normalized_phrase")
+        self.assertFalse(result["needs_review"])
+
+
+class FontAndLookupRobustnessTests(TestCase):
+    """Untranslated-sentence + font audit follow-ups.
+
+    Lookup side: extraction artifacts (line breaks, curly apostrophes) must
+    not stop a known runtime-dataset sentence from matching, and unknown
+    sentences must stay original and review-flagged. Font side: translated
+    PDF text with Bagobo-Tagabawa diacritics must render through the
+    embedded Unicode font without tofu, and reconstruction must degrade
+    safely (not crash) when no Unicode font file exists on the host.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from translator.services.translation_dataset import TranslationDataset
+
+        cls.dataset = TranslationDataset()
+
+    def _translate(self, text, source_lang="english", target_lang="tagabawa"):
+        return self.dataset.translate_phrase_with_metadata(
+            text, source_lang=source_lang, target_lang=target_lang
+        )
+
+    def test_known_sentence_with_line_break_still_translates(self):
+        # Extraction can wrap one dataset sentence across lines; the joined
+        # text then carries a newline. Normalization must absorb it.
+        result = self._translate(
+            "Kahibalo ka ba\nmagsulti  ug Tagalog?",
+            source_lang="cebuano",
+            target_lang="english",
+        )
+        self.assertEqual(result["translated"], "Can you speak Tagalog?")
+        self.assertIn(result["method"], ("exact_phrase", "normalized_phrase"))
+        self.assertFalse(result["needs_review"])
+
+    def test_known_sentence_with_curly_apostrophe_still_translates(self):
+        # PDFs typically carry U+2019 for apostrophes while the dataset row
+        # stores a straight quote.
+        result = self._translate("I’ll return it this afternoon.")
+        self.assertIn(result["method"], ("exact_phrase", "normalized_phrase"))
+        self.assertFalse(result["needs_review"])
+        self.assertNotEqual(
+            result["translated"].lower(),
+            "i’ll return it this afternoon.",
+            "Curly-apostrophe variant of a known dataset phrase must translate",
+        )
+
+    def test_unknown_sentence_remains_original_with_review_flag(self):
+        original = "Kian was angry"
+        result = self._translate(original)
+        self.assertEqual(result["translated"], original)
+        self.assertEqual(result["method"], "unknown_for_review")
+        self.assertEqual(result["confidence"], 0.0)
+        self.assertTrue(result["needs_review"])
+
+    def test_diacritic_text_uses_unicode_font_path(self):
+        from translator.services.reconstruction_service import ReconstructionService
+
+        self.assertTrue(ReconstructionService._needs_unicode_font("Madigár"))
+        self.assertTrue(ReconstructionService._needs_unicode_font("“quoted”"))
+        self.assertFalse(ReconstructionService._needs_unicode_font("plain ascii"))
+
+    def test_pdf_output_renders_bagobo_diacritics_without_tofu(self):
+        import fitz
+        from translator.services.reconstruction_service import ReconstructionService
+
+        if ReconstructionService._unicode_fontfile() is None:
+            self.skipTest("No Unicode font file available on this host")
+
+        doc = fitz.open()
+        try:
+            page = doc.new_page(width=612, height=792)
+            warnings = []
+            inserted = ReconstructionService._insert_text_in_rect(
+                page,
+                fitz.Rect(72, 100, 540, 130),
+                "Madigár Ágpanumbalé tô “sábbad”",
+                {"size": 12.0, "font": "Helvetica"},
+                warnings,
+                1,
+                1,
+                1,
+            )
+            extracted = page.get_text()
+        finally:
+            doc.close()
+
+        self.assertTrue(inserted)
+        self.assertIn("Madigár", extracted)
+        self.assertIn("Ágpanumbalé", extracted)
+        self.assertNotIn("?", extracted, "Diacritic text must not degrade to '?' tofu")
+
+    def test_missing_unicode_font_degrades_safely_without_crash(self):
+        import fitz
+        from translator.services.reconstruction_service import ReconstructionService
+
+        saved_checked = ReconstructionService._unicode_fontfile_checked
+        saved_path = ReconstructionService._unicode_fontfile_path
+        ReconstructionService._unicode_fontfile_checked = True
+        ReconstructionService._unicode_fontfile_path = None
+        doc = fitz.open()
+        try:
+            page = doc.new_page(width=612, height=792)
+            warnings = []
+            inserted = ReconstructionService._insert_text_in_rect(
+                page,
+                fitz.Rect(72, 100, 540, 130),
+                "Madigár — “quoted” text",
+                {"size": 12.0},
+                warnings,
+                1,
+                1,
+                1,
+            )
+            extracted = page.get_text()
+        finally:
+            doc.close()
+            ReconstructionService._unicode_fontfile_checked = saved_checked
+            ReconstructionService._unicode_fontfile_path = saved_path
+
+        self.assertTrue(inserted, "Reconstruction must not crash when no Unicode font exists")
+        self.assertIn('"quoted"', extracted, "Curly quotes must straighten, not become '?'")
+        self.assertIn("Madigár", extracted, "Latin-1 diacritics render via base-14 fonts")
+        self.assertTrue(
+            any("no Unicode PDF font" in w for w in warnings),
+            "Degradation must be surfaced as a warning",
+        )
+
+
+class ValidatedImportWorkflowTests(TestCase):
+    """DB/admin is the validation workspace; datasets/validated/*.csv is the
+    runtime source of truth. These tests pin the whole path: candidate import
+    hardening, the verified-only export gate, duplicate skipping against the
+    shipped dataset, additive fail-safe loading, and that unknown phrases
+    keep their review contract untouched."""
+
+    BASE_FIXTURE_ROWS = [
+        {
+            "id": 1,
+            "english": "Good morning",
+            "tagabawa": "TGB-good-morning",
+            "filipino": "FIL-good-morning",
+            "cebuano": "CEB-good-morning",
+        }
+    ]
+
+    def _write_base_fixture(self):
+        handle = tempfile.NamedTemporaryFile(
+            "w", suffix=".json", encoding="utf-8", delete=False
+        )
+        json.dump({"rows": self.BASE_FIXTURE_ROWS}, handle)
+        handle.close()
+        self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
+        return handle.name
+
+    def _make_validated_dir(self, csv_text=None, filename="validated_phrasebook_test.csv"):
+        directory = tempfile.mkdtemp(prefix="validated_imports_")
+        self.addCleanup(lambda: __import__("shutil").rmtree(directory, ignore_errors=True))
+        if csv_text is not None:
+            (Path(directory) / filename).write_text(csv_text, encoding="utf-8-sig")
+        return directory
+
+    # ------------------------------------------------------------- Phase 1
+    def test_import_review_candidate_rows_forced_needs_review(self):
+        from translator.models import PhrasebookEntry
+
+        handle = tempfile.NamedTemporaryFile(
+            "w", suffix=".csv", encoding="utf-8", delete=False
+        )
+        handle.write(
+            "english,tagabawa,filipino,cebuano,topic,source,notes\n"
+            "Kian was angry,,,,review_candidate,unknown_export,category=coverage_gap\n"
+        )
+        handle.close()
+        self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
+
+        call_command("import_phrasebook", handle.name, stdout=StringIO())
+
+        entry = PhrasebookEntry.objects.get(english="Kian was angry")
+        self.assertTrue(
+            entry.needs_review,
+            "review_candidate rows must never import as clean entries",
+        )
+        self.assertFalse(entry.is_sme_verified)
+
+    # ------------------------------------------------------------- Phase 2
+    def _create_entry(self, **overrides):
+        from translator.models import PhrasebookEntry
+
+        defaults = {
+            "english": "A brand new validated sentence.",
+            "tagabawa": "TGB-validated-sentence",
+            "filipino": "",
+            "cebuano": "",
+            "topic": "stories",
+            "is_active": True,
+            "is_sme_verified": True,
+            "needs_review": False,
+        }
+        defaults.update(overrides)
+        return PhrasebookEntry.objects.create(**defaults)
+
+    def test_export_includes_only_verified_active_clean_rows(self):
+        self._create_entry()
+        self._create_entry(english="Not verified yet.", is_sme_verified=False)
+        self._create_entry(english="Still under review.", needs_review=True)
+        self._create_entry(english="Deactivated row.", is_active=False)
+        self._create_entry(english="Only one field filled.", tagabawa="")
+
+        out_path = Path(tempfile.mkdtemp(prefix="validated_export_")) / "out.csv"
+        self.addCleanup(lambda: __import__("shutil").rmtree(out_path.parent, ignore_errors=True))
+        stdout = StringIO()
+        call_command("export_validated_phrasebook", "--output", str(out_path), stdout=stdout)
+
+        with out_path.open(encoding="utf-8-sig") as f:
+            rows = list(csv.DictReader(f))
+        self.assertEqual(len(rows), 1, "Only the fully-validated row may be exported")
+        self.assertEqual(rows[0]["english"], "A brand new validated sentence.")
+        self.assertEqual(rows[0]["tagabawa"], "TGB-validated-sentence")
+        self.assertEqual(rows[0]["source"], "validated_import")
+        output = stdout.getvalue()
+        self.assertIn("Exported 1 row(s)", output)
+        self.assertIn("Restart the server to activate validated imports.", output)
+
+    def test_export_skips_rows_duplicating_runtime_dataset(self):
+        from translator.services.translation_dataset import TranslationDataset
+
+        base = TranslationDataset(include_validated_imports=False)
+        row = next(
+            r for r in base.data
+            if (r.get("english_source") or "").strip()
+            and (r.get("tagabawa_source") or "").strip()
+        )
+        self._create_entry(
+            english=row["english_source"],
+            tagabawa=row["tagabawa_source"],
+            filipino="",
+            cebuano="",
+        )
+
+        out_path = Path(tempfile.mkdtemp(prefix="validated_export_dup_")) / "out.csv"
+        self.addCleanup(lambda: __import__("shutil").rmtree(out_path.parent, ignore_errors=True))
+        stdout = StringIO()
+        call_command("export_validated_phrasebook", "--output", str(out_path), stdout=stdout)
+
+        self.assertIn("skipped 1 duplicate(s)", stdout.getvalue().lower())
+        self.assertFalse(
+            out_path.exists(),
+            "With only a duplicate row, no export file should be written",
+        )
+
+    # ------------------------------------------------------------- Phase 3
+    def test_dataset_loads_validated_csv_additively(self):
+        from translator.services.translation_dataset import TranslationDataset
+
+        validated_dir = self._make_validated_dir(
+            "english,tagabawa,filipino,cebuano,topic,source,notes\n"
+            "A brand new validated sentence.,TGB-validated-sentence.,,,stories,validated_import,\n"
+        )
+        dataset = TranslationDataset(
+            dataset_path=self._write_base_fixture(),
+            include_validated_imports=True,
+            validated_imports_dir=validated_dir,
+        )
+
+        base_result = dataset.translate_phrase_with_metadata(
+            "Good morning", source_lang="english", target_lang="tagabawa"
+        )
+        self.assertEqual(base_result["translated"], "TGB-good-morning")
+
+        new_result = dataset.translate_phrase_with_metadata(
+            "A brand new validated sentence.",
+            source_lang="english",
+            target_lang="tagabawa",
+        )
+        self.assertEqual(new_result["translated"], "TGB-validated-sentence.")
+        self.assertEqual(new_result["method"], "exact_phrase")
+        self.assertEqual(new_result["confidence"], 1.0)
+        self.assertFalse(new_result["needs_review"])
+
+        reverse = dataset.translate_phrase_with_metadata(
+            "TGB-validated-sentence.", source_lang="tagabawa", target_lang="english"
+        )
+        self.assertEqual(reverse["translated"], "A brand new validated sentence.")
+
+    def test_isolated_datasets_skip_validated_imports_by_default(self):
+        from translator.services.translation_dataset import TranslationDataset
+
+        validated_dir = self._make_validated_dir(
+            "english,tagabawa\nShould not load.,TGB-should-not-load\n"
+        )
+        dataset = TranslationDataset(dataset_path=self._write_base_fixture())
+        # Explicit dataset_path -> isolated; the validated dir is not read
+        # even if it exists (and the injected dir is ignored entirely).
+        self.assertIsNone(dataset.validated_imports_dir)
+        result = dataset.translate_phrase_with_metadata(
+            "Should not load.", source_lang="english", target_lang="tagabawa"
+        )
+        self.assertEqual(result["method"], "unknown_for_review")
+
+    def test_malformed_validated_csv_does_not_break_loading(self):
+        from translator.services.translation_dataset import TranslationDataset
+
+        validated_dir = self._make_validated_dir()
+        (Path(validated_dir) / "broken.csv").write_bytes(b"\x00\x01\x02 not,a\nvalid csv\x00")
+        (Path(validated_dir) / "good.csv").write_text(
+            "english,tagabawa\nA brand new validated sentence.,TGB-validated-sentence.\n",
+            encoding="utf-8-sig",
+        )
+
+        dataset = TranslationDataset(
+            dataset_path=self._write_base_fixture(),
+            include_validated_imports=True,
+            validated_imports_dir=validated_dir,
+        )
+
+        self.assertTrue(dataset.is_loaded, "Base dataset must survive a malformed validated CSV")
+        base_result = dataset.translate_phrase_with_metadata(
+            "Good morning", source_lang="english", target_lang="tagabawa"
+        )
+        self.assertEqual(base_result["translated"], "TGB-good-morning")
+        good_result = dataset.translate_phrase_with_metadata(
+            "A brand new validated sentence.",
+            source_lang="english",
+            target_lang="tagabawa",
+        )
+        self.assertEqual(good_result["translated"], "TGB-validated-sentence.")
+
+    def test_unknown_phrase_still_unknown_with_validated_imports_loaded(self):
+        from translator.services.translation_dataset import TranslationDataset
+
+        validated_dir = self._make_validated_dir(
+            "english,tagabawa\nA brand new validated sentence.,TGB-validated-sentence\n"
+        )
+        dataset = TranslationDataset(
+            dataset_path=self._write_base_fixture(),
+            include_validated_imports=True,
+            validated_imports_dir=validated_dir,
+        )
+        original = "Xyzzy plugh wibble totally unknown"
+        result = dataset.translate_phrase_with_metadata(
+            original, source_lang="english", target_lang="tagabawa"
+        )
+        self.assertEqual(result["translated"], original)
+        self.assertEqual(result["method"], "unknown_for_review")
+        self.assertEqual(result["confidence"], 0.0)
         self.assertTrue(result["needs_review"])

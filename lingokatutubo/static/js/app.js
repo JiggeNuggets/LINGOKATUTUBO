@@ -262,6 +262,7 @@
     const dropZone = document.getElementById("drop-zone");
     const fileName = document.getElementById("selected-file-name");
     const fileMeta = document.getElementById("selected-file-meta");
+    const fileRequiredMessage = document.getElementById("file-required-message");
     const readyMessage = document.getElementById("ready-message");
     const errorBox = document.getElementById("upload-error");
     const button = document.getElementById("translate-button");
@@ -344,13 +345,15 @@
       setError(errorBox, "");
       if (!file) {
         fileName.textContent = "Drop your document here";
-        fileMeta.textContent = "PDF, DOCX, JPG, PNG, or TXT - up to 50 MB";
+        fileMeta.textContent = "PDF or DOCX - up to 50 MB";
+        setHidden(fileRequiredMessage, false);
         readyMessage.hidden = true;
         button.disabled = true;
         return;
       }
       fileName.textContent = file.name;
       fileMeta.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+      setHidden(fileRequiredMessage, true);
       readyMessage.hidden = false;
       button.disabled = false;
     }
@@ -712,6 +715,205 @@
     });
   }
 
+  // Toasts hide themselves after a few seconds (errors get a little longer);
+  // hovering pauses the countdown so the user can finish reading. Only
+  // messages inside the toast region auto-hide — the reusable #js-error-banner
+  // is shown/hidden by its own flows and must not be removed from the DOM.
+  const TOAST_DISMISS_MS = 3500;
+  const TOAST_ERROR_DISMISS_MS = 4000;
+  const TOAST_HOVER_GRACE_MS = 1500;
+
+  function scheduleToastDismiss(msg) {
+    const delay = msg.classList.contains("error")
+      ? TOAST_ERROR_DISMISS_MS
+      : TOAST_DISMISS_MS;
+    let timer = window.setTimeout(() => dismissMessage(msg), delay);
+    msg.addEventListener("mouseenter", () => window.clearTimeout(timer));
+    msg.addEventListener("mouseleave", () => {
+      timer = window.setTimeout(() => dismissMessage(msg), TOAST_HOVER_GRACE_MS);
+    });
+  }
+
+  function initToastAutoDismiss() {
+    document
+      .querySelectorAll("#messages-region .message")
+      .forEach(scheduleToastDismiss);
+  }
+
+  function initDocumentRemoveModal() {
+    if (!document.querySelector("[data-remove-document]")) return;
+
+    const modal = document.createElement("div");
+    modal.className = "remove-document-modal";
+    modal.hidden = true;
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "remove-document-modal-title");
+    modal.setAttribute("aria-describedby", "remove-document-modal-message");
+
+    const dialog = document.createElement("div");
+    dialog.className = "remove-document-dialog";
+
+    const header = document.createElement("div");
+    header.className = "remove-document-header";
+
+    const title = document.createElement("h2");
+    title.id = "remove-document-modal-title";
+    title.textContent = "Remove from History?";
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "remove-document-close";
+    closeButton.setAttribute("aria-label", "Close remove confirmation");
+    closeButton.textContent = "\u00d7";
+
+    const message = document.createElement("p");
+    message.id = "remove-document-modal-message";
+    message.className = "remove-document-message";
+
+    const error = document.createElement("p");
+    error.className = "remove-document-error";
+    error.setAttribute("role", "alert");
+    error.hidden = true;
+
+    const actions = document.createElement("div");
+    actions.className = "remove-document-actions";
+
+    const cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.className = "button secondary";
+    cancelButton.textContent = "Cancel";
+
+    const confirmButton = document.createElement("button");
+    confirmButton.type = "button";
+    confirmButton.className = "button danger-outline";
+    confirmButton.textContent = "Remove from History";
+
+    header.append(title, closeButton);
+    actions.append(cancelButton, confirmButton);
+    dialog.append(header, message, error, actions);
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+
+    let activeTrigger = null;
+    let activeCard = null;
+    let deleteUrl = "";
+    let isSubmitting = false;
+
+    function showModal(trigger) {
+      activeTrigger = trigger;
+      activeCard = trigger.closest("[data-document-card]");
+      deleteUrl = trigger.dataset.deleteUrl || "";
+      const documentTitle = trigger.dataset.documentTitle || "this document";
+      message.textContent = `Remove \u201c${documentTitle}\u201d from your translation history?`;
+      error.hidden = true;
+      error.textContent = "";
+      confirmButton.disabled = false;
+      cancelButton.disabled = false;
+      closeButton.disabled = false;
+      confirmButton.classList.remove("is-loading");
+      confirmButton.textContent = "Remove from History";
+      modal.hidden = false;
+      document.body.classList.add("modal-open");
+      window.requestAnimationFrame(() => modal.classList.add("is-visible"));
+      cancelButton.focus();
+    }
+
+    function hideModal(restoreFocus) {
+      if (isSubmitting) return;
+      modal.classList.remove("is-visible");
+      modal.hidden = true;
+      document.body.classList.remove("modal-open");
+      if (restoreFocus !== false && activeTrigger && document.body.contains(activeTrigger)) {
+        activeTrigger.focus();
+      }
+      activeTrigger = null;
+      activeCard = null;
+      deleteUrl = "";
+    }
+
+    function removeActiveCard() {
+      if (!activeCard) {
+        const trigger = activeTrigger;
+        const actionGroup = trigger && trigger.closest(".top-action-bar-danger");
+        if (actionGroup) actionGroup.remove();
+        return;
+      }
+
+      const card = activeCard;
+      card.classList.add("is-removing");
+      window.setTimeout(() => {
+        card.remove();
+      }, 180);
+    }
+
+    document.addEventListener("click", (event) => {
+      const trigger = event.target.closest("[data-remove-document]");
+      if (!trigger) return;
+      event.preventDefault();
+      showModal(trigger);
+    });
+
+    [cancelButton, closeButton].forEach((button) => {
+      button.addEventListener("click", () => hideModal(true));
+    });
+
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) hideModal(true);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !modal.hidden) {
+        event.preventDefault();
+        hideModal(true);
+      }
+    });
+
+    confirmButton.addEventListener("click", () => {
+      if (isSubmitting || !deleteUrl) return;
+      isSubmitting = true;
+      error.hidden = true;
+      error.textContent = "";
+      confirmButton.disabled = true;
+      cancelButton.disabled = true;
+      closeButton.disabled = true;
+      confirmButton.classList.add("is-loading");
+      confirmButton.textContent = "Removing...";
+
+      fetch(deleteUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": csrfToken(),
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      })
+        .then(parseJsonResponse)
+        .then(({ response, data }) => {
+          if (!response.ok || data.ok === false) {
+            throw new Error(data.error || data.message || "Could not remove the document.");
+          }
+          removeActiveCard();
+          isSubmitting = false;
+          hideModal(false);
+          showStatusMessage(data.message || "Document removed from history.", "success");
+        })
+        .catch((caught) => {
+          isSubmitting = false;
+          confirmButton.disabled = false;
+          cancelButton.disabled = false;
+          closeButton.disabled = false;
+          confirmButton.classList.remove("is-loading");
+          confirmButton.textContent = "Remove from History";
+          const messageText = caught.message || "Could not remove the document. Please try again.";
+          error.textContent = messageText;
+          error.hidden = false;
+          showStatusMessage(messageText, "error");
+        });
+    });
+  }
+
   // Shows a dismissible, accessible status message (e.g. "Translated file is
   // ready.") detected live via polling, without a page reload. Reuses the
   // same markup/classes as Django's server-rendered messages so it looks and
@@ -749,6 +951,7 @@
 
     item.append(span, dismissButton);
     region.appendChild(item);
+    scheduleToastDismiss(item);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -758,5 +961,7 @@
     initPreviewLinks();
     initMobileNav();
     initMessageDismiss();
+    initToastAutoDismiss();
+    initDocumentRemoveModal();
   });
 })();

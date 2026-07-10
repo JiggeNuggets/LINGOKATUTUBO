@@ -4,10 +4,10 @@
 {% block meta_description %}Upload a PDF, DOCX, image, or text document for Bagobo-Tagabawa translation.{% endblock %}
 
 {% block content %}
-<main class="translator-page">
+<main class="translator-page translate-page">
   <header class="page-heading compact">
     <h1>Document Translator</h1>
-    <p class="page-subtitle">Upload a document, track OCR and translation progress, then review the aligned bilingual result.</p>
+    <p class="page-subtitle">Upload a PDF or DOCX and get a bilingual Bagobo-Tagabawa translation.</p>
   </header>
 
   <section class="document-dashboard">
@@ -20,9 +20,12 @@
       {% if recent_jobs %}
         <div class="document-card-list compact">
           {% for state in recent_jobs %}
-            {% include "translator/partials/_document_card.html" with state=state card_compact=True %}
+            {% include "translator/partials/_document_card.html" with state=state card_compact=True show_remove=True %}
           {% endfor %}
         </div>
+        {% if has_more_recent %}
+          <a href="{% url 'translator:history' %}" class="button-link view-all-history">View all history</a>
+        {% endif %}
       {% else %}
         <div class="sidebar-empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="sidebar-empty-icon">
@@ -53,9 +56,10 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           </span>
           <strong id="selected-file-name">Drop your document here</strong>
-          <small id="selected-file-meta">PDF, DOCX, JPG, PNG, or TXT — up to 50 MB</small>
+          <small id="selected-file-meta">PDF or DOCX — up to 50 MB</small>
         </label>
 
+        <div id="file-required-message" class="alert warning" role="status">Please select a file to start translation.</div>
         <div id="upload-error" class="alert error" hidden role="alert"></div>
         <div id="ready-message" class="alert success" hidden role="status">File ready. Click Start Translation when ready.</div>
 

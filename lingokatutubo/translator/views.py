@@ -21,6 +21,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.csrf import csrf_failure as _django_csrf_failure
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods, require_POST
 
 from .forms import DocumentUploadForm, SignUpForm
@@ -73,10 +74,14 @@ def csrf_failure(request, reason=""):
 
     JSON API routes get a JSON body so fetch() callers can show a clean
     message instead of failing to parse Django's HTML CSRF error page.
-    Normal HTML form posts (login, signup, delete-confirm) keep Django's
+    Normal HTML form posts (login, signup, delete fallback) keep Django's
     default CSRF error page unchanged.
     """
-    if request.path.startswith(JSON_API_PATH_PREFIXES):
+    wants_json = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in (request.headers.get("accept") or "").lower()
+    )
+    if wants_json or request.path.startswith(JSON_API_PATH_PREFIXES):
         return JsonResponse(
             {
                 "ok": False,
@@ -161,14 +166,23 @@ def translate(request):
             page_count=Count("pages", distinct=True),
         )
         .prefetch_related("generated_outputs", "pages", "ocr_results")
+        # The heavy GROUP BY from the annotations can drop the model's
+        # default ordering (same fix as the history view), and the sidebar
+        # must always show the newest documents first.
+        .order_by("-created_at")
     )
 
-    recent_jobs = [_job_card_context(job) for job in recent_query[:5]]
+    # Fetch a few extra cards so the Active Job panel can still find a
+    # queued/processing job that is older than the three newest documents,
+    # but display only the newest three in the Recent Documents sidebar.
+    recent_cards = [_job_card_context(job) for job in recent_query[:5]]
+    recent_jobs = recent_cards[:3]
+    has_more_recent = len(recent_cards) > 3
 
     active_job = next(
         (
             card
-            for card in recent_jobs
+            for card in recent_cards
             if card["job"].status
             in {
                 TranslationJob.Status.QUEUED,
@@ -194,6 +208,7 @@ def translate(request):
         {
             "upload_form": DocumentUploadForm(),
             "recent_jobs": recent_jobs,
+            "has_more_recent": has_more_recent,
             "active_job": active_job,
             "can_preview": active_state["can_preview"],
             "can_download": active_state["can_download"],
@@ -204,7 +219,11 @@ def translate(request):
 
 
 @login_required
+@ensure_csrf_cookie
 def history(request):
+    # ensure_csrf_cookie: the Remove modal on this page POSTs via fetch()
+    # using the csrftoken cookie; the page itself has no POST form that
+    # would otherwise guarantee the cookie exists.
     search_query = request.GET.get("q", "").strip()
     selected_status = request.GET.get("status", "").strip().lower()
 
@@ -746,6 +765,17 @@ def delete_job(request, job_id):
         message=f"Job soft-deleted by owner: {job.original_filename}",
         metadata={"filename": job.original_filename, "status": job.status},
     )
+
+    # The history page's Remove modal deletes via fetch() and updates the DOM
+    # in place; give it JSON instead of queueing a message that would only
+    # surface on the next full page load. Non-AJAX callers (the confirm-page
+    # fallback for users without JS) keep the message + redirect flow.
+    wants_json = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in (request.headers.get("accept") or "").lower()
+    )
+    if wants_json:
+        return JsonResponse({"ok": True, "message": "Document removed from history."})
 
     messages.success(request, f"‘{job.original_filename}’ has been removed from your history.")
     return redirect("translator:history")

@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import admin
 from django.db.models import Avg, Count, Q
 
@@ -74,6 +76,26 @@ class OCRQualityFilter(admin.SimpleListFilter):
         return queryset
 
 
+class UnknownForReviewFilter(admin.SimpleListFilter):
+    title = "unknown-for-review segments"
+    parameter_name = "has_unknown_for_review"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("yes", "Yes"),
+            ("no", "No"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == "yes":
+            return queryset.filter(segments__method="unknown_for_review").distinct()
+
+        if self.value() == "no":
+            return queryset.exclude(segments__method="unknown_for_review").distinct()
+
+        return queryset
+
+
 @admin.register(TranslationJob)
 class TranslationJobAdmin(admin.ModelAdmin):
     list_display = (
@@ -86,6 +108,7 @@ class TranslationJobAdmin(admin.ModelAdmin):
         "ocr_confidence_display",
         "translation_confidence_display",
         "review_segments_display",
+        "unknown_for_review_count_display",
         "source_language",
         "target_language",
         "is_deleted",
@@ -94,6 +117,7 @@ class TranslationJobAdmin(admin.ModelAdmin):
     list_filter = (
         "status",
         OCRQualityFilter,
+        UnknownForReviewFilter,
         "file_type",
         "source_language",
         "target_language",
@@ -106,6 +130,7 @@ class TranslationJobAdmin(admin.ModelAdmin):
         "id", "created_at", "updated_at", "completed_at", "deleted_at",
         "extraction_method_display", "ocr_confidence_display",
         "translation_confidence_display", "review_segments_display",
+        "unknown_for_review_count_display",
     )
     inlines = (DocumentPageInline, TranslationSegmentInline, GeneratedOutputInline)
 
@@ -115,6 +140,11 @@ class TranslationJobAdmin(admin.ModelAdmin):
             admin_review_segment_count=Count(
                 "segments",
                 filter=Q(segments__needs_review=True),
+                distinct=True,
+            ),
+            admin_unknown_for_review_count=Count(
+                "segments",
+                filter=Q(segments__method="unknown_for_review"),
                 distinct=True,
             ),
             admin_translation_confidence=Avg("segments__confidence"),
@@ -170,6 +200,15 @@ class TranslationJobAdmin(admin.ModelAdmin):
             return "N/A"
 
         return f"{review_segment_count}/{segment_count}"
+
+    @admin.display(description="Unknown For Review")
+    def unknown_for_review_count_display(self, obj):
+        count = getattr(obj, "admin_unknown_for_review_count", None)
+
+        if count is None:
+            count = obj.segments.filter(method="unknown_for_review").count()
+
+        return count
 
 
 @admin.register(Language)
@@ -253,7 +292,7 @@ class TranslationSegmentAdmin(admin.ModelAdmin):
     )
     list_filter = ("needs_review", "source_language", "target_language", "method", "created_at")
     search_fields = ("job__id", "source_text", "translated_text")
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "metadata_display")
     actions = ("mark_needs_review", "mark_reviewed")
 
     @admin.action(description="Mark selected segments as needing review")
@@ -263,6 +302,12 @@ class TranslationSegmentAdmin(admin.ModelAdmin):
     @admin.action(description="Mark selected segments as reviewed")
     def mark_reviewed(self, request, queryset):
         queryset.update(needs_review=False)
+
+    @admin.display(description="Metadata")
+    def metadata_display(self, obj):
+        if not obj.metadata:
+            return "—"
+        return json.dumps(obj.metadata, indent=2, sort_keys=True)
 
 
 @admin.register(PhrasebookEntry)

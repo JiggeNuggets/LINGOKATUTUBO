@@ -140,5 +140,10 @@ def _clean(value) -> str:
 
 
 def _needs_review(row: dict) -> bool:
+    # Rows exported as review candidates must never enter as clean entries,
+    # no matter what their notes say — they carry unvalidated source text
+    # with empty translations until an SME fills and verifies them.
+    if _clean(row.get("topic")).lower() == "review_candidate":
+        return True
     notes = _clean(row.get("notes")).lower()
     return "manual" in notes or "double check" in notes or "review" in notes

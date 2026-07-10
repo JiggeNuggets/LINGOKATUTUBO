@@ -41,7 +41,7 @@
   <section class="history-grid" aria-label="Document history">
     {% if jobs %}
       {% for state in jobs %}
-        {% include "translator/partials/_document_card.html" with state=state card_compact=False %}
+        {% include "translator/partials/_document_card.html" with state=state card_compact=False show_remove=True %}
       {% endfor %}
     {% else %}
       <div class="empty-state">

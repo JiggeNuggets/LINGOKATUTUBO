@@ -4,6 +4,7 @@ PDF reconstruction service - rebuilds PDF with translated text while preserving 
 
 import fitz  # PyMuPDF
 import os
+import unicodedata
 from typing import List, Dict, Any, Optional, Tuple
 
 from .display_utils import clean_invisible_unicode, safe_print
@@ -351,13 +352,18 @@ class ReconstructionService:
         env_font = os.environ.get("LINGOKATUTUBO_PDF_FONT")
         if env_font:
             candidates.append(env_font)
+        # Noto Sans / DejaVu Sans first: both fully cover Philippine/Latin
+        # diacritics (including combining marks) with clean, consistent
+        # rendering. System UI fonts follow as fallbacks.
         candidates.extend([
+            r"C:\Windows\Fonts\NotoSans-Regular.ttf",
+            r"C:\Windows\Fonts\DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
             r"C:\Windows\Fonts\arial.ttf",
             r"C:\Windows\Fonts\segoeui.ttf",
             r"C:\Windows\Fonts\calibri.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
             "/System/Library/Fonts/Supplemental/Arial.ttf",
             "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
         ])
@@ -371,12 +377,43 @@ class ReconstructionService:
 
     @staticmethod
     def _needs_unicode_font(text: str) -> bool:
-        return any(ord(char) > 255 for char in text)
+        # Any non-ASCII character (Bagobo-Tagabawa diacritics like á/ô/é are
+        # Latin-1, curly quotes and combining marks are beyond it) switches
+        # the line to the embedded Unicode font. Base-14 viewer fonts can
+        # render Latin-1, but routing every diacritic line through one
+        # embedded TTF keeps accents correct in every PDF viewer and stops
+        # lines within the same document from rendering in different fonts.
+        return any(ord(char) > 127 for char in text)
 
-    @staticmethod
-    def _pdf_safe_text(text: str) -> str:
+    # Typographic characters that degrade to a readable ASCII equivalent when
+    # no Unicode font file is available; everything else beyond Latin-1
+    # becomes "?" rather than an invisible/tofu glyph.
+    _ASCII_DEGRADE_MAP = {
+        "“": '"',
+        "”": '"',
+        "‘": "'",
+        "’": "'",
+        "–": "-",
+        "—": "-",
+        "…": "...",
+    }
+
+    @classmethod
+    def _pdf_safe_text(cls, text: str) -> str:
         text = clean_invisible_unicode(text)
-        return "".join(char if ord(char) <= 255 else "?" for char in text)
+        out = []
+        for char in text:
+            if ord(char) <= 255:
+                out.append(char)
+            elif char in cls._ASCII_DEGRADE_MAP:
+                out.append(cls._ASCII_DEGRADE_MAP[char])
+            elif unicodedata.combining(char):
+                # A combining mark with no font to shape it is better
+                # dropped than shown as a stray "?" after its base letter.
+                continue
+            else:
+                out.append("?")
+        return "".join(out)
 
     @staticmethod
     def _font(fontname: str, fontfile: Optional[str] = None) -> fitz.Font:
@@ -544,13 +581,10 @@ class ReconstructionService:
             return False
         fontname = cls._fontname_for_line(line)
         page_rect = page.rect
+        # Non-ASCII text renders with the embedded Unicode font; this is the
+        # normal path for Bagobo-Tagabawa output, so no warning is recorded —
+        # only the missing-font degradation below is warning-worthy.
         unicode_fontfile = cls._unicode_fontfile() if cls._needs_unicode_font(text) else None
-        if unicode_fontfile:
-            cls._append_warning(
-                warnings,
-                f"Page {page_number}, block {block_number}, line {line_number}: "
-                "translated text uses Unicode characters; using an embedded system font.",
-            )
         if cls._needs_unicode_font(text) and not unicode_fontfile:
             cls._append_warning(
                 warnings,
