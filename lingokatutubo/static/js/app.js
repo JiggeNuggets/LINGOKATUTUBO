@@ -289,6 +289,8 @@
       sourceLanguage.addEventListener("change", syncLanguageSwap);
       swapLanguages.addEventListener("click", () => {
         if (sourceLanguage.value === "auto") return;
+        swapLanguages.classList.add("is-spinning");
+        window.setTimeout(() => swapLanguages.classList.remove("is-spinning"), 400);
         const sourceValue = sourceLanguage.value;
         sourceLanguage.value = targetLanguage.value;
         targetLanguage.value = sourceValue;
@@ -329,17 +331,34 @@
       setError(errorBox, "");
       if (!file) {
         fileName.textContent = "Drop your document here";
-        fileMeta.textContent = "PDF or DOCX - up to 50 MB";
+        fileMeta.textContent = "PDF or DOCX - up to 10 MB";
         setHidden(fileRequiredMessage, false);
         readyMessage.hidden = true;
         button.disabled = true;
+        dropZone.classList.remove("has-file");
         return;
       }
+
+      const MAX_FILE_SIZE = 10 * 1024 * 1024;
+      if (file.size > MAX_FILE_SIZE) {
+        const sizeMb = (file.size / 1024 / 1024).toFixed(1);
+        fileInput.value = "";
+        fileName.textContent = "Drop your document here";
+        fileMeta.textContent = "PDF or DOCX - up to 10 MB";
+        setHidden(fileRequiredMessage, false);
+        readyMessage.hidden = true;
+        button.disabled = true;
+        dropZone.classList.remove("has-file");
+        setError(errorBox, `File is too large (${sizeMb} MB). Maximum allowed size is 10 MB.`);
+        return;
+      }
+
       fileName.textContent = file.name;
-      fileMeta.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+      fileMeta.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB • Ready to translate`;
       setHidden(fileRequiredMessage, true);
       readyMessage.hidden = false;
       button.disabled = false;
+      dropZone.classList.add("has-file");
     }
 
     ["dragenter", "dragover"].forEach((eventName) => {
