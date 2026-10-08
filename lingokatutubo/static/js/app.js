@@ -394,9 +394,7 @@
           const targetUrl = form.dataset.jobBase
             ? form.dataset.jobBase.replace("00000000-0000-0000-0000-000000000000", data.job_id)
             : `/translate/job/${data.job_id}/`;
-          window.setTimeout(() => {
-            window.location.assign(targetUrl);
-          }, 1500);
+          window.location.assign(targetUrl);
         })
         .catch((error) => {
           isUploading = false;
@@ -492,14 +490,64 @@
       onUpdate: applyStatus,
       onTerminal: (data) => {
         applyStatus(data);
-        setProcessingOverlayState(false);
         const status = normalizeStatus(data.status);
-        if (status === "completed") {
-          const previewUrl = root.getAttribute("data-preview-url") || (data.preview_url) || (window.location.pathname.replace(/\/$/, '') + "/preview/");
-          window.location.href = previewUrl;
-          return;
+        const isCompleted = status === "completed";
+        const previewUrl = root.getAttribute("data-preview-url") || (data.preview_url) || (window.location.pathname.replace(/\/$/, '') + "/preview/");
+        const downloadUrl = (data.download_url) || (window.location.pathname.replace(/\/$/, '') + "/download/");
+
+        if (terminalOverlay) {
+          setProcessingOverlayState(false);
+          terminalOverlay.hidden = false;
+          terminalOverlay.setAttribute("aria-hidden", "false");
+          document.body.classList.add("translation-overlay-active");
+          const terminalAction = terminalOverlay.querySelector("[data-terminal-action]");
+          if (terminalAction) terminalAction.focus();
+        } else if (processingOverlay) {
+          const stateWord = document.getElementById("translation-state-word");
+          const progressWrap = document.getElementById("translation-progress-wrap");
+          const stateIcon = document.getElementById("translation-state-icon");
+          const card = processingOverlay.querySelector(".translating-state");
+
+          if (isCompleted) {
+            if (card) {
+              card.classList.remove("is-processing");
+              card.classList.add("is-complete");
+            }
+            if (stateWord) {
+              stateWord.textContent = "Translation Complete";
+              stateWord.style.color = "var(--color-primary-700)";
+            }
+            if (stateIcon) {
+              stateIcon.outerHTML = `
+                <svg class="translation-terminal-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false" style="width: 72px; height: 72px; fill: none; stroke: var(--color-primary-700); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; margin: 0 auto;">
+                  <circle cx="32" cy="32" r="23" stroke="#D6E2DA"/>
+                  <path d="m20 33 8 8 17-19" stroke="var(--color-primary-700)"/>
+                </svg>
+              `;
+            }
+            if (progressWrap) {
+              progressWrap.outerHTML = `
+                <div class="translation-terminal-actions" style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+                  <a id="job-preview-action" class="button primary js-preview-link" data-terminal-action href="${previewUrl}" style="width: 100%; text-align: center; justify-content: center;">Preview Document</a>
+                  <a class="button secondary" href="${downloadUrl}" style="width: 100%; text-align: center; justify-content: center;">Download Translated File</a>
+                  <a href="/translate/" class="button-link" style="text-align: center; margin-top: 0.25rem; font-size: 0.875rem;">Translate another document &rarr;</a>
+                </div>
+              `;
+            }
+            const previewBtn = processingOverlay.querySelector("#job-preview-action");
+            if (previewBtn) previewBtn.focus();
+          } else {
+            if (stateWord) stateWord.textContent = "Translation Failed";
+            if (progressWrap) {
+              progressWrap.outerHTML = `
+                <div class="translation-terminal-actions" style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+                  <p class="alert error" style="margin: 0; font-size: 0.875rem;">${data.error || data.message || "Translation could not be completed."}</p>
+                  <a class="button primary" href="/translate/" style="width: 100%; text-align: center; justify-content: center;">Try Again</a>
+                </div>
+              `;
+            }
+          }
         }
-        window.setTimeout(() => window.location.reload(), 150);
         controller = null;
       },
       onNetworkState: networkState,
