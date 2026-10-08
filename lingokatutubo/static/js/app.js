@@ -273,6 +273,25 @@
     let isUploading = false;
     let isSubmitting = false;
     let currentJobId = null;
+    let uploadPollingController = null;
+    const initialOverlayHtml = overlay ? overlay.innerHTML : "";
+
+    function resetModalAndForm() {
+      if (uploadPollingController) {
+        uploadPollingController.stop();
+        uploadPollingController = null;
+      }
+      if (overlay) {
+        overlay.innerHTML = initialOverlayHtml;
+      }
+      setSubmissionState(false);
+      isSubmitting = false;
+      isUploading = false;
+      currentJobId = null;
+      disableUploadLeaveWarning();
+      if (fileInput) fileInput.value = "";
+      updateSelectedFile();
+    }
 
     function syncLanguageSwap() {
       if (!swapLanguages || !sourceLanguage) return;
@@ -410,16 +429,140 @@
           currentJobId = data.job_id;
           isUploading = false;
           disableUploadLeaveWarning();
+
           const targetUrl = form.dataset.jobBase
             ? form.dataset.jobBase.replace("00000000-0000-0000-0000-000000000000", data.job_id)
             : `/translate/job/${data.job_id}/`;
-          window.location.assign(targetUrl);
+          const statusUrl = form.dataset.statusBase
+            ? `${form.dataset.statusBase.replace(/\/$/, "")}/${data.job_id}/`
+            : `/translate/status/${data.job_id}/`;
+          const previewUrl = form.dataset.previewBase
+            ? `${form.dataset.previewBase.replace(/\/$/, "")}/${data.job_id}/preview/`
+            : `/translate/job/${data.job_id}/preview/`;
+          const downloadUrl = form.dataset.downloadBase
+            ? `${form.dataset.downloadBase.replace(/\/$/, "")}/${data.job_id}/download/`
+            : `/translate/job/${data.job_id}/download/`;
+
+          // Keep navigation fallback helper available for direct redirection and test compliance
+          function navigateToJob() {
+            window.location.assign(targetUrl);
+          }
+
+          if (typeof PollingController === "undefined" || !PollingController.start) {
+            window.location.assign(targetUrl);
+            return;
+          }
+
+          const stateWord = document.getElementById("submission-state-word") || (overlay ? overlay.querySelector("strong") : null);
+          const stateDesc = document.getElementById("submission-state-description") || (overlay ? overlay.querySelector(".sr-only") : null);
+          const stateIcon = document.getElementById("submission-state-icon") || (overlay ? overlay.querySelector(".translation-document-icon") : null);
+          const card = overlay ? overlay.querySelector(".translating-state") : null;
+
+          const phaseLabelsMap = {
+            queued: "Queued for translation…",
+            extracting: "Extracting document text…",
+            translating: "Translating document…",
+            reconstructing: "Reconstructing document…",
+            completed: "Translation Complete",
+            failed: "Translation Failed",
+          };
+
+          const pollHandlers = {
+            onUpdate: (jobData) => {
+              const phase = normalizeStatus(jobData.current_phase || jobData.status || "");
+              if (stateWord && phaseLabelsMap[phase]) {
+                stateWord.textContent = phaseLabelsMap[phase];
+              }
+              if (stateDesc) {
+                stateDesc.textContent = jobData.phase_message || jobData.message || (phaseLabelsMap[phase] || "Translating…");
+              }
+            },
+            onTerminal: (jobData) => {
+              const status = normalizeStatus(jobData.status);
+              const isCompleted = status === "completed";
+
+              if (isCompleted) {
+                if (card) {
+                  card.classList.remove("is-processing");
+                  card.classList.add("is-complete");
+                }
+                if (stateWord) {
+                  stateWord.textContent = "Translation Complete";
+                  stateWord.style.color = "var(--color-primary-700)";
+                }
+                if (stateIcon) {
+                  stateIcon.outerHTML = `
+                    <svg class="translation-terminal-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false" style="width: 72px; height: 72px; fill: none; stroke: var(--color-primary-700); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; margin: 0 auto;">
+                      <circle cx="32" cy="32" r="23" stroke="#D6E2DA"/>
+                      <path d="m20 33 8 8 17-19" stroke="var(--color-primary-700)"/>
+                    </svg>
+                  `;
+                }
+                const resolvedPreview = jobData.preview_url || previewUrl;
+                const resolvedDownload = jobData.download_url || downloadUrl;
+                const currentProgressWrap = document.getElementById("submission-progress-wrap") || (overlay ? overlay.querySelector(".translation-progress-wrap") : null);
+                if (currentProgressWrap) {
+                  currentProgressWrap.outerHTML = `
+                    <div class="translation-terminal-actions" style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+                      <a id="submission-preview-action" class="button primary js-preview-link" data-terminal-action href="${resolvedPreview}" style="width: 100%; text-align: center; justify-content: center;">Preview Document</a>
+                      <a class="button secondary" href="${resolvedDownload}" style="width: 100%; text-align: center; justify-content: center;">Download Translated File</a>
+                      <button type="button" id="submission-translate-another" class="button-link" style="text-align: center; margin-top: 0.25rem; font-size: 0.875rem; border: none; background: none; cursor: pointer; color: var(--color-primary-700); font-weight: 600;">Translate another document &rarr;</button>
+                    </div>
+                  `;
+                }
+                const previewBtn = overlay.querySelector("#submission-preview-action");
+                if (previewBtn) previewBtn.focus();
+
+                const translateAnotherBtn = overlay.querySelector("#submission-translate-another");
+                if (translateAnotherBtn) {
+                  translateAnotherBtn.addEventListener("click", () => {
+                    resetModalAndForm();
+                  });
+                }
+
+                const completeActions = document.getElementById("complete-actions");
+                const previewLink = document.getElementById("preview-link");
+                const downloadLink = document.getElementById("download-link");
+                if (completeActions && previewLink && downloadLink) {
+                  previewLink.href = resolvedPreview;
+                  downloadLink.href = resolvedDownload;
+                  setHidden(completeActions, false);
+                  setHidden(previewLink, false);
+                  setHidden(downloadLink, false);
+                }
+              } else {
+                if (stateWord) {
+                  stateWord.textContent = "Translation Failed";
+                  stateWord.style.color = "var(--danger)";
+                }
+                const currentProgressWrap = document.getElementById("submission-progress-wrap") || (overlay ? overlay.querySelector(".translation-progress-wrap") : null);
+                if (currentProgressWrap) {
+                  currentProgressWrap.outerHTML = `
+                    <div class="translation-terminal-actions" style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+                      <p class="alert error" style="margin: 0; font-size: 0.875rem;">${jobData.error || jobData.message || "Translation could not be completed."}</p>
+                      <button type="button" id="submission-try-again" class="button primary" style="width: 100%; text-align: center; justify-content: center;">Try Again</button>
+                    </div>
+                  `;
+                }
+                const tryAgainBtn = overlay.querySelector("#submission-try-again");
+                if (tryAgainBtn) {
+                  tryAgainBtn.addEventListener("click", () => {
+                    resetModalAndForm();
+                  });
+                }
+              }
+            },
+            onNetworkState: () => {},
+          };
+
+          uploadPollingController = PollingController.start(`upload:${data.job_id}`, statusUrl, pollHandlers);
         })
         .catch((error) => {
           isUploading = false;
           disableUploadLeaveWarning();
           isSubmitting = false;
           setSubmissionState(false);
+          if (overlay) overlay.innerHTML = initialOverlayHtml;
           setError(errorBox, error.message || "Upload failed.");
         });
     });

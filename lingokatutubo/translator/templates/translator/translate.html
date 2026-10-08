@@ -92,6 +92,6 @@
 </main>
 
 <div id="translation-submission-overlay" class="translation-processing-overlay" hidden aria-hidden="true">
-  {% include "translator/partials/_translating_state.html" with progress_id="translation-submission-progress" loading_description="Your document is being uploaded and prepared for translation." %}
+  {% include "translator/partials/_translating_state.html" with icon_id="submission-state-icon" state_word_id="submission-state-word" state_description_id="submission-state-description" progress_wrap_id="submission-progress-wrap" progress_id="translation-submission-progress" loading_description="Your document is being uploaded and prepared for translation." %}
 </div>
 {% endblock %}
