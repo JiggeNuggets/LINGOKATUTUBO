@@ -253,7 +253,6 @@
     element.textContent = `Detected source language: ${languageName(data.detected_language)}${confidence}`;
     element.hidden = false;
   }
-
   function initUpload() {
     const form = document.getElementById("upload-form");
     if (!form) return;
@@ -266,28 +265,48 @@
     const readyMessage = document.getElementById("ready-message");
     const errorBox = document.getElementById("upload-error");
     const button = document.getElementById("translate-button");
-    const progressCard = document.getElementById("progress-card");
-    const progressFill = document.getElementById("progress-fill");
-    const detectedLanguage = document.getElementById("detected-language");
-    const completeActions = document.getElementById("complete-actions");
-    const downloadLink = document.getElementById("download-link");
-    const previewLink = document.getElementById("preview-link");
-    const backgroundMessage = document.getElementById("background-processing-message");
-    const statusLink = document.getElementById("status-link");
-
-    const progressElements = {
-      progressCard,
-      title: document.getElementById("progress-title"),
-      message: document.getElementById("progress-message"),
-      percent: document.getElementById("progress-percent"),
-      fill: progressFill,
-      progressbar: progressFill ? progressFill.parentElement : null,
-      step: document.getElementById("progress-step"),
-    };
+    const sourceLanguage = document.getElementById("source-language");
+    const targetLanguage = document.getElementById("target-language");
+    const swapLanguages = document.querySelector("[data-swap-languages]");
+    const overlay = document.getElementById("translation-submission-overlay");
 
     let isUploading = false;
     let isSubmitting = false;
     let currentJobId = null;
+
+    function syncLanguageSwap() {
+      if (!swapLanguages || !sourceLanguage) return;
+      const canSwap = sourceLanguage.value !== "auto";
+      swapLanguages.disabled = !canSwap;
+      swapLanguages.setAttribute("aria-disabled", String(!canSwap));
+      swapLanguages.title = canSwap
+        ? "Swap source and target languages"
+        : "Choose a source language to swap";
+    }
+
+    if (swapLanguages && sourceLanguage && targetLanguage) {
+      syncLanguageSwap();
+      sourceLanguage.addEventListener("change", syncLanguageSwap);
+      swapLanguages.addEventListener("click", () => {
+        if (sourceLanguage.value === "auto") return;
+        const sourceValue = sourceLanguage.value;
+        sourceLanguage.value = targetLanguage.value;
+        targetLanguage.value = sourceValue;
+        sourceLanguage.dispatchEvent(new Event("change", { bubbles: true }));
+        targetLanguage.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    function setSubmissionState(isBusy) {
+      form.toggleAttribute("aria-busy", isBusy);
+      document.body.classList.toggle("translation-overlay-active", isBusy);
+      if (overlay) {
+        overlay.hidden = !isBusy;
+        overlay.setAttribute("aria-hidden", String(!isBusy));
+      }
+      button.disabled = isBusy || !(fileInput.files && fileInput.files[0]);
+      button.textContent = isBusy ? "Translating" : "Start Translation";
+    }
 
     function beforeUnloadHandler(event) {
       if (!isUploading || currentJobId) return undefined;
@@ -305,43 +324,8 @@
       window.removeEventListener("beforeunload", beforeUnloadHandler);
     }
 
-    function resetOutputLinks() {
-      completeActions.hidden = true;
-      downloadLink.hidden = true;
-      previewLink.hidden = true;
-    }
-
-    function showBackgroundMessage(jobId) {
-      if (!backgroundMessage) return;
-      backgroundMessage.hidden = false;
-      if (statusLink) statusLink.href = `${form.dataset.previewBase}${jobId}/`;
-    }
-
-    function handleTerminal(data) {
-      const status = normalizeStatus(data.status);
-      if (status === "completed") {
-        button.disabled = true;
-        button.textContent = "Completed";
-        previewLink.hidden = !data.can_preview;
-        downloadLink.hidden = !data.can_download;
-        previewLink.href = `${form.dataset.previewBase}${data.job_id}/preview/`;
-        downloadLink.href = `${form.dataset.downloadBase}${data.job_id}/download/`;
-        completeActions.hidden = !(data.can_preview || data.can_download);
-        return;
-      }
-      if (status === "failed") {
-        button.disabled = false;
-        button.textContent = "Start Translation";
-        resetOutputLinks();
-        setError(errorBox, data.error || data.message || "Translation failed.");
-      }
-    }
-
     function updateSelectedFile() {
       const file = fileInput.files && fileInput.files[0];
-      resetOutputLinks();
-      setHidden(backgroundMessage, true);
-      setHidden(detectedLanguage, true);
       setError(errorBox, "");
       if (!file) {
         fileName.textContent = "Drop your document here";
@@ -380,6 +364,7 @@
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (!form.reportValidity()) return;
       const file = fileInput.files && fileInput.files[0];
       if (!file || isSubmitting) return;
       isSubmitting = true;
@@ -387,18 +372,7 @@
       currentJobId = null;
       enableUploadLeaveWarning();
       setError(errorBox, "");
-      resetOutputLinks();
-      setHidden(backgroundMessage, true);
-      setHidden(detectedLanguage, true);
-      button.disabled = true;
-      button.textContent = "Uploading...";
-      updateProgressDom(progressElements, {
-        status: "uploading",
-        current_phase: "uploading",
-        progress_percent: 3,
-        phase_message: "Uploading document.",
-        current_step: "Uploading document",
-      });
+      setSubmissionState(true);
 
       fetch(form.dataset.uploadUrl, {
         method: "POST",
@@ -413,29 +387,22 @@
         .then(parseJsonResponse)
         .then(({ response, data }) => {
           if (!response.ok) throw new Error(formatUploadError(data));
+          if (!data.job_id) throw new Error("The server did not create a translation job. Please try again.");
           currentJobId = data.job_id;
           isUploading = false;
           disableUploadLeaveWarning();
-          button.textContent = "Processing...";
-          showBackgroundMessage(data.job_id);
-          updateProgressDom(progressElements, data);
-          updateLanguageDom(detectedLanguage, data);
-          PollingController.start(`upload:${data.job_id}`, `${form.dataset.statusBase}${data.job_id}/`, {
-            onUpdate: (payload) => {
-              updateProgressDom(progressElements, payload);
-              updateLanguageDom(detectedLanguage, payload);
-            },
-            onTerminal: handleTerminal,
-            onNetworkState: (message) => setError(errorBox, message),
-          });
+          const targetUrl = form.dataset.jobBase
+            ? form.dataset.jobBase.replace("00000000-0000-0000-0000-000000000000", data.job_id)
+            : `/translate/job/${data.job_id}/`;
+          window.setTimeout(() => {
+            window.location.assign(targetUrl);
+          }, 1500);
         })
         .catch((error) => {
           isUploading = false;
           disableUploadLeaveWarning();
           isSubmitting = false;
-          button.disabled = false;
-          button.textContent = "Start Translation";
-          setHidden(progressCard, true);
+          setSubmissionState(false);
           setError(errorBox, error.message || "Upload failed.");
         });
     });
@@ -468,11 +435,25 @@
     const statusPill = document.getElementById("job-status-pill");
     const previewAction = document.getElementById("job-preview-action");
     const downloadAction = document.getElementById("job-download-action");
+    const processingOverlay = document.getElementById("translation-job-processing-overlay");
+    const terminalOverlay = document.getElementById("translation-terminal-overlay");
     const reloadButton = document.getElementById("reload-status-button");
+
+    function setProcessingOverlayState(isActive) {
+      document.body.classList.toggle("translation-overlay-active", isActive);
+      if (processingOverlay) {
+        processingOverlay.hidden = !isActive;
+        processingOverlay.setAttribute("aria-hidden", String(!isActive));
+      }
+    }
 
     function applyStatus(data) {
       const status = normalizeStatus(data.status);
       const percent = progressFor(data);
+      const isProcessing = activeStatuses.has(status);
+      root.setAttribute("aria-busy", String(isProcessing));
+      setProcessingOverlayState(isProcessing);
+
       updateProgressDom(progressElements, data);
       setText(phase, data.current_phase || status);
       setText(updated, formatDateTime(data.updated_at));
@@ -511,16 +492,31 @@
       onUpdate: applyStatus,
       onTerminal: (data) => {
         applyStatus(data);
-        if (normalizeStatus(data.status) === "completed") {
-          showStatusMessage("Translated file is ready.", "success");
+        setProcessingOverlayState(false);
+        const status = normalizeStatus(data.status);
+        if (status === "completed") {
+          const previewUrl = root.getAttribute("data-preview-url") || (data.preview_url) || (window.location.pathname.replace(/\/$/, '') + "/preview/");
+          window.location.href = previewUrl;
+          return;
         }
+        window.setTimeout(() => window.location.reload(), 150);
         controller = null;
       },
       onNetworkState: networkState,
     };
+    if (terminalOverlay) {
+      document.body.classList.add("translation-overlay-active");
+      window.requestAnimationFrame(() => {
+        const terminalAction = terminalOverlay.querySelector("[data-terminal-action]");
+        if (terminalAction) terminalAction.focus();
+      });
+    }
     const initialStatus = normalizeStatus(root.dataset.initialStatus);
     if (activeStatuses.has(initialStatus)) {
+      setProcessingOverlayState(true);
       controller = PollingController.start(`detail:${root.dataset.jobId}`, root.dataset.statusUrl, handlers);
+    } else {
+      setProcessingOverlayState(false);
     }
 
     if (reloadButton) {
@@ -626,6 +622,26 @@
       overlay.setAttribute("aria-hidden", "true");
     }
 
+    function resetPreviewLinksState() {
+      hideOverlay();
+      links.forEach((link) => {
+        link.classList.remove("is-loading");
+        link.removeAttribute("aria-disabled");
+        if (link.dataset.originalText) {
+          const keepLabel = link.classList.contains("recent-document-card__check") ||
+                            link.classList.contains("document-card-action") ||
+                            Boolean(link.closest(".document-card"));
+          if (!keepLabel) {
+            link.textContent = link.dataset.originalText;
+          }
+        }
+      });
+    }
+
+    // Reset overlay and loading indicators if restored from BFCache or history navigation
+    window.addEventListener("pageshow", resetPreviewLinksState);
+    window.addEventListener("popstate", resetPreviewLinksState);
+
     function showOpenFailure() {
       if (!errorBanner || !errorBannerText) return;
       errorBannerText.textContent = "Could not open the bilingual preview. Please try again.";
@@ -652,13 +668,20 @@
         link.dataset.originalText = link.textContent;
         link.classList.add("is-loading");
         link.setAttribute("aria-disabled", "true");
-        link.textContent = loadingText;
+        const keepLabel = link.classList.contains("recent-document-card__check") ||
+                          link.classList.contains("document-card-action") ||
+                          Boolean(link.closest(".document-card"));
+        if (!keepLabel) {
+          link.textContent = loadingText;
+        }
         showOverlay(loadingText);
 
         const failsafeTimer = window.setTimeout(() => {
           link.classList.remove("is-loading");
           link.removeAttribute("aria-disabled");
-          link.textContent = link.dataset.originalText || loadingText;
+          if (!keepLabel) {
+            link.textContent = link.dataset.originalText || loadingText;
+          }
           hideOverlay();
           showOpenFailure();
         }, FAILSAFE_TIMEOUT_MS);
@@ -670,6 +693,26 @@
           window.clearTimeout(failsafeTimer);
           window.location.href = href;
         }, MIN_LOADING_MS);
+      });
+    });
+  }
+
+  function initPreviewBackNavigation() {
+    const backLinks = document.querySelectorAll(".preview-back-link");
+    if (!backLinks.length) return;
+
+    backLinks.forEach((link) => {
+      link.addEventListener("click", (event) => {
+        const overlay = document.getElementById("page-transition-overlay");
+        if (overlay) {
+          overlay.classList.remove("is-visible");
+          overlay.setAttribute("aria-hidden", "true");
+        }
+        // If there is prior history in this window/tab, react as a back button
+        if (window.history.length > 1) {
+          event.preventDefault();
+          window.history.back();
+        }
       });
     });
   }
@@ -954,14 +997,820 @@
     scheduleToastDismiss(item);
   }
 
+  function initNavigationDropdowns() {
+    const dropdowns = Array.from(document.querySelectorAll("[data-nav-dropdown]"));
+    if (!dropdowns.length) return;
+
+    function setExpanded(dropdown, isOpen) {
+      const trigger = dropdown.querySelector("[data-nav-dropdown-trigger]");
+      const menu = dropdown.querySelector(".nav-dropdown__menu");
+      dropdown.classList.toggle("is-open", isOpen);
+      if (trigger) trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      if (menu) menu.hidden = !isOpen;
+    }
+
+    function closeDropdown(dropdown) {
+      setExpanded(dropdown, false);
+    }
+
+    dropdowns.forEach((dropdown) => {
+      const trigger = dropdown.querySelector("[data-nav-dropdown-trigger]");
+      const menu = dropdown.querySelector(".nav-dropdown__menu");
+      setExpanded(dropdown, false);
+      if (trigger) {
+        trigger.addEventListener("click", () => {
+          const isOpen = !dropdown.classList.contains("is-open");
+          setExpanded(dropdown, isOpen);
+          if (isOpen) {
+            dropdowns.forEach((other) => {
+              if (other !== dropdown) closeDropdown(other);
+            });
+          }
+        });
+      }
+      if (menu) {
+        menu.addEventListener("click", () => closeDropdown(dropdown));
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!dropdowns.some((dropdown) => dropdown.contains(event.target))) {
+        dropdowns.forEach(closeDropdown);
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const openDropdown = dropdowns.find((dropdown) => dropdown.classList.contains("is-open"));
+      if (!openDropdown) return;
+      event.preventDefault();
+      closeDropdown(openDropdown);
+      const trigger = openDropdown.querySelector("[data-nav-dropdown-trigger]");
+      if (trigger) trigger.focus();
+    });
+  }
+
+  function initRevealElements() {
+    const elements = Array.from(document.querySelectorAll("[data-reveal]"));
+    if (!elements.length) return;
+
+    document.documentElement.classList.add("has-reveal");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion || !("IntersectionObserver" in window)) {
+      elements.forEach((element) => element.classList.add("is-revealed"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-revealed");
+          observer.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "0px 0px -8%", threshold: 0.08 }
+    );
+
+    elements.forEach((element) => observer.observe(element));
+  }
+
+  function initEditorialGalleries() {
+    const galleries = Array.from(document.querySelectorAll("[data-gallery]"));
+    if (!galleries.length) return;
+
+    galleries.forEach((gallery) => {
+      const items = Array.from(gallery.querySelectorAll("[data-gallery-item]"));
+      const thumbnails = Array.from(gallery.querySelectorAll("[data-gallery-thumb]"));
+      const previous = gallery.querySelector("[data-gallery-previous]");
+      const next = gallery.querySelector("[data-gallery-next]");
+      const open = gallery.querySelector("[data-gallery-open]");
+      const dialog = gallery.querySelector("[data-gallery-lightbox]");
+      const dialogImage = gallery.querySelector("[data-gallery-lightbox-image]");
+      const dialogCaption = gallery.querySelector("[data-gallery-lightbox-caption]");
+      const dialogPrevious = gallery.querySelector("[data-gallery-lightbox-previous]");
+      const dialogNext = gallery.querySelector("[data-gallery-lightbox-next]");
+      const dialogClose = gallery.querySelector("[data-gallery-lightbox-close]");
+      if (!items.length) return;
+
+      let activeIndex = Math.max(0, items.findIndex((item) => item.classList.contains("is-active")));
+      let opener = null;
+
+      function normalizeIndex(index) {
+        return (index + items.length) % items.length;
+      }
+
+      function render(index, focusThumbnail) {
+        activeIndex = normalizeIndex(index);
+        items.forEach((item, itemIndex) => {
+          const active = itemIndex === activeIndex;
+          item.hidden = !active;
+          item.classList.toggle("is-active", active);
+        });
+        thumbnails.forEach((thumbnail, thumbnailIndex) => {
+          const active = thumbnailIndex === activeIndex;
+          thumbnail.classList.toggle("is-active", active);
+          thumbnail.setAttribute("aria-selected", active ? "true" : "false");
+          thumbnail.tabIndex = active ? 0 : -1;
+          if (active && focusThumbnail) thumbnail.focus();
+        });
+
+        const activeItem = items[activeIndex];
+        const image = activeItem.querySelector("img");
+        const caption = activeItem.querySelector("figcaption");
+        if (dialogImage && image) {
+          dialogImage.src = image.currentSrc || image.src;
+          dialogImage.alt = image.alt;
+        }
+        if (dialogCaption) dialogCaption.textContent = caption ? caption.innerText.trim() : "";
+      }
+
+      function openDialog(triggerEl) {
+        if (!dialog) return;
+        opener = triggerEl || open;
+        if (typeof dialog.showModal === "function") {
+          if (!dialog.open) dialog.showModal();
+        } else {
+          dialog.setAttribute("open", "");
+        }
+        const focusTarget = dialog.querySelector("[data-gallery-lightbox-close]");
+        if (focusTarget) focusTarget.focus();
+      }
+
+      function closeDialog() {
+        if (!dialog) return;
+        if (typeof dialog.close === "function" && dialog.open) {
+          dialog.close();
+        } else {
+          dialog.removeAttribute("open");
+        }
+        if (opener && typeof opener.focus === "function") {
+          opener.focus();
+        }
+      }
+
+      function step(direction, focusThumbnail) {
+        render(activeIndex + direction, focusThumbnail);
+      }
+
+      if (previous) previous.addEventListener("click", () => step(-1, false));
+      if (next) next.addEventListener("click", () => step(1, false));
+      thumbnails.forEach((thumbnail, index) => {
+        thumbnail.addEventListener("click", () => render(index, true));
+        thumbnail.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            render(index + 1, true);
+          } else if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            render(index - 1, true);
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            render(0, true);
+          } else if (event.key === "End") {
+            event.preventDefault();
+            render(items.length - 1, true);
+          }
+        });
+      });
+
+      if (open) {
+        open.addEventListener("click", (event) => {
+          render(activeIndex, false);
+          openDialog(event.currentTarget);
+        });
+      }
+      if (dialogPrevious) dialogPrevious.addEventListener("click", () => step(-1, false));
+      if (dialogNext) dialogNext.addEventListener("click", () => step(1, false));
+      if (dialogClose) dialogClose.addEventListener("click", closeDialog);
+
+      if (dialog) {
+        dialog.addEventListener("click", (event) => {
+          if (event.target === dialog) closeDialog();
+        });
+        dialog.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeDialog();
+          } else if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            step(-1, false);
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault();
+            step(1, false);
+          } else if (event.key === "Tab") {
+            const focusables = Array.from(
+              dialog.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+            );
+            if (!focusables.length) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }
+        });
+        dialog.addEventListener("close", () => {
+          if (opener && typeof opener.focus === "function") opener.focus();
+        });
+      }
+
+      // External triggers (e.g. Textiles slide detail trigger)
+      document.querySelectorAll("[data-open-gallery-item]").forEach((btn) => {
+        const itemNumber = parseInt(btn.dataset.openGalleryItem, 10);
+        if (!isNaN(itemNumber)) {
+          const targetIndex = itemNumber - 1;
+          const handler = (e) => {
+            e.preventDefault();
+            render(targetIndex, false);
+            openDialog(btn);
+          };
+          btn.addEventListener("click", handler);
+          if (btn.getAttribute("role") === "button") {
+            btn.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handler(e);
+              }
+            });
+          }
+        }
+      });
+
+      render(activeIndex, false);
+    });
+  }
+
+  function initEditorialChapterSystem(rail) {
+    const track = rail.querySelector("[data-story-track]");
+    const prevBtn = rail.querySelector("[data-story-prev]");
+    const nextBtn = rail.querySelector("[data-story-next]");
+    const currentIndicator = rail.querySelector("[data-story-current]");
+    const hint = rail.querySelector("[data-story-hint]");
+    const liveRegion = rail.querySelector("[data-story-live]");
+    const dots = Array.from(rail.querySelectorAll("[data-story-dots] .story-rail__dot"));
+    const slides = Array.from(rail.querySelectorAll("[data-story-slide]"));
+    if (!track || !slides.length) return;
+
+    const experience = rail.closest("#interactive-experience");
+    const nav = experience?.querySelector("[data-sticky-nav]");
+    const navLinks = nav ? Array.from(nav.querySelectorAll("[data-nav-link]")) : [];
+    const progressBar = experience?.querySelector("[data-reading-progress-bar]");
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const hintStorageKey = "editorialChapterHintSeen";
+    let currentActiveIndex = Math.max(0, slides.findIndex((slide) => !slide.hidden));
+    let transitionTimer = null;
+    let suppressTrackClick = false;
+
+    const isProtectedTarget = (target) =>
+      target instanceof Element &&
+      Boolean(
+        target.closest(
+          "a, button, input, select, textarea, label, form, figcaption, figure, picture, img, [role='button'], [role='dialog'], [contenteditable='true'], .image-credit, .story-slide__media, .contemporary-practices, .story-slide__actions, .gallery, .gallery__controls, [data-gallery], [data-open-gallery-item], dialog"
+        )
+      );
+
+    const isTextSelectionTarget = (target) =>
+      target instanceof Element &&
+      Boolean(target.closest("p, h1, h2, h3, h4, li, blockquote, pre, code, [contenteditable='true']"));
+
+    const scrollActiveNavIntoView = (activeSlide) => {
+      if (!nav) return;
+      const activeLink = navLinks.find((link) => `section-${link.dataset.navLink}` === activeSlide.id);
+      if (!activeLink) return;
+      const desiredLeft = activeLink.offsetLeft - (nav.clientWidth - activeLink.offsetWidth) / 2;
+      const maxLeft = Math.max(0, nav.scrollWidth - nav.clientWidth);
+      nav.scrollTo({
+        left: Math.min(maxLeft, Math.max(0, desiredLeft)),
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+      });
+    };
+
+    const syncStoryState = (index, activeSlide) => {
+      dots.forEach((dot, dotIndex) => {
+        const isActive = dotIndex === index;
+        dot.classList.toggle("is-active", isActive);
+        dot.setAttribute("aria-current", isActive ? "true" : "false");
+      });
+      navLinks.forEach((link) => {
+        const isActive = `section-${link.dataset.navLink}` === activeSlide.id;
+        link.classList.toggle("is-active", isActive);
+        link.toggleAttribute("aria-current", isActive);
+      });
+      scrollActiveNavIntoView(activeSlide);
+      if (currentIndicator) currentIndicator.textContent = String(index + 1).padStart(2, "0");
+      if (prevBtn) prevBtn.disabled = index === 0;
+      if (nextBtn) nextBtn.disabled = index === slides.length - 1;
+      rail.classList.toggle("has-previous-chapter", index > 0);
+      rail.classList.toggle("has-next-chapter", index < slides.length - 1);
+      if (progressBar) {
+        const chapterProgress = ((index + 1) / slides.length) * 100;
+        progressBar.dataset.chapterProgress = String(chapterProgress);
+        progressBar.setAttribute("aria-valuenow", String(Math.round(chapterProgress)));
+        progressBar.style.width = `${chapterProgress}%`;
+      }
+    };
+
+    const concealHint = () => {
+      if (!hint || hint.hidden) return;
+      hint.hidden = true;
+      try {
+        window.sessionStorage.setItem(hintStorageKey, "true");
+      } catch (_) {
+        // Private browsing may deny storage; hiding for this page is sufficient.
+      }
+    };
+
+    try {
+      if (window.sessionStorage.getItem(hintStorageKey) === "true" && hint) hint.hidden = true;
+    } catch (_) {
+      // The hint remains available when storage is unavailable.
+    }
+
+    const keepStoryViewportSteady = (previousTop, previousScrollY) => {
+      window.requestAnimationFrame(() => {
+        const topDrift = track.getBoundingClientRect().top - previousTop;
+        if (Math.abs(topDrift) > 1 || Math.abs(window.scrollY - previousScrollY) > 1) {
+          // This is a corrective delta only; chapter navigation never scrolls to a section.
+          window.scrollTo({ top: previousScrollY, behavior: "auto" });
+        }
+      });
+    };
+
+    function goToChapter(index, source) {
+      if (index < 0 || index >= slides.length || index === currentActiveIndex) return false;
+      const previousTop = track.getBoundingClientRect().top;
+      const previousScrollY = window.scrollY;
+      const previousIndex = currentActiveIndex;
+      const previousSlide = slides[previousIndex];
+      const activeSlide = slides[index];
+      const direction = index > previousIndex ? "right" : "left";
+
+      clearTimeout(transitionTimer);
+      slides.forEach((slide) => {
+        if (slide !== previousSlide && slide !== activeSlide) {
+          slide.hidden = true;
+          slide.inert = true;
+          slide.classList.remove("is-active", "is-leaving", "is-leaving-left", "is-leaving-right", "slide-from-left", "slide-from-right");
+          slide.setAttribute("aria-hidden", "true");
+        }
+      });
+
+      currentActiveIndex = index;
+      activeSlide.hidden = false;
+      activeSlide.inert = false;
+      activeSlide.classList.remove("is-leaving", "is-leaving-left", "is-leaving-right", "slide-from-left", "slide-from-right");
+      activeSlide.classList.add("is-active", direction === "right" ? "slide-from-right" : "slide-from-left");
+      activeSlide.setAttribute("aria-hidden", "false");
+
+      previousSlide.hidden = false;
+      previousSlide.inert = true;
+      previousSlide.classList.remove("is-active", "slide-from-left", "slide-from-right");
+      previousSlide.classList.add("is-leaving", direction === "right" ? "is-leaving-right" : "is-leaving-left");
+      previousSlide.setAttribute("aria-hidden", "true");
+
+      syncStoryState(index, activeSlide);
+      concealHint();
+      const chapterTitle = activeSlide.querySelector("h2")?.textContent?.trim();
+      if (liveRegion) liveRegion.textContent = `Chapter ${index + 1} of ${slides.length}: ${chapterTitle || rail.dataset.storyCategory || "Story"}`;
+      rail.dispatchEvent(new CustomEvent("story:change", { bubbles: true, detail: { index, slide: activeSlide, source } }));
+      keepStoryViewportSteady(previousTop, previousScrollY);
+
+      transitionTimer = window.setTimeout(() => {
+        previousSlide.hidden = true;
+        previousSlide.classList.remove("is-leaving", "is-leaving-left", "is-leaving-right");
+      }, prefersReducedMotion ? 0 : 340);
+      return true;
+    }
+
+    if (prevBtn) prevBtn.addEventListener("click", () => goToChapter(currentActiveIndex - 1, "previous"));
+    if (nextBtn) nextBtn.addEventListener("click", () => goToChapter(currentActiveIndex + 1, "next"));
+    dots.forEach((dot, index) => dot.addEventListener("click", () => goToChapter(index, "dot")));
+    rail.addEventListener("story:select", (event) => goToChapter(Number(event.detail?.index), "programmatic"));
+
+    navLinks.forEach((link) => {
+      link.addEventListener("click", (event) => {
+        const targetIndex = slides.findIndex((slide) => slide.id === `section-${link.dataset.navLink}`);
+        if (targetIndex < 0) return;
+        event.preventDefault();
+        goToChapter(targetIndex, "sticky-navigation");
+      });
+    });
+
+    function handleKeyNavigation(event) {
+      if (isProtectedTarget(event.target) || document.activeElement?.isContentEditable || document.querySelector("dialog[open]")) return;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goToChapter(currentActiveIndex - 1, "keyboard");
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goToChapter(currentActiveIndex + 1, "keyboard");
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        goToChapter(0, "keyboard");
+      } else if (event.key === "End") {
+        event.preventDefault();
+        goToChapter(slides.length - 1, "keyboard");
+      }
+    }
+
+    window.addEventListener("keydown", (event) => {
+      const rect = rail.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) handleKeyNavigation(event);
+    });
+
+    // Scoped two-finger trackpad handling: vertical and diagonal scrolling remain native.
+    let accumulatedDeltaX = 0;
+    let trackpadCooldown = false;
+    let trackpadTimer = null;
+    let horizontalIntentTimer = null;
+    track.addEventListener("wheel", (event) => {
+      const absX = Math.abs(event.deltaX);
+      const absY = Math.abs(event.deltaY);
+      if (absX === 0 || absX <= absY * 1.4) {
+        accumulatedDeltaX = 0;
+        return;
+      }
+      if (trackpadCooldown) return;
+      accumulatedDeltaX += event.deltaX;
+      clearTimeout(horizontalIntentTimer);
+      horizontalIntentTimer = window.setTimeout(() => { accumulatedDeltaX = 0; }, 180);
+      if (Math.abs(accumulatedDeltaX) < 70) return;
+      const moved = goToChapter(currentActiveIndex + (accumulatedDeltaX > 0 ? 1 : -1), "trackpad");
+      accumulatedDeltaX = 0;
+      if (moved) {
+        trackpadCooldown = true;
+        clearTimeout(trackpadTimer);
+        trackpadTimer = window.setTimeout(() => {
+          trackpadCooldown = false;
+          accumulatedDeltaX = 0;
+        }, 650);
+      }
+    }, { passive: true });
+
+    track.addEventListener("pointermove", (event) => {
+      if (event.pointerType === "touch" || isProtectedTarget(event.target) || isTextSelectionTarget(event.target)) {
+        track.classList.remove("is-edge-hover-left", "is-edge-hover-right");
+        return;
+      }
+      const rect = track.getBoundingClientRect();
+      const edgeZone = Math.max(50, rect.width * 0.14);
+      const x = event.clientX - rect.left;
+      track.classList.toggle("is-edge-hover-left", x <= edgeZone && currentActiveIndex > 0);
+      track.classList.toggle("is-edge-hover-right", x >= rect.width - edgeZone && currentActiveIndex < slides.length - 1);
+    });
+    track.addEventListener("pointerleave", () => track.classList.remove("is-edge-hover-left", "is-edge-hover-right"));
+
+    track.addEventListener("click", (event) => {
+      if (suppressTrackClick || isProtectedTarget(event.target) || isTextSelectionTarget(event.target)) return;
+      const selection = window.getSelection();
+      if (selection?.toString().trim()) return;
+      const rect = track.getBoundingClientRect();
+      const edgeZone = Math.max(50, rect.width * 0.14);
+      const clickX = event.clientX - rect.left;
+      if (clickX <= edgeZone) goToChapter(currentActiveIndex - 1, "edge-click");
+      else if (clickX >= rect.width - edgeZone) goToChapter(currentActiveIndex + 1, "edge-click");
+    });
+
+    let touchPointer = null;
+    track.addEventListener("pointerdown", (event) => {
+      if (event.pointerType !== "touch" || !event.isPrimary || isProtectedTarget(event.target)) return;
+      touchPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    }, { passive: true });
+    track.addEventListener("pointerup", (event) => {
+      if (!touchPointer || event.pointerId !== touchPointer.id) return;
+      const diffX = event.clientX - touchPointer.x;
+      const diffY = event.clientY - touchPointer.y;
+      touchPointer = null;
+      if (Math.abs(diffX) < 48 || Math.abs(diffX) <= Math.abs(diffY) * 1.3) return;
+      suppressTrackClick = true;
+      goToChapter(currentActiveIndex + (diffX < 0 ? 1 : -1), "touch-swipe");
+      window.setTimeout(() => { suppressTrackClick = false; }, 350);
+    }, { passive: true });
+    track.addEventListener("pointercancel", () => { touchPointer = null; }, { passive: true });
+
+    syncStoryState(currentActiveIndex, slides[currentActiveIndex]);
+  }
+
+  function initEditorialChapterSystems() {
+    document.querySelectorAll("[data-story-rail]").forEach(initEditorialChapterSystem);
+  }
+
+  function initReadingProgress() {
+    const bar = document.querySelector("[data-reading-progress-bar]");
+    const experience = document.getElementById("interactive-experience");
+    if (!bar || !experience) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) return;
+
+    const updateProgress = () => {
+      const rect = experience.getBoundingClientRect();
+      const scrollHeight = rect.height - window.innerHeight;
+      if (scrollHeight <= 0) return;
+      let progress = 0;
+      if (rect.top <= 0) {
+        progress = Math.min(100, (Math.abs(rect.top) / scrollHeight) * 100);
+      }
+      bar.style.width = `${progress}%`;
+    };
+
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    updateProgress();
+  }
+
+  function initHeroInteractions() {
+    const exploreButtons = Array.from(document.querySelectorAll("[data-hero-explore]"));
+    if (!exploreButtons.length) return;
+
+    const stopAnimation = () => {
+      exploreButtons.forEach((button) => button.classList.add("has-interacted"));
+    };
+
+    exploreButtons.forEach((exploreBtn) => {
+      exploreBtn.addEventListener("mouseenter", stopAnimation, { once: true });
+      exploreBtn.addEventListener("focus", stopAnimation, { once: true });
+      exploreBtn.addEventListener("click", (event) => {
+        stopAnimation();
+        const target = document.getElementById("interactive-experience");
+        if (target) {
+          event.preventDefault();
+          target.scrollIntoView({
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+            block: "start",
+          });
+        }
+      });
+    });
+
+    window.addEventListener("scroll", stopAnimation, { passive: true, once: true });
+  }
+
+  function initBackToTop() {
+    const btn = document.querySelector("[data-back-to-top]");
+    if (!btn) return;
+
+    let ticking = false;
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const scrollProgress = totalHeight > 0 ? window.scrollY / totalHeight : 0;
+          const isVisible = scrollProgress > 0.35;
+          btn.hidden = !isVisible;
+          btn.classList.toggle("is-visible", isVisible);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+  }
+
+  function initBackToTop() {
+    const btn = document.querySelector("[data-back-to-top]");
+    if (!btn) return;
+
+    let ticking = false;
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const scrollProgress = totalHeight > 0 ? window.scrollY / totalHeight : 0;
+          const isVisible = scrollProgress > 0.35;
+          btn.hidden = !isVisible;
+          btn.classList.toggle("is-visible", isVisible);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    btn.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    onScroll();
+  }
+
+  function initActiveJobNotification() {
+    const banner = document.querySelector(".active-job-banner");
+    if (!banner) return;
+    const dismissBtn = banner.querySelector(".active-job-banner__dismiss");
+    if (dismissBtn) {
+      dismissBtn.addEventListener("click", () => {
+        banner.style.transition = "opacity 200ms ease, transform 200ms ease";
+        banner.style.opacity = "0";
+        banner.style.transform = "translateY(16px)";
+        setTimeout(() => banner.remove(), 210);
+      });
+    }
+  }
+
+  function initDashboardFilters() {
+    const tabs = document.querySelectorAll("[data-dashboard-filter]");
+    if (!tabs.length) return;
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((t) => {
+          t.classList.remove("is-active");
+          t.setAttribute("aria-selected", "false");
+        });
+        tab.classList.add("is-active");
+        tab.setAttribute("aria-selected", "true");
+
+        const filter = tab.dataset.dashboardFilter;
+        const cards = document.querySelectorAll(".dashboard-recent [data-document-card]");
+        cards.forEach((card) => {
+          const status = card.dataset.status;
+          const matches = filter === "all" || status === filter;
+          card.style.display = matches ? "" : "none";
+        });
+
+        const dateGroups = document.querySelectorAll(".dashboard-date-group");
+        dateGroups.forEach((group) => {
+          const visibleCards = group.querySelectorAll('[data-document-card]:not([style*="display: none"])');
+          group.style.display = visibleCards.length > 0 ? "" : "none";
+        });
+      });
+    });
+  }
+
+  function initNatureSoundscape() {
+    const toggleBtn = document.getElementById("ambient-soundscape-toggle");
+    if (!toggleBtn) return;
+
+    let audioCtx = null;
+    let isPlaying = false;
+    let windNode = null;
+    let masterGain = null;
+    let birdInterval = null;
+
+    function createWindSoundscape(ctx, destination) {
+      const bufferSize = ctx.sampleRate * 4;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        b3 = 0.86650 * b3 + white * 0.3104856;
+        b4 = 0.55000 * b4 + white * 0.5329522;
+        b5 = -0.7616 * b5 - white * 0.0168980;
+        output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.04;
+        b6 = white * 0.115926;
+      }
+
+      const whiteNoise = ctx.createBufferSource();
+      whiteNoise.buffer = noiseBuffer;
+      whiteNoise.loop = true;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = 380;
+      filter.Q.value = 1.6;
+
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.12;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 140;
+      lfo.connect(lfoGain);
+      lfoGain.connect(filter.frequency);
+      lfo.start();
+
+      whiteNoise.connect(filter);
+      filter.connect(destination);
+      whiteNoise.start();
+
+      return { whiteNoise, lfo };
+    }
+
+    function playBirdChirp(ctx, destination) {
+      if (!isPlaying) return;
+      try {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const chirpGain = ctx.createGain();
+        osc.type = "sine";
+
+        const baseFreq = 2200 + Math.random() * 800;
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq + 600, now + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq - 200, now + 0.18);
+
+        chirpGain.gain.setValueAtTime(0.001, now);
+        chirpGain.gain.linearRampToValueAtTime(0.015, now + 0.04);
+        chirpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+        osc.connect(chirpGain);
+        chirpGain.connect(destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } catch (_) {}
+    }
+
+    function startSoundscape() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (!audioCtx) {
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+
+      masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+      masterGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 1.2);
+      masterGain.connect(audioCtx.destination);
+
+      windNode = createWindSoundscape(audioCtx, masterGain);
+
+      birdInterval = setInterval(() => {
+        if (Math.random() > 0.35) {
+          playBirdChirp(audioCtx, masterGain);
+        }
+      }, 3400);
+
+      isPlaying = true;
+      toggleBtn.classList.add("is-active");
+      toggleBtn.setAttribute("aria-pressed", "true");
+      const label = toggleBtn.querySelector(".nature-ambient-label");
+      if (label) label.textContent = "Playing Atmosphere";
+    }
+
+    function stopSoundscape() {
+      if (!audioCtx || !isPlaying) return;
+
+      if (masterGain) {
+        masterGain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+        setTimeout(() => {
+          if (windNode) {
+            try {
+              windNode.whiteNoise.stop();
+              windNode.lfo.stop();
+            } catch (_) {}
+          }
+          if (audioCtx && audioCtx.state !== "closed") {
+            audioCtx.suspend();
+          }
+        }, 850);
+      }
+
+      if (birdInterval) {
+        clearInterval(birdInterval);
+        birdInterval = null;
+      }
+
+      isPlaying = false;
+      toggleBtn.classList.remove("is-active");
+      toggleBtn.setAttribute("aria-pressed", "false");
+      const label = toggleBtn.querySelector(".nature-ambient-label");
+      if (label) label.textContent = "Mountain Atmosphere";
+    }
+
+    toggleBtn.addEventListener("click", () => {
+      if (!isPlaying) {
+        startSoundscape();
+      } else {
+        stopSoundscape();
+      }
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    // Ensure any stale transition overlay is dismissed on initial page render
+    const overlay = document.getElementById("page-transition-overlay");
+    if (overlay) {
+      overlay.classList.remove("is-visible");
+      overlay.setAttribute("aria-hidden", "true");
+    }
+
     initUpload();
     initStatusPage();
     initRenderedPreviewControls();
     initPreviewLinks();
+    initPreviewBackNavigation();
     initMobileNav();
+    initNavigationDropdowns();
+    initRevealElements();
+    initEditorialGalleries();
+    initEditorialChapterSystems();
+    initReadingProgress();
+    initHeroInteractions();
+    initBackToTop();
     initMessageDismiss();
     initToastAutoDismiss();
     initDocumentRemoveModal();
+    initActiveJobNotification();
+    initDashboardFilters();
+    initNatureSoundscape();
   });
 })();

@@ -286,6 +286,58 @@ class TranslationSegment(TimestampedModel):
         return f"{self.job_id} segment {self.segment_index}"
 
 
+class UnknownTranslationRecord(TimestampedModel):
+    """A private review queue item; the original document/upload is immutable."""
+    class ReviewStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        IN_REVIEW = "in_review", "In review"
+        RESOLVED = "resolved", "Resolved"
+        DISMISSED = "dismissed", "Dismissed"
+
+    job = models.ForeignKey(TranslationJob, related_name="unknown_records", on_delete=models.CASCADE)
+    page = models.ForeignKey(DocumentPage, related_name="unknown_records", on_delete=models.SET_NULL, null=True, blank=True)
+    segment = models.OneToOneField(TranslationSegment, related_name="unknown_record", on_delete=models.CASCADE)
+    source_text = models.TextField()
+    normalized_text = models.TextField(blank=True)
+    source_language = models.CharField(max_length=32)
+    target_language = models.CharField(max_length=32)
+    occurrence_count = models.PositiveIntegerField(default=1)
+    ocr_confidence = models.FloatField(null=True, blank=True)
+    reason = models.CharField(max_length=120, default="no_safe_match")
+    suggested_related_entries = models.JSONField(default=list, blank=True)
+    review_status = models.CharField(max_length=24, choices=ReviewStatus.choices, default=ReviewStatus.PENDING, db_index=True)
+    submitted_correction_reference = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["review_status", "source_language", "target_language"])]
+
+    def __str__(self):
+        return f"Unknown segment {self.segment_id}"
+
+
+class OCRCorrection(TimestampedModel):
+    """Append-only OCR correction history.  OCRResult.text is never overwritten."""
+    class Status(models.TextChoices):
+        PROPOSED = "proposed", "Proposed"
+        ACCEPTED = "accepted", "Accepted"
+        REJECTED = "rejected", "Rejected"
+
+    ocr_result = models.ForeignKey(OCRResult, related_name="corrections", on_delete=models.CASCADE)
+    page = models.ForeignKey(DocumentPage, related_name="ocr_corrections", on_delete=models.CASCADE)
+    original_ocr_text = models.TextField()
+    corrected_text = models.TextField()
+    bbox = models.JSONField(default=list, blank=True)
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="ocr_corrections", on_delete=models.SET_NULL, null=True, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PROPOSED, db_index=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["ocr_result", "created_at"]
+
+    def __str__(self):
+        return f"OCR correction {self.pk} ({self.status})"
+
+
 class PhrasebookEntry(TimestampedModel):
     topic = models.CharField(max_length=120, blank=True, db_index=True)
     english = models.TextField(blank=True)
@@ -298,17 +350,169 @@ class PhrasebookEntry(TimestampedModel):
     is_sme_verified = models.BooleanField(default=False, db_index=True)
     needs_review = models.BooleanField(default=False, db_index=True)
     metadata = models.JSONField(default=dict, blank=True)
+    part_of_speech = models.CharField(max_length=120, blank=True)
+    word_sense = models.TextField(blank=True)
+    source_title = models.CharField(max_length=255, blank=True)
+    source_page = models.CharField(max_length=64, blank=True)
+    source_owner = models.CharField(max_length=255, blank=True)
+    license_status = models.CharField(max_length=64, default="unrecorded", db_index=True, blank=True)
+    validation_status = models.CharField(max_length=32, default="pending", db_index=True, blank=True)
+    validator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name="validated_phrasebook_entries",
+        on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    validation_date = models.DateField(null=True, blank=True)
+    cultural_sensitivity_status = models.CharField(max_length=64, default="unreviewed", db_index=True, blank=True)
+    access_restriction = models.CharField(max_length=64, default="internal", db_index=True, blank=True)
+    revision_number = models.PositiveIntegerField(default=1)
+    is_approved_for_runtime = models.BooleanField(default=False, db_index=True)
+    required_reviews = models.PositiveSmallIntegerField(default=1)
+    has_unresolved_conflict = models.BooleanField(default=False, db_index=True)
+    import_batch = models.ForeignKey(
+        "LanguageResourceImportBatch",
+        related_name="entries",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["topic", "english", "id"]
+        permissions = [
+            ("review_language_entry", "Can review language-resource entries"),
+            ("approve_runtime_entry", "Can approve verified entries for runtime"),
+            ("manage_language_resources", "Can manage language-resource imports and reports"),
+        ]
         indexes = [
             models.Index(fields=["is_active", "needs_review"]),
             models.Index(fields=["is_sme_verified", "needs_review"]),
         ]
 
+    def governance_snapshot(self):
+        return {
+            "english": self.english, "tagabawa": self.tagabawa,
+            "filipino": self.filipino, "cebuano": self.cebuano,
+            "part_of_speech": self.part_of_speech, "word_sense": self.word_sense,
+            "source_title": self.source_title, "source_page": self.source_page,
+            "source_owner": self.source_owner, "license_status": self.license_status,
+            "validation_status": self.validation_status,
+            "cultural_sensitivity_status": self.cultural_sensitivity_status,
+            "access_restriction": self.access_restriction, "notes": self.notes,
+        }
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            self.revision_number = (type(self).objects.filter(pk=self.pk).values_list("revision_number", flat=True).first() or 0) + 1
+        super().save(*args, **kwargs)
+        if not kwargs.get("raw", False):
+            PhrasebookEntryRevision.objects.create(
+                entry=self, revision_number=self.revision_number,
+                snapshot=self.governance_snapshot(), validator=self.validator,
+            )
     def __str__(self) -> str:
         return self.english or self.tagabawa or f"Phrasebook entry {self.pk}"
 
+
+class PhrasebookEntryRevision(TimestampedModel):
+    entry = models.ForeignKey(PhrasebookEntry, related_name="revisions", on_delete=models.CASCADE)
+    revision_number = models.PositiveIntegerField()
+    snapshot = models.JSONField(default=dict)
+    validator = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="phrasebook_revisions", on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ["entry", "-revision_number"]
+        constraints = [models.UniqueConstraint(fields=["entry", "revision_number"], name="translator_unique_phrasebook_revision")]
+
+
+class LanguageResourceImportBatch(TimestampedModel):
+    """Immutable accounting record for one language-resource import attempt."""
+
+    identifier = models.CharField(max_length=120, unique=True)
+    source_filename = models.CharField(max_length=512)
+    source_checksum_sha256 = models.CharField(max_length=64)
+    imported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="language_resource_imports",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    rows_processed = models.PositiveIntegerField(default=0)
+    rows_created = models.PositiveIntegerField(default=0)
+    rows_skipped = models.PositiveIntegerField(default=0)
+    rows_duplicated = models.PositiveIntegerField(default=0)
+    rows_conflicting = models.PositiveIntegerField(default=0)
+    rows_incomplete = models.PositiveIntegerField(default=0)
+    rows_requiring_review = models.PositiveIntegerField(default=0)
+    is_dry_run = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    report_path = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class LanguageResourceIssue(TimestampedModel):
+    class Category(models.TextChoices):
+        EXACT_DUPLICATE = "exact_duplicate", "Exact duplicate"
+        NORMALIZED_DUPLICATE = "normalized_duplicate", "Normalized duplicate"
+        POSSIBLE_DUPLICATE = "possible_duplicate", "Possible duplicate"
+        CONFLICTING_TRANSLATION = "conflicting_translation", "Conflicting translation"
+        INCOMPLETE_RECORD = "incomplete_record", "Incomplete record"
+        POSSIBLE_OCR_ARTIFACT = "possible_ocr_artifact", "Possible OCR artifact"
+        MISSING_PROVENANCE = "missing_provenance", "Missing provenance"
+        MISSING_LICENSE = "missing_license", "Missing license"
+        VALIDATION_REQUIRED = "validation_required", "Validation required"
+
+    batch = models.ForeignKey(LanguageResourceImportBatch, related_name="issues", on_delete=models.CASCADE)
+    entry = models.ForeignKey(PhrasebookEntry, related_name="governance_issues", on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.CharField(max_length=48, choices=Category.choices, db_index=True)
+    source_row_number = models.PositiveIntegerField(null=True, blank=True)
+    detail = models.JSONField(default=dict, blank=True)
+    is_resolved = models.BooleanField(default=False, db_index=True)
+    resolved_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="resolved_language_issues", on_delete=models.SET_NULL, null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution_reason = models.TextField(blank=True)
+
+
+class LanguageEntryReview(TimestampedModel):
+    class Decision(models.TextChoices):
+        KEEP_BOTH = "keep_both", "Keep both"
+        DUPLICATE = "duplicate", "Duplicate"
+        VERIFY = "verify", "Verify"
+        REJECT = "reject", "Reject"
+        RESTRICT = "restrict", "Restrict"
+        REQUEST_REVIEW = "request_review", "Request another review"
+
+    entry = models.ForeignKey(PhrasebookEntry, related_name="reviews", on_delete=models.PROTECT)
+    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="language_entry_reviews", on_delete=models.PROTECT)
+    decision = models.CharField(max_length=32, choices=Decision.choices)
+    notes = models.TextField()
+    previous_state = models.JSONField(default=dict)
+    new_state = models.JSONField(default=dict)
+    related_entry_ids = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class CorrectionSuggestion(TimestampedModel):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        UNDER_REVIEW = "under_review", "Under review"
+        RESOLVED = "resolved", "Resolved"
+        REJECTED = "rejected", "Rejected"
+
+    job = models.ForeignKey(TranslationJob, related_name="correction_suggestions", on_delete=models.CASCADE)
+    segment = models.ForeignKey(TranslationSegment, related_name="correction_suggestions", on_delete=models.SET_NULL, null=True, blank=True)
+    source_text = models.TextField()
+    displayed_translation = models.TextField(blank=True)
+    suggested_correction = models.TextField()
+    explanation = models.TextField(blank=True)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="correction_suggestions", on_delete=models.CASCADE)
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.PENDING, db_index=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="reviewed_correction_suggestions", on_delete=models.SET_NULL, null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
 class GlossaryTerm(TimestampedModel):
     language_pair = models.ForeignKey(

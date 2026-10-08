@@ -13,53 +13,99 @@
   data-download-url="{% url 'translator:job_download' job.id %}"
 >
   <header class="preview-header">
-    <div class="preview-header-text">
-      <nav class="breadcrumb" aria-label="Breadcrumb">
-        <a class="button secondary preview-back-link" href="{% url 'translator:history' %}">&larr; History</a>
-      </nav>
-      <p class="page-subtitle">{{ uploaded_document.original_filename|default:job.original_filename }}</p>
-    </div>
-    <div class="hero-actions preview-header-actions">
-      {% if can_download %}
-        <a id="preview-download" class="button primary" href="{% url 'translator:job_download' job.id %}">
-          Download Translated PDF
-        </a>
-      {% endif %}
+    <nav class="preview-back-nav" aria-label="Preview navigation">
+      <a class="button secondary preview-back-link" href="{% url 'translator:history' %}" data-back-action onclick="if (window.history.length > 1) { window.history.back(); return false; }" title="Go back to previous page">&larr; Back</a>
+    </nav>
+    <div class="preview-header__main">
+      <div class="preview-header-text">
+        <h1 title="{{ uploaded_document.original_filename|default:job.original_filename }}">{{ uploaded_document.original_filename|default:job.original_filename }}</h1>
+        <p class="page-subtitle">Compare your original and translated document.</p>
+      </div>
+      <div class="preview-header-actions">
+        {% if can_download %}
+          <a id="preview-download" class="button primary" href="{% url 'translator:job_download' job.id %}">
+            Download Translated Document
+          </a>
+        {% endif %}
+      </div>
     </div>
   </header>
 
+  {% if has_retained_text and not can_view_validation_markers %}
+  <section class="alert warning" role="status">
+    <p>Some text may remain unchanged when a suitable translation is unavailable.</p>
+  </section>
+  {% elif translation_has_review_items %}
+  <section class="alert warning" role="region" aria-labelledby="review-required-heading">
+    <h2 id="review-required-heading">Translation review required</h2>
+    <p>Original text retained because a suitable translation was unavailable.</p>
+    {% if can_download_validator_copy %}<p><a class="button secondary" href="{% url 'translator:review_manifest' job.id %}">Download review manifest</a></p>{% endif %}
+    <ul aria-label="Segments requiring validation">
+      {% for segment in segments %}
+        {% if segment.needs_review %}
+          <li>Page {{ segment.page.page_number|default:"unavailable" }}, segment {{ segment.segment_index }}: Original text retained, translation requires validation.</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% if translation_data_mode == "development_unverified" %}
+  <section class="alert warning" role="status">
+    <p>This development environment may use unverified language resources. Matched text is not a linguistic approval.</p>
+  </section>
+{% endif %}
+
+{% if review_copy %}
+  <section class="alert info" aria-labelledby="review-copy-heading">
+    <h2 id="review-copy-heading">Validator review copy</h2>
+    <p>Legend: † indicates a segment requiring validation. Segment identifiers are included for the review manifest.</p>
+    <ul>
+      {% for segment in segments %}{% if segment.needs_review %}
+        <li><strong>{{ segment.review_identifier }} †</strong> — {{ segment.display_source_text }}</li>
+      {% endif %}{% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
   <section class="document-compare-section" aria-labelledby="document-preview-heading">
-    <div class="section-title-row">
-      <div>
+    <div class="preview-workspace-toolbar">
+      <div class="preview-workspace-toolbar__copy">
         <h2 id="document-preview-heading">Document Preview</h2>
         <p class="section-subtitle">Original and translated pages are aligned by page number.</p>
       </div>
+      <div class="preview-toolbar preview-controls document-review__toolbar" role="toolbar" aria-label="Preview zoom controls">
+        <button class="button secondary preview-toolbar__button preview-toolbar__button--icon" type="button" data-preview-zoom-action="out" aria-controls="bilingual-document-preview" aria-label="Zoom out">−</button>
+        <button class="button secondary preview-toolbar__button preview-toolbar__button--fit" type="button" data-preview-zoom-action="fit" aria-controls="bilingual-document-preview" aria-label="Fit document to available width" aria-pressed="true">Fit width</button>
+        <button class="button secondary preview-toolbar__button preview-toolbar__button--icon" type="button" data-preview-zoom-action="in" aria-controls="bilingual-document-preview" aria-label="Zoom in">+</button>
+        <output class="preview-zoom-status preview-zoom-status--announcement" data-preview-zoom-status aria-live="polite" aria-atomic="true"></output>
+      </div>
     </div>
 
-    <section class="bilingual-document-preview is-fit-width" data-preview-scope aria-label="Bilingual document preview">
-      <div class="document-compare-headers" aria-hidden="true">
-        <header class="document-panel-header"><h3>Original Document</h3></header>
-        <header class="document-panel-header"><h3>Translated Document</h3></header>
+    <section id="bilingual-document-preview" class="bilingual-document-preview document-review is-fit-width" data-preview-scope aria-label="Bilingual document preview">
+      <div class="document-compare-headers">
+        <header class="document-panel-header document-panel-header--original"><h3 id="original-document-heading">Original Document</h3></header>
+        <header class="document-panel-header document-panel-header--translated"><h3 id="translated-document-heading">Translated Document</h3></header>
       </div>
 
       {% if image_preview.page_pairs %}
         {% for page in image_preview.page_pairs %}
           <section class="document-page-card" aria-label="Page {{ page.number }} comparison">
             <div class="document-page-row-grid">
-              <div class="document-page-col" aria-label="Original page {{ page.number }}">
-                <p class="document-page-label">Original Document &middot; Page {{ page.number }}</p>
+              <div class="document-page-col" aria-labelledby="original-document-heading original-page-{{ page.number }}">
+                <p id="original-page-{{ page.number }}" class="document-page-label">Original Document &middot; Page {{ page.number }}</p>
                 {% if page.original_url %}
-                  <img class="document-page-image" src="{{ page.original_url }}" alt="Original page {{ page.number }} preview">
+                  <img class="document-page-image" src="{{ page.original_url }}" alt="Original page {{ page.number }} preview" loading="lazy" decoding="async">
                 {% elif page.original_text %}
                   <pre class="document-text-preview">{{ page.original_text }}</pre>
                 {% else %}
                   <p class="empty-preview">No original preview for this page.</p>
                 {% endif %}
               </div>
-              <div class="document-page-col" aria-label="Translated page {{ page.number }}">
-                <p class="document-page-label">Translated Document &middot; Page {{ page.number }}</p>
+              <div class="document-page-col" aria-labelledby="translated-document-heading translated-page-{{ page.number }}">
+                <p id="translated-page-{{ page.number }}" class="document-page-label">Translated Document &middot; Page {{ page.number }}</p>
                 {% if page.translated_url %}
-                  <img class="document-page-image" src="{{ page.translated_url }}" alt="Translated page {{ page.number }} preview">
+                  <img class="document-page-image" src="{{ page.translated_url }}" alt="Translated page {{ page.number }} preview" loading="lazy" decoding="async">
                 {% elif page.translated_text %}
                   <pre class="document-text-preview">{{ page.translated_text }}</pre>
                 {% else %}
@@ -89,6 +135,18 @@
       {% endif %}
     </section>
   </section>
+
+  {% if can_view_validation_markers %}
+  <section class="card" aria-labelledby="text-review-heading">
+    <div class="section-title-row"><div><h2 id="text-review-heading">Text and validation markers</h2>{% if segments.paginator.num_pages > 1 %}<p class="section-subtitle">Page {{ segments.number }} of {{ segments.paginator.num_pages }} reviewable text segments.</p>{% else %}<p class="section-subtitle">Reviewable text segments for this document.</p>{% endif %}</div></div>
+    {% if segments %}
+      <div class="data-table-wrap"><table class="data-table"><caption>Original text remains available whenever validation is needed.</caption><thead><tr><th scope="col">Page</th><th scope="col">Original text</th><th scope="col">Translated text</th><th scope="col">Validation</th></tr></thead><tbody>
+        {% for segment in segments %}<tr><td>{{ segment.page.page_number|default:"—" }}</td><td>{{ segment.display_source_text }}</td><td>{{ segment.display_translated_text }}</td><td>{% if segment.needs_review %}<span class="status-pill needs-validation"><span class="status-icon" aria-hidden="true">⚠</span>Needs validation</span><details><summary>Why is this marked?</summary><p class="small">No safe validated translation match was available. The original text was retained.</p></details>{% else %}<span class="status-pill verified"><span class="status-icon" aria-hidden="true">✓</span>No marker</span>{% endif %}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% if segments.paginator.num_pages > 1 %}<nav class="pagination" aria-label="Text segment pages">{% if segments.has_previous %}<a class="button secondary" href="?page={{ segments.previous_page_number }}">Previous</a>{% endif %}<span>Page {{ segments.number }} of {{ segments.paginator.num_pages }}</span>{% if segments.has_next %}<a class="button secondary" href="?page={{ segments.next_page_number }}">Next</a>{% endif %}</nav>{% endif %}
+    {% else %}<div class="empty-state empty-state-inline"><h3 class="empty-state-title">No extracted text is available</h3><p class="empty-state-body">Use the page comparison above to review this document.</p></div>{% endif %}
+  </section>
+  {% endif %}
 
 </main>
 {% endblock %}

@@ -1,3 +1,5 @@
+u{003E} **Document status: Historical / Proposed.** Verify current runtime and dataset claims against docs/CURRENT_STATE_CAPABILITIES.md (Phase 1, 2026-08-02).
+
 # LingoKatutubo - System Architecture Diagram
 
 > ⚠️ **This diagram is the target architecture.** Several boxes below describe components that are **Planned**, not yet implemented. Read the legend before trusting any box.

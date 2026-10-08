@@ -1,3 +1,5 @@
+u{003E} **Document status: Historical / Proposed.** Verify current runtime and dataset claims against docs/CURRENT_STATE_CAPABILITIES.md (Phase 1, 2026-08-02).
+
 # Dataset and Model Preparation
 
 **Status:** Dataset preparation and low-resource MT experimentation only.

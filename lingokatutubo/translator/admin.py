@@ -11,10 +11,12 @@ from .models import (
     Language,
     LanguagePair,
     OCRResult,
+    OCRCorrection,
     PhrasebookEntry,
     SystemEventLog,
     TranslationJob,
     TranslationSegment,
+    UnknownTranslationRecord,
     UploadedDocument,
     UserActivityLog,
 )
@@ -279,6 +281,22 @@ class OCRResultAdmin(admin.ModelAdmin):
         queryset.update(status=OCRResult.Status.PENDING_REVIEW)
 
 
+@admin.register(OCRCorrection)
+class OCRCorrectionAdmin(admin.ModelAdmin):
+    list_display = ("ocr_result", "page", "author", "status", "created_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("original_ocr_text", "corrected_text", "ocr_result__job__id")
+    readonly_fields = ("original_ocr_text", "created_at", "updated_at")
+
+
+@admin.register(UnknownTranslationRecord)
+class UnknownTranslationRecordAdmin(admin.ModelAdmin):
+    list_display = ("job", "page", "segment", "source_language", "target_language", "review_status", "created_at")
+    list_filter = ("review_status", "source_language", "target_language")
+    search_fields = ("source_text", "normalized_text", "job__id")
+    readonly_fields = ("job", "page", "segment", "source_text", "normalized_text", "created_at", "updated_at")
+
+
 @admin.register(TranslationSegment)
 class TranslationSegmentAdmin(admin.ModelAdmin):
     list_display = (
@@ -325,6 +343,10 @@ class PhrasebookEntryAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "is_sme_verified", "needs_review", "topic", "source")
     search_fields = ("english", "tagabawa", "filipino", "cebuano", "notes")
     readonly_fields = ("created_at", "updated_at")
+    # These are workflow-managed values.  Keeping them out of the legacy
+    # admin form prevents an operator from inventing a revision or bypassing
+    # the validator queue; defaults are assigned by the model/importer.
+    exclude = ("revision_number", "required_reviews", "import_batch")
     actions = ("mark_verified", "mark_needs_review")
 
     @admin.action(description="Mark selected phrasebook entries as SME verified")

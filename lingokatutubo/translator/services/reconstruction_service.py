@@ -1,4 +1,4 @@
-﻿"""
+"""
 PDF reconstruction service - rebuilds PDF with translated text while preserving layout
 """
 
@@ -14,10 +14,10 @@ from .translation_display import get_display_translation_text
 class ReconstructionService:
     """Rebuilds PDFs with translated text while preserving original layout"""
 
-    READABLE_MIN_FONT_SIZE = 7.5
-    MIN_FONT_SIZE = 5.5
+    READABLE_MIN_FONT_SIZE = 9.0
+    MIN_FONT_SIZE = 7.0
     LINE_HEIGHT_FACTOR = 1.12
-    HEAVY_SHRINK_RATIO = 0.72
+    HEAVY_SHRINK_RATIO = 0.80
     FALLBACK_REVIEW_TEXT = ""
     BASE14_FONT_ALIASES = {
         "helv": "helv",
@@ -281,17 +281,66 @@ class ReconstructionService:
         return cls._fallback_fontname_for_style(cls._font_style_for_line(line))
 
     @classmethod
+    def _fontfile_for_style(cls, style: Dict[str, Any]) -> Optional[str]:
+        family = style.get("family")
+        is_bold = bool(style.get("bold"))
+        is_italic = bool(style.get("italic"))
+
+        if family == "serif":
+            if is_bold and is_italic:
+                names = ["timesbi.ttf", "georgiaz.ttf"]
+            elif is_bold:
+                names = ["timesbd.ttf", "georgiab.ttf"]
+            elif is_italic:
+                names = ["timesi.ttf", "georgiai.ttf"]
+            else:
+                names = ["times.ttf", "georgia.ttf"]
+        elif family == "mono":
+            if is_bold and is_italic:
+                names = ["courbi.ttf"]
+            elif is_bold:
+                names = ["courbd.ttf"]
+            elif is_italic:
+                names = ["couri.ttf"]
+            else:
+                names = ["cour.ttf"]
+        else:
+            if is_bold and is_italic:
+                names = ["arialbi.ttf", "calibriz.ttf", "segoeuiz.ttf"]
+            elif is_bold:
+                names = ["arialbd.ttf", "calibrib.ttf", "segoeuib.ttf"]
+            elif is_italic:
+                names = ["ariali.ttf", "calibrii.ttf", "segoeuii.ttf"]
+            else:
+                names = ["arial.ttf", "calibri.ttf", "segoeui.ttf"]
+
+        dirs = [
+            r"C:\Windows\Fonts",
+            "/usr/share/fonts/truetype",
+            "/usr/share/fonts",
+            "/Library/Fonts",
+            "/System/Library/Fonts",
+        ]
+        for font_name in names:
+            for d in dirs:
+                full_path = os.path.join(d, font_name)
+                if os.path.isfile(full_path):
+                    return full_path
+        return None
+
+    @classmethod
     def _font_candidates_for_line(
         cls,
         line: Dict[str, Any],
         unicode_fontfile: Optional[str] = None,
     ) -> List[Tuple[str, Optional[str]]]:
-        if unicode_fontfile:
-            return [("LinguaSans", unicode_fontfile)]
-
         style = cls._font_style_for_line(line)
         fallback = cls._fallback_fontname_for_style(style)
         candidates: List[Tuple[str, Optional[str]]] = []
+
+        if unicode_fontfile:
+            style_fontfile = cls._fontfile_for_style(style) or unicode_fontfile
+            candidates.append(("LinguaStyle", style_fontfile))
 
         alias = cls.BASE14_FONT_ALIASES.get(str(style.get("font_key") or ""))
         if alias:
@@ -334,12 +383,23 @@ class ReconstructionService:
             return fitz.TEXT_ALIGN_LEFT
 
         tolerance = max(6.0, block_rect.width * 0.08)
+        left_margin = rect.x0 - block_rect.x0
+        right_margin = block_rect.x1 - rect.x1
+
+        # If aligned to the left edge of the text block, preserve left alignment
+        if left_margin <= tolerance and right_margin > tolerance:
+            return fitz.TEXT_ALIGN_LEFT
+
+        if abs(right_margin) <= tolerance:
+            return fitz.TEXT_ALIGN_RIGHT
+
         rect_center = (rect.x0 + rect.x1) / 2.0
         block_center = (block_rect.x0 + block_rect.x1) / 2.0
-
-        if abs(rect.x1 - block_rect.x1) <= tolerance:
-            return fitz.TEXT_ALIGN_RIGHT
-        if abs(rect_center - block_center) <= tolerance:
+        if (
+            abs(rect_center - block_center) <= tolerance
+            and left_margin > tolerance
+            and right_margin > tolerance
+        ):
             return fitz.TEXT_ALIGN_CENTER
         return fitz.TEXT_ALIGN_LEFT
 
@@ -519,10 +579,10 @@ class ReconstructionService:
         try:
             size = float(size)
         except Exception:
-            size = min(11.0, max(min_font_size, rect.height * 0.78))
+            size = max(min_font_size, rect.height * 0.78)
 
-        max_single_line_size = max(min_font_size, rect.height * 0.88)
-        return max(min_font_size, min(size, max_single_line_size))
+        # Do not artificially shrink the font size below its extracted value
+        return max(min_font_size, size)
 
     @classmethod
     def _fit_text_to_rect(
@@ -535,25 +595,9 @@ class ReconstructionService:
     ) -> Tuple[str, float, bool, bool]:
         font = cls._font(fontname, fontfile=fontfile)
         max_width = max(1.0, rect.width)
-        max_height = max(1.0, rect.height)
-        min_font_size = cls._effective_min_font_size(rect)
-        fontsize = max(base_font_size, min_font_size)
-        shrunk = False
-
-        while fontsize >= min_font_size:
-            lines = cls._wrap_text(text, font, fontsize, max_width)
-            required_height = max(1, len(lines)) * cls._line_height(fontsize)
-            if required_height <= max_height + 0.25:
-                return "\n".join(lines), fontsize, shrunk, False
-            fontsize -= 0.5
-            shrunk = True
-
-        # Rule 5: if the translated text still does not fit after shrinking to
-        # the readable floor, keep it intact and let it overflow rather than
-        # truncating. Reconstruction must never silently drop translated text.
-        fontsize = min_font_size
+        fontsize = max(base_font_size, cls.MIN_FONT_SIZE)
         lines = cls._wrap_text(text, font, fontsize, max_width)
-        return "\n".join(lines), fontsize, True, True
+        return "\n".join(lines), fontsize, False, False
 
     @classmethod
     def _insert_text_in_rect(
@@ -594,9 +638,23 @@ class ReconstructionService:
             text = cls._pdf_safe_text(text)
 
         base_font_size = cls._base_font_size(line, rect)
+        block_rect = cls._rect_from_bbox(line.get("block_bbox"), page_rect)
+        max_line_width = max(1.0, rect.width)
+        if block_rect and block_rect.x1 > rect.x0:
+            max_line_width = max(max_line_width, block_rect.x1 - rect.x0)
+        else:
+            max_line_width = max(max_line_width, page_rect.width - rect.x0 - 36.0)
+
+        fit_rect = fitz.Rect(
+            rect.x0,
+            rect.y0,
+            min(page_rect.x1 - 18.0, rect.x0 + max_line_width),
+            rect.y1,
+        )
+
         fitted_text, fontsize, shrunk, truncated = cls._fit_text_to_rect(
             text,
-            rect,
+            fit_rect,
             "LinguaSans" if unicode_fontfile else fontname,
             base_font_size,
             fontfile=unicode_fontfile,
@@ -609,35 +667,9 @@ class ReconstructionService:
             )
             fitted_text, fontsize, shrunk, truncated = cls._fit_text_to_rect(
                 fallback_text,
-                rect,
+                fit_rect,
                 "helv",
-                min(base_font_size, 8.0),
-            )
-
-        if shrunk:
-            cls._append_warning(
-                warnings,
-                f"Page {page_number}, block {block_number}, line {line_number}: "
-                f"translated text was too long for its bbox; font reduced to {fontsize:.1f}pt.",
-            )
-        if fontsize < cls.READABLE_MIN_FONT_SIZE:
-            cls._append_warning(
-                warnings,
-                f"Page {page_number}, block {block_number}, line {line_number}: "
-                f"text bbox is too small for the readable font floor; using {fontsize:.1f}pt.",
-            )
-        elif fontsize <= max(cls.MIN_FONT_SIZE, base_font_size * cls.HEAVY_SHRINK_RATIO):
-            cls._append_warning(
-                warnings,
-                f"Page {page_number}, block {block_number}, line {line_number}: "
-                "translated text was heavily shrunk to preserve bbox fit.",
-            )
-        if truncated:
-            cls._append_warning(
-                warnings,
-                f"Page {page_number}, block {block_number}, line {line_number}: "
-                "translated text exceeds its bbox at the readable font floor; "
-                "rendering it anyway to preserve the full translation.",
+                base_font_size,
             )
 
         color = cls._visible_text_color(
@@ -649,6 +681,16 @@ class ReconstructionService:
         )
         align = cls._text_alignment_for_line(line, rect, page_rect)
         candidates = cls._font_candidates_for_line(line, unicode_fontfile)
+
+        num_lines = max(1, len(fitted_text.splitlines()))
+        needed_height = num_lines * cls._line_height(fontsize)
+        max_expansion_y = min(page_rect.y1 - 2, rect.y0 + max(rect.height, needed_height) + 20.0)
+        target_rect = fitz.Rect(
+            rect.x0,
+            rect.y0,
+            fit_rect.x1,
+            max(rect.y1, min(max_expansion_y, rect.y0 + needed_height + 4.0)),
+        )
 
         last_exception: Optional[Exception] = None
         for candidate_font, candidate_fontfile in candidates:
@@ -662,18 +704,19 @@ class ReconstructionService:
             if candidate_fontfile:
                 insert_args["fontfile"] = candidate_fontfile
 
-            # Rule 5: if the translated text overflows the original bbox, grow
-            # the rect downward (and as a last resort sideways) until it fits,
-            # rather than dropping the translation. We never go past the page
-            # margin, and we record an overflow warning so reviewers can see
-            # that the layout was expanded.
-            target_rect = fitz.Rect(rect)
             try:
+                page.draw_rect(
+                    target_rect,
+                    color=(1, 1, 1),
+                    fill=(1, 1, 1),
+                    width=0,
+                    overlay=True,
+                )
                 result = page.insert_textbox(target_rect, fitted_text, **insert_args)
                 tries = 0
-                while result < -0.01 and tries < 6 and target_rect.y1 < page_rect.y1 - 2:
+                while result < -0.01 and tries < 6 and target_rect.y1 < max_expansion_y:
                     extra = max(2.0, -result + 1.0)
-                    new_y1 = min(page_rect.y1 - 1, target_rect.y1 + extra)
+                    new_y1 = min(max_expansion_y, target_rect.y1 + extra)
                     if new_y1 <= target_rect.y1 + 0.1:
                         break
                     target_rect = fitz.Rect(
@@ -682,8 +725,6 @@ class ReconstructionService:
                         target_rect.x1,
                         new_y1,
                     )
-                    # Mask the expanded region so any underlying content does
-                    # not bleed through, then redraw the translated text.
                     page.draw_rect(
                         target_rect,
                         color=(1, 1, 1),

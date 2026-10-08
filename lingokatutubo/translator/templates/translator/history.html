@@ -1,15 +1,15 @@
 {% extends "translator/base.html" %}
 
 {% block title %}Translation History{% endblock %}
-{% block meta_description %}Your translation history — uploaded documents, processing status, bilingual previews, and outputs.{% endblock %}
+{% block meta_description %}Your translation history — uploaded documents, processing status, previews, and outputs.{% endblock %}
 
 {% block content %}
-<main class="translator-page">
+<main class="translator-page history-page">
   <header class="page-heading compact">
     <div class="page-heading-row">
       <div>
         <h1>Translation History</h1>
-        <p class="page-subtitle">Your uploaded documents, processing status, OCR results, bilingual previews, and downloads.</p>
+        <p class="page-subtitle">Your uploaded documents, processing status, previews, and downloads.</p>
       </div>
       <a class="button primary" href="{% url 'translator:translate' %}">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -18,7 +18,7 @@
     </div>
   </header>
 
-  <form class="history-filters" method="get">
+  <form class="history-filters" method="get" role="search" aria-label="Search translation history">
     <label>
       <span>Search</span>
       <input type="search" name="q" value="{{ search_query }}" placeholder="Search by filename…" aria-label="Search by filename">
@@ -32,16 +32,34 @@
         {% endfor %}
       </select>
     </label>
+    <label>
+      <span>Date</span>
+      <select name="date_range" aria-label="Filter by date range">
+        <option value="all" {% if selected_date_range == "all" %}selected{% endif %}>All time</option>
+        <option value="today" {% if selected_date_range == "today" %}selected{% endif %}>Today</option>
+        <option value="week" {% if selected_date_range == "week" %}selected{% endif %}>Past 7 days</option>
+        <option value="month" {% if selected_date_range == "month" %}selected{% endif %}>Past 30 days</option>
+      </select>
+    </label>
+    <label>
+      <span>Sort by</span>
+      <select name="sort" aria-label="Sort translation history">
+        <option value="newest" {% if selected_sort == "newest" %}selected{% endif %}>Newest first</option>
+        <option value="oldest" {% if selected_sort == "oldest" %}selected{% endif %}>Oldest first</option>
+        <option value="name_asc" {% if selected_sort == "name_asc" %}selected{% endif %}>File name (A–Z)</option>
+        <option value="name_desc" {% if selected_sort == "name_desc" %}selected{% endif %}>File name (Z–A)</option>
+      </select>
+    </label>
     <button class="button secondary" type="submit">Apply</button>
-    {% if search_query or selected_status %}
+    {% if search_query or selected_status or selected_date_range != "all" or selected_sort != "newest" %}
       <a class="button secondary" href="{% url 'translator:history' %}">Clear</a>
     {% endif %}
   </form>
 
-  <section class="history-grid" aria-label="Document history">
+  <section class="history-grid document-section" aria-label="Document history">
     {% if jobs %}
       {% for state in jobs %}
-        {% include "translator/partials/_document_card.html" with state=state card_compact=False show_remove=True %}
+        {% include "translator/partials/_document_card.html" with state=state card_compact=False show_remove=True card_variant="history" %}
       {% endfor %}
     {% else %}
       <div class="empty-state">

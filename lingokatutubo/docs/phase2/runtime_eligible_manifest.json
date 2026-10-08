@@ -1,0 +1,20 @@
+{
+  "dataset_version": "phase2-20260802",
+  "exported_at": "2026-08-02T14:50:24.820290+00:00",
+  "record_count": 0,
+  "excluded_count": 1018,
+  "exclusion_reasons": {
+    "validation_not_verified": 1018,
+    "runtime_not_approved": 1018,
+    "license_not_eligible": 1018,
+    "access_restricted": 1018,
+    "cultural_review_incomplete": 1018,
+    "provenance_incomplete": 1018,
+    "required_reviews_incomplete": 1018,
+    "unresolved_conflict": 77
+  },
+  "governance_policy_version": "phase2-draft-1",
+  "export_actor": "admin_probe",
+  "source_batches": [],
+  "dry_run": true
+}

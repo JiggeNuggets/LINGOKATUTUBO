@@ -1,0 +1,30 @@
+{% extends "translator/base.html" %}
+{% block title %}Translation Resources{% endblock %}
+{% block content %}
+<main class="page-shell resource-page">
+  <header class="page-header">
+    <div><p class="eyebrow">Administrator</p><h1>Translation Resources</h1><p>Routine active resources. Governance and verification remain in the validator workflow.</p></div>
+    <div class="resource-actions">
+      <a class="button" href="{% url 'translator:translation_resource_add' %}">Add resource</a>
+      <a class="button secondary" href="{% url 'translator:translation_resources_import' %}">Import CSV / JSON</a>
+      <a class="button secondary" href="{% url 'translator:translation_resources_export' %}">Export active CSV</a>
+      <a class="button secondary" href="{% url 'translator:translation_resources_match_tester' %}">Match Tester</a>
+    </div>
+  </header>
+  <form class="resource-filters panel" method="get">
+    <label>Search <input type="search" name="q" value="{{ filters.q }}" placeholder="Term, type, or category"></label>
+    <label>Status <select name="active"><option value="active" {% if filters.active == 'active' %}selected{% endif %}>Active</option><option value="inactive" {% if filters.active == 'inactive' %}selected{% endif %}>Inactive</option><option value="all" {% if filters.active == 'all' %}selected{% endif %}>All</option></select></label>
+    <label>Category <select name="category"><option value="">All categories</option>{% for item in categories %}<option value="{{ item }}" {% if filters.category == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+    <label>Completeness <select name="completeness"><option value="">Any</option><option value="complete" {% if filters.completeness == 'complete' %}selected{% endif %}>All languages</option><option value="incomplete" {% if filters.completeness == 'incomplete' %}selected{% endif %}>Missing a language</option></select></label>
+    <label>Warning <select name="warning"><option value="">Any</option><option value="duplicate" {% if filters.warning == 'duplicate' %}selected{% endif %}>Duplicate</option><option value="conflict" {% if filters.warning == 'conflict' %}selected{% endif %}>Conflict</option></select></label>
+    <button class="button secondary" type="submit">Apply</button>
+  </form>
+  <div class="table-scroll"><table class="resource-table"><thead><tr><th>Bagobo-Tagabawa</th><th>English</th><th>Filipino</th><th>Cebuano</th><th>Type</th><th>Category</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead>
+    <tbody>{% for entry in page_obj %}<tr>
+      <td>{{ entry.tagabawa|default:"—" }}</td><td>{{ entry.english|default:"—" }}</td><td>{{ entry.filipino|default:"—" }}</td><td>{{ entry.cebuano|default:"—" }}</td><td>{{ entry.part_of_speech|default:"—" }}</td><td>{{ entry.topic|default:"—" }}</td>
+      <td>{% if entry.is_active %}<span class="status-pill success">Active</span>{% else %}<span class="status-pill">Inactive</span>{% endif %}{% if entry.has_unresolved_conflict %}<span class="status-pill warning">Conflict</span>{% endif %}</td>
+      <td>{{ entry.updated_at|date:"M j, Y" }}</td><td class="table-actions"><a href="{% url 'translator:translation_resource_edit' entry.id %}">Edit</a><form method="post" action="{% url 'translator:translation_resource_toggle' entry.id %}">{% csrf_token %}<button class="link-button" type="submit">{% if entry.is_active %}Deactivate{% else %}Reactivate{% endif %}</button></form></td>
+    </tr>{% empty %}<tr><td colspan="9">No resources match these filters.</td></tr>{% endfor %}</tbody></table></div>
+  {% if page_obj.paginator.num_pages > 1 %}<nav class="pagination" aria-label="Resource pages">{% if page_obj.has_previous %}<a href="?q={{ filters.q|urlencode }}&active={{ filters.active }}&category={{ filters.category|urlencode }}&completeness={{ filters.completeness }}&warning={{ filters.warning }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}<span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?q={{ filters.q|urlencode }}&active={{ filters.active }}&category={{ filters.category|urlencode }}&completeness={{ filters.completeness }}&warning={{ filters.warning }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}</nav>{% endif %}
+</main>
+{% endblock %}

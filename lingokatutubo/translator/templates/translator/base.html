@@ -6,26 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="{% block meta_description %}LingoKatutubo — cross-lingual document translation for Bagobo-Tagabawa language preservation.{% endblock %}">
     <title>{% block title %}LingoKatutubo{% endblock %} — LingoKatutubo</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/branding/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="48x48" href="{% static 'images/branding/favicon-48x48.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/branding/apple-touch-icon.png' %}">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=20260828-homepage-polish">
     {% block extra_css %}{% endblock %}
-    <script src="{% static 'js/app.js' %}" defer></script>
+    <script src="{% static 'js/app.js' %}?v=20260826-appjs-init-recovery" defer></script>
     {% block extra_js %}{% endblock %}
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="site-header">
       <nav class="site-nav" aria-label="Primary">
-        <a class="brand" href="{% url 'translator:home' %}">
-          <img
-            class="brand-mark"
-            src="{% static 'images/lingokatutubo-logo.png' %}"
-            alt="LINGOKATUTUBO logo"
-          >
+        <a class="brand" href="{% url 'translator:home' %}" aria-label="LingoKatutubo home">
+          <img class="brand-mark" src="{% static 'images/branding/lingokatutubo-logo.png' %}" alt="" width="48" height="48" decoding="async">
           <span class="brand-text">
             <strong>LingoKatutubo</strong>
-            <small>Bagobo-Tagabawa</small>
+            <small>Language, culture, and document translation</small>
           </span>
         </a>
 
@@ -40,29 +37,53 @@
           <span></span><span></span><span></span>
         </button>
 
-        <div class="nav-links" id="nav-links" role="menubar">
+        <div class="nav-links" id="nav-links">
           {% block nav_links %}
-            <a href="{% url 'translator:home' %}" role="menuitem">Home</a>
-            <a href="{% url 'translator:translate' %}" role="menuitem">Translate</a>
+          {% with current=request.resolver_match.url_name %}
+            <div class="nav-dropdown" data-nav-dropdown>
+              <button class="nav-dropdown__trigger{% if current == 'bagobo_tagabawa' or current == 'culture' or current == 'nature' or current == 'community' %} is-active{% endif %}" type="button" data-nav-dropdown-trigger aria-haspopup="true" aria-expanded="false" aria-controls="explore-menu">Explore <span class="nav-dropdown__chevron" aria-hidden="true"></span></button>
+              <div class="nav-dropdown__menu" id="explore-menu" aria-label="Explore LingoKatutubo" hidden>
+                <a href="{% url 'translator:bagobo_tagabawa' %}"{% if current == 'bagobo_tagabawa' %} aria-current="page"{% endif %}>Bagobo-Tagabawa</a>
+                <a href="{% url 'translator:culture' %}"{% if current == 'culture' %} aria-current="page"{% endif %}>Culture</a>
+                <a href="{% url 'translator:nature' %}"{% if current == 'nature' %} aria-current="page"{% endif %}>Nature</a>
+                <a href="{% url 'translator:community' %}"{% if current == 'community' %} aria-current="page"{% endif %}>Community</a>
+              </div>
+            </div>
             {% if request.user.is_authenticated %}
-              <a href="{% url 'translator:history' %}" role="menuitem">History</a>
-            {% endif %}
-            {% if request.user.is_staff %}
-              <a href="{% url 'translator:health' %}" role="menuitem">Health</a>
-              <a href="/admin/" role="menuitem">Admin</a>
-            {% endif %}
-            {% if request.user.is_authenticated %}
-              <span class="nav-user" aria-label="Signed in as {{ request.user.username }}">
-                {{ request.user.username }}
-              </span>
-              <form class="logout-form" method="post" action="{% url 'translator:logout' %}">
-                {% csrf_token %}
-                <button class="nav-cta button secondary" type="submit">Log Out</button>
-              </form>
+              <a href="{% url 'translator:translate' %}"{% if current == 'translate' %} aria-current="page"{% endif %}>Translate</a>
+              <a href="{% url 'translator:dashboard' %}"{% if current == 'dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
+              <a href="{% url 'translator:history' %}"{% if current == 'history' %} aria-current="page"{% endif %}>History</a>
+              {% if role_navigation.is_validator or role_navigation.can_manage_translation_resources or role_navigation.is_superuser %}
+                <div class="nav-dropdown nav-dropdown--admin" data-nav-dropdown>
+                  <button class="nav-dropdown__trigger" type="button" data-nav-dropdown-trigger aria-haspopup="true" aria-expanded="false" aria-controls="administration-menu">Administration <span class="nav-dropdown__chevron" aria-hidden="true"></span></button>
+                  <div class="nav-dropdown__menu" id="administration-menu" aria-label="Administration" hidden>
+                    {% if role_navigation.is_validator %}<a href="{% url 'translator:validator_queue' %}">Language Review Queue</a>{% endif %}
+                    {% if role_navigation.can_manage_translation_resources %}
+                      <a href="{% url 'translator:translation_resources' %}">Translation Resources</a>
+                      <a href="{% url 'translator:translation_resources_match_tester' %}">Match Tester</a>
+                      <a href="{% url 'translator:translation_resources_import' %}">Import Dataset</a>
+                      <a href="{% url 'translator:translation_resources_export' %}">Export Dataset</a>
+                      <a href="{% url 'translator:legacy_resource_staging' %}">Legacy Resource Staging</a>
+                    {% endif %}
+                    {% if role_navigation.is_superuser %}<a href="{% url 'translator:health' %}">Health</a><a href="/admin/">Django Admin</a>{% endif %}
+                  </div>
+                </div>
+              {% endif %}
+              <div class="nav-dropdown nav-dropdown--user" data-nav-dropdown>
+                <button class="nav-dropdown__trigger" type="button" data-nav-dropdown-trigger aria-haspopup="true" aria-expanded="false" aria-controls="user-menu" aria-label="Signed in as {{ request.user.username }}">{{ request.user.username }} <span class="nav-dropdown__chevron" aria-hidden="true"></span></button>
+                <div class="nav-dropdown__menu" id="user-menu" aria-label="Account menu" hidden>
+                  <form class="logout-form" method="post" action="{% url 'translator:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit">Log Out</button>
+                  </form>
+                </div>
+              </div>
             {% else %}
-              <a href="{% url 'translator:login' %}" role="menuitem">Log In</a>
-              <a class="nav-cta button secondary" href="{% url 'translator:signup' %}" role="menuitem">Sign Up</a>
+              <a href="{% url 'translator:translate' %}"{% if current == 'translate' %} aria-current="page"{% endif %}>Translate</a>
+              <a href="{% url 'translator:login' %}">Log In</a>
+              <a class="nav-cta button secondary" href="{% url 'translator:signup' %}">Sign Up</a>
             {% endif %}
+          {% endwith %}
           {% endblock %}
         </div>
       </nav>
@@ -79,18 +100,24 @@
     {% if request.user.is_authenticated and active_translation_job_count %}
       {% if not hide_active_job_banner %}
         <aside class="active-job-banner" role="status" aria-live="polite">
-          <div>
-            <strong>{{ active_translation_job_count }} document{% if active_translation_job_count != 1 %}s are{% else %} is{% endif %} currently processing.</strong>
-            {% if active_translation_job %}
-              <span>{{ active_translation_job.original_filename }}</span>
-            {% endif %}
+          <div class="active-job-banner__content">
+            <span class="active-job-banner__pulse" aria-hidden="true"></span>
+            <div class="active-job-banner__info">
+              <strong class="active-job-banner__title">{{ active_translation_job_count }} document{% if active_translation_job_count != 1 %}s are{% else %} is{% endif %} currently processing.</strong>
+              {% if active_translation_job %}
+                <span class="active-job-banner__filename">{{ active_translation_job.original_filename }}</span>
+              {% endif %}
+            </div>
           </div>
-          <nav aria-label="Active job links">
-            {% if active_translation_job %}
-              <a href="{% url 'translator:job_detail' active_translation_job.id %}">View Status</a>
-            {% endif %}
-            <a href="{% url 'translator:history' %}">History</a>
-          </nav>
+          <div class="active-job-banner__actions">
+            <nav aria-label="Active job links">
+              {% if active_translation_job %}
+                <a class="active-job-banner__btn active-job-banner__btn--primary" href="{% url 'translator:job_detail' active_translation_job.id %}">View Status</a>
+              {% endif %}
+              <a class="active-job-banner__btn" href="{% url 'translator:history' %}">History</a>
+            </nav>
+            <button type="button" class="active-job-banner__dismiss" aria-label="Dismiss notification">&times;</button>
+          </div>
         </aside>
       {% endif %}
     {% endif %}
@@ -100,21 +127,52 @@
       <button class="message-dismiss" type="button" aria-label="Dismiss notification">&#x2715;</button>
     </div>
 
-    {% block content %}{% endblock %}
+    <div id="main-content" tabindex="-1">
+      {% block content %}{% endblock %}
+    </div>
 
     <div id="page-transition-overlay" class="page-transition-overlay" aria-hidden="true">
       <div class="page-transition-spinner" role="status" aria-live="polite">
         <span class="spinner" aria-hidden="true"></span>
-        <p id="page-transition-text">Preparing bilingual preview&hellip;</p>
+        <p id="page-transition-text">Preparing document preview&hellip;</p>
       </div>
     </div>
 
     <footer class="site-footer">
-      <div class="footer-inner">
-        <div>
-          <strong>LingoKatutubo</strong>
-          <p>Document translation and bilingual review for Bagobo-Tagabawa language preservation.</p>
+      <div class="footer-inner footer-grid">
+        <div class="footer-brand">
+          <a href="{% url 'translator:home' %}" aria-label="LingoKatutubo home">
+            <img src="{% static 'images/branding/lingokatutubo-logo.png' %}" alt="" width="48" height="48" loading="lazy" decoding="async">
+            <span>LingoKatutubo</span>
+          </a>
+          <p>Language, culture, and document translation.</p>
         </div>
+
+        <nav class="footer-nav" aria-labelledby="footer-explore-heading">
+          <h2 id="footer-explore-heading">Explore</h2>
+          <a href="{% url 'translator:bagobo_tagabawa' %}">Bagobo-Tagabawa</a>
+          <a href="{% url 'translator:culture' %}">Culture</a>
+          <a href="{% url 'translator:nature' %}">Nature</a>
+          <a href="{% url 'translator:community' %}">Community</a>
+        </nav>
+
+        <nav class="footer-nav" aria-labelledby="footer-translate-heading">
+          <h2 id="footer-translate-heading">Translate</h2>
+          <a href="{% url 'translator:translate' %}">Translate Document</a>
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'translator:history' %}">History</a>
+          {% else %}
+            <a href="{% url 'translator:login' %}">Log In</a>
+          {% endif %}
+        </nav>
+
+        <div class="footer-note">
+          <h2>Publishing note</h2>
+          <p>Educational and documentary material is presented with source, credit, and license information where available.</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-legal">&copy; {% now "Y" %} LingoKatutubo. Educational use.</p>
       </div>
     </footer>
   </body>

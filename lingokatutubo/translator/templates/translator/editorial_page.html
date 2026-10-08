@@ -1,0 +1,177 @@
+{% extends "translator/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block meta_description %}{{ intro }}{% endblock %}
+
+{% block content %}
+<main class="editorial-page" data-editorial-page="{{ page_key }}">
+  <section class="editorial-hero editorial-hero--section editorial-page__hero" aria-labelledby="editorial-page-heading" data-reveal>
+    <div class="editorial-hero__content editorial-page__body">
+      <p class="eyebrow editorial-hero__eyebrow">{{ eyebrow }}</p>
+      <h1 id="editorial-page-heading" class="editorial-hero__title">{{ title }}</h1>
+      <p class="editorial-hero__description">{{ intro }}</p>
+      <div class="editorial-hero__actions editorial-page__actions">
+        {% if sections %}
+        <a class="button primary" href="#interactive-experience" data-hero-explore>
+          <span>{{ hero_action_label|default:"Explore Their Story" }}</span><span class="hero-arrow" aria-hidden="true">&darr;</span>
+        </a>
+        <a class="button secondary" href="{% url 'translator:translate' %}">
+          <span>Translate a Document</span><span class="action-arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        {% else %}
+        <a class="button primary" href="{% url 'translator:translate' %}">
+          <span>Translate a Document</span><span class="action-arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a class="button secondary" href="{% url 'translator:home' %}">
+          <span>Explore LingoKatutubo</span><span class="action-arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <figure class="editorial-hero__media editorial-page__media editorial-media editorial-media--feature{% if hero_media %} editorial-media--photo {{ hero_media.media_class }}{% endif %}" aria-label="{% if hero_media %}{{ hero_media.alt }}{% else %}{{ title }} editorial media area{% endif %}">
+      {% if hero_media %}
+      {% include "translator/partials/_responsive_editorial_image.html" with editorial_image=hero_media %}
+      {% else %}
+      <span class="editorial-media__layer editorial-media__layer--one" aria-hidden="true"></span>
+      <span class="editorial-media__layer editorial-media__layer--two" aria-hidden="true"></span>
+      {% endif %}
+      <div class="editorial-media__annotation">
+        <span>{% if hero_media %}{{ hero_media.annotation_title }}{% else %}EDITORIAL SPACE{% endif %}</span>
+        <p>{% if hero_media %}{{ hero_media.annotation_text }}{% else %}Visual material is published alongside its source and credit information.{% endif %}</p>
+      </div>
+      <figcaption class="image-credit">
+        {% if hero_media %}
+        <a class="image-credit__link" href="{{ hero_media.source_url }}" target="_blank" rel="noopener noreferrer" aria-label="View source and license for {{ hero_media.source_title }}" title="{{ hero_media.full_attribution }}">
+          <span>{{ hero_media.short_credit }}</span>
+          <span class="image-credit__license">{{ hero_media.license }}</span>
+        </a>
+        {% else %}
+        Source and license details accompany published photography.
+        {% endif %}
+      </figcaption>
+    </figure>
+  </section>
+
+  {% if sections %}
+    <div id="interactive-experience" class="interactive-experience">
+      <div id="reading-progress" class="reading-progress" aria-hidden="true">
+        <div class="reading-progress__bar" data-reading-progress-bar></div>
+      </div>
+      <nav class="sticky-story-nav" aria-label="Story Navigation" data-sticky-nav>
+        <ul class="sticky-story-nav__list">
+          {% for nav_item in story_navigation %}
+          <li><a href="#section-{{ nav_item.id }}" class="sticky-story-nav__link{% if forloop.first %} is-active{% endif %}" data-nav-link="{{ nav_item.id }}" {% if forloop.first %}aria-current="true"{% endif %}>{{ nav_item.label }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+
+      <div class="interactive-sections">
+        {% include "translator/partials/_story_rail.html" %}
+      </div>
+
+      {% if video_feature %}
+      <section id="section-documentary" class="editorial-video-feature" data-reveal aria-labelledby="documentary-heading">
+        <div class="editorial-video-feature__header section-heading">
+          <p class="eyebrow">{{ video_feature.eyebrow|default:"DOCUMENTARY SPOTLIGHT" }}</p>
+          <h2 id="documentary-heading" class="section-title">{{ video_feature.title }}</h2>
+          <p class="editorial-video-feature__description">{{ video_feature.description }}</p>
+        </div>
+
+        <div class="editorial-video-feature__player-frame">
+          <div class="editorial-video-container" data-video-container>
+            <iframe
+              class="editorial-video-iframe"
+              src="{{ video_feature.video_url }}?rel=0&modestbranding=1"
+              title="{{ video_feature.title }}"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+              loading="lazy"
+            ></iframe>
+          </div>
+          <figcaption class="editorial-video-caption">
+            <span class="editorial-video-badge" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>ASEAN Heritage Park</span>
+            </span>
+            <p>{{ video_feature.caption }} <small class="text-muted">({{ video_feature.source }})</small></p>
+          </figcaption>
+        </div>
+      </section>
+      {% endif %}
+
+      {% include "translator/partials/_editorial_gallery.html" %}
+
+      {% if sources %}
+      <section id="section-sources" class="editorial-page__sources" data-reveal>
+        <div class="section-heading">
+          <p class="eyebrow">RESEARCH & DOCUMENTATION</p>
+          <h2 class="section-title">Sources and Further Reading</h2>
+          <p>Carefully verified research, government documentation, and museum records supporting this chapter.</p>
+        </div>
+        <div class="sources-grid">
+          {% for source in sources %}
+            {% include "translator/partials/_source_card.html" with source=source index=forloop.counter %}
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+    </div>
+  {% endif %}
+
+  <section class="editorial-page__continue continue-exploring" data-reveal aria-labelledby="continue-exploring-heading">
+    <div class="continue-exploring__inner">
+      <div class="continue-exploring__header">
+        <p class="eyebrow">CONTINUE EXPLORING</p>
+        <h2 id="continue-exploring-heading" class="section-title">Continue Exploring</h2>
+        <p class="continue-exploring__subtitle">The story continues across culture, landscape, and language. Deepen your understanding of indigenous knowledge, cultural treasures, and ancestral domains.</p>
+      </div>
+      <div class="continue-exploring__grid">
+        {% for card in continue_exploring %}
+        <div class="continue-card">
+          <span class="continue-card__tag eyebrow">{% if forloop.counter == 1 %}CULTURE{% elif forloop.counter == 2 %}NATURE{% else %}CHAPTER{% endif %}</span>
+          <h3 class="continue-card__title">{{ card.title }}</h3>
+          <p class="continue-card__desc">{{ card.description }}</p>
+          <a class="continue-card__link continue-block-link" href="{% url card.url_name %}">
+            <span>{{ card.cta_label }}</span>
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+        {% endfor %}
+        <div class="continue-card continue-card--cta">
+          <span class="continue-card__tag eyebrow">TRANSLATION TOOL</span>
+          <h3 class="continue-card__title">Translate a Document</h3>
+          <p class="continue-card__desc">Preserve and access educational resources in Bagobo-Tagabawa with our document translation tool.</p>
+          <a class="continue-card__link continue-block-link continue-block-link--cta" href="{% url 'translator:translate' %}">
+            <span>Translate a Document</span>
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <button type="button" class="back-to-top" data-back-to-top aria-label="Back to top" hidden>
+    <span aria-hidden="true">&uarr;</span>
+    <span class="sr-only">Back to top</span>
+  </button>
+
+  {% if page_key == "nature" %}
+  <aside class="nature-ambient-bar" aria-label="Audio atmosphere controller">
+    <button type="button" class="nature-ambient-btn" id="ambient-soundscape-toggle" aria-pressed="false" aria-label="Toggle mountain mist and forest soundscape">
+      <span class="nature-ambient-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+      </span>
+      <span class="nature-ambient-label">Mountain Atmosphere</span>
+      <span class="nature-ambient-wave" aria-hidden="true">
+        <span class="nature-ambient-wave__bar"></span>
+        <span class="nature-ambient-wave__bar"></span>
+        <span class="nature-ambient-wave__bar"></span>
+      </span>
+    </button>
+  </aside>
+  {% endif %}
+</main>
+{% endblock %}

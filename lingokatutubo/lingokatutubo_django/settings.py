@@ -62,6 +62,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "translator.context_processors.active_translation_jobs",
+                "translator.context_processors.role_navigation",
             ],
         },
     },
@@ -180,6 +181,30 @@ LINGOKATUTUBO_TASK_TIMEOUT_SECONDS = int(
 LINGOKATUTUBO_OCR_TIMEOUT_SECONDS = int(
     os.environ.get("LINGOKATUTUBO_OCR_TIMEOUT_SECONDS", "120")
 )
+LINGOKATUTUBO_QUICK_TRANSLATE_MAX_TEXT_LENGTH = int(
+    os.environ.get("LINGOKATUTUBO_QUICK_TRANSLATE_MAX_TEXT_LENGTH", "5000")
+)
+LINGOKATUTUBO_QUICK_TRANSLATE_MAX_REQUEST_BYTES = int(
+    os.environ.get("LINGOKATUTUBO_QUICK_TRANSLATE_MAX_REQUEST_BYTES", "12000")
+)
+LINGOKATUTUBO_QUICK_TRANSLATE_RATE_LIMIT = int(
+    os.environ.get("LINGOKATUTUBO_QUICK_TRANSLATE_RATE_LIMIT", "30")
+)
+LINGOKATUTUBO_QUICK_TRANSLATE_RATE_WINDOW_SECONDS = int(
+    os.environ.get("LINGOKATUTUBO_QUICK_TRANSLATE_RATE_WINDOW_SECONDS", "3600")
+)
+
+# Dataset separation.  development_resources is explicit and database-backed;
+# verified_only is intentionally fail-closed and never falls back to legacy data.
+TRANSLATION_DATA_MODE = os.environ.get(
+    "TRANSLATION_DATA_MODE", "development_unverified"
+).strip().lower()
+if TRANSLATION_DATA_MODE not in {"development_unverified", "development_resources", "verified_only"}:
+    raise RuntimeError(
+        "TRANSLATION_DATA_MODE must be development_unverified, development_resources, or verified_only"
+    )
+TRANSLATION_FUZZY_THRESHOLD = float(os.environ.get("TRANSLATION_FUZZY_THRESHOLD", "0.90"))
+TRANSLATION_FUZZY_SHORT_THRESHOLD = float(os.environ.get("TRANSLATION_FUZZY_SHORT_THRESHOLD", "0.97"))
 
 # Experimental ByT5 Bagobo-Tagabawa -> English neural fallback.
 # DISABLED by default. When enabled, it is consulted only for segments the

@@ -3,13 +3,13 @@
     <a class="button secondary" href="{% url 'translator:history' %}">&larr; History</a>
 
     {% if can_preview %}
-      <a id="job-preview-action" class="button primary js-preview-link" data-loading-text="Preparing bilingual preview&hellip;" href="{% url 'translator:job_preview' job.id %}">Preview Bilingual</a>
+      {% if show_check_action %}<a id="job-preview-action" class="button primary js-preview-link" data-loading-text="Preparing document preview&hellip;" href="{% url 'translator:job_preview' job.id %}">CHECK</a>{% endif %}
     {% else %}
-      <a id="job-preview-action" class="button primary js-preview-link" data-loading-text="Preparing bilingual preview&hellip;" href="{% url 'translator:job_preview' job.id %}" hidden></a>
+      <a id="job-preview-action" class="button primary js-preview-link" data-loading-text="Preparing document preview&hellip;" href="{% url 'translator:job_preview' job.id %}" hidden></a>
     {% endif %}
 
     {% if can_download %}
-      <a id="job-download-action" class="button secondary" href="{% url 'translator:job_download' job.id %}">Download</a>
+      {% if show_download_action %}<a id="job-download-action" class="button secondary" href="{% url 'translator:job_download' job.id %}">Download Translated Document</a>{% endif %}
     {% else %}
       <a id="job-download-action" class="button secondary" href="{% url 'translator:job_download' job.id %}" hidden></a>
     {% endif %}

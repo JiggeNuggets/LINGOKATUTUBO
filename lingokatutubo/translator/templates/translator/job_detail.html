@@ -4,236 +4,89 @@
 {% block meta_description %}Translation job details for {{ document_title }}.{% endblock %}
 
 {% block content %}
-<main class="translator-page">
+<main class="translator-page translation-job-page">
   <header class="page-heading compact">
     <div class="page-heading-row">
       <div>
-        <nav class="breadcrumb" aria-label="Breadcrumb">
-          <a href="{% url 'translator:history' %}">History</a>
-          <span aria-hidden="true">›</span>
-          <span aria-current="page">{{ document_title }}</span>
-        </nav>
+        <nav class="breadcrumb" aria-label="Breadcrumb"><a href="{% url 'translator:history' %}">History</a><span aria-hidden="true">&rsaquo;</span><span aria-current="page">{{ document_title }}</span></nav>
         <h1>{{ document_title }}</h1>
-        <p class="page-subtitle">{{ job.source_language }} → {{ job.target_language }}</p>
+        <p class="page-subtitle">{{ job.source_language }} &rarr; {{ job.target_language }}</p>
       </div>
-      <span id="job-status-pill" class="status-pill {{ status_class }} status-pill-lg" role="status">{{ status_label }}</span>
     </div>
   </header>
 
-  {% include "translator/partials/_action_bar.html" with job=job can_preview=can_preview can_download=can_download %}
+  {% include "translator/partials/_action_bar.html" with job=job can_preview=can_preview can_download=can_download show_check_action=is_processing show_download_action=is_processing %}
 
-  <section class="job-detail-layout">
-    <div class="document-thumb large {{ file_icon_class }}" aria-hidden="true">
-      {% if thumbnail_url %}
-        <img src="{{ thumbnail_url }}" alt="{{ document_title }} preview">
-      {% else %}
-        <span>{{ thumbnail_label }}</span>
-      {% endif %}
+  <section class="translation-job-status" data-status-poller data-job-id="{{ job.job_id }}" data-initial-status="{{ job.status }}" data-status-url="{{ status_api_url }}" data-preview-url="{% url 'translator:job_preview' job.id %}" aria-busy="{% if is_processing %}true{% else %}false{% endif %}">
+    {% if is_processing %}
+      <div id="translation-job-processing-overlay" class="translation-processing-overlay job-processing-overlay" aria-hidden="false" aria-busy="true">
+        {% include "translator/partials/_translating_state.html" with icon_id="translation-state-icon" state_word_id="translation-state-word" state_description_id="translation-state-description" progress_wrap_id="translation-progress-wrap" progress_id="translation-progress" loading_description="Translation is continuing in the background." %}
+      </div>
+    {% else %}
+    <div id="translation-terminal-overlay" class="translation-terminal-overlay" role="dialog" aria-modal="true" aria-labelledby="translation-terminal-title" aria-hidden="false">
+      {% include "translator/partials/_translation_terminal_state.html" with job=job is_failed=has_failed %}
     </div>
 
-    <section
-      class="translation-details job-info-panel"
-      data-status-poller
-      data-job-id="{{ job.job_id }}"
-      data-initial-status="{{ job.status }}"
-      data-status-url="{{ status_api_url }}"
-      data-preview-url="{% url 'translator:job_preview' job.id %}"
-      data-download-url="{% url 'translator:job_download' job.id %}"
-    >
-      <h2 class="section-heading">Job Information</h2>
+    {% if has_retained_text and not can_view_validation_markers %}
+      <p class="alert warning" style="margin-top: var(--space-s);">Some text may remain unchanged when a suitable translation is unavailable.</p>
+    {% endif %}
+    {% if show_legacy_terminal_details %}
+    <section class="translation-result-banner{% if has_failed or result_summary.partial %} is-attention{% endif %}" aria-labelledby="translation-state-word">
+      <div class="translation-state-live" role="status" aria-live="polite" aria-atomic="true">
+        <svg class="translation-document-icon" id="translation-state-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false"><path class="translation-page" d="M25 12h31l15 15v51a6 6 0 0 1-6 6H25a6 6 0 0 1-6-6V18a6 6 0 0 1 6-6Z"/><path class="translation-fold" d="M56 12v15h15"/><path class="translation-language-line" d="M31 49h31"/><path class="translation-language-line line-two" d="M31 62h24"/></svg>
+        <h2 id="translation-state-word">{% if has_failed %}Failed{% elif job.status == "completed" %}{% if result_summary.partial and can_view_validation_markers %}Review{% else %}Translation Ready{% endif %}{% else %}Translating{% endif %}</h2>
+        <span id="translation-state-description" class="sr-only">{% if has_failed %}Translation could not be completed.{% elif result_summary.partial and can_view_validation_markers %}Translation needs review because processing was incomplete.{% elif job.status == "completed" %}Your translation is ready.{% else %}Translation is continuing in the background.{% endif %}</span>
+      </div>
 
-      <ol class="status-timeline" aria-label="Translation progress">
-        {% for step in workflow_steps %}
-          <li class="timeline-step {{ step.state }}">
-            <span class="timeline-marker" aria-hidden="true"></span>
-            <span>{{ step.label }}</span>
-          </li>
-        {% endfor %}
-      </ol>
+      <p id="failed-guidance" class="alert error" role="alert"{% if not has_failed %} hidden{% endif %}>{% if has_failed %}{{ failure_message }} Check the document quality or try uploading again.{% endif %}</p>
+      <a id="translation-retry-link" class="button primary" href="{% url 'translator:translate' %}"{% if not has_failed %} hidden{% endif %}>Try another document</a>
 
-      <section class="status-monitor" aria-label="Live processing status">
-        <div class="status-monitor-top">
-          <div>
-            <strong id="status-monitor-title">{{ status_label }}</strong>
-            <p id="status-monitor-message">{{ job.phase_message|default:"No message available." }}</p>
-          </div>
-          <span id="status-monitor-percent" class="progress-pct">{{ progress_percent }}%</span>
+
+      {% if can_view_translation_details %}
+      <details class="translation-details">
+        <summary>Details</summary>
+        <div class="translation-details-content">
+          <p id="translation-stage-description">{% if is_processing %}Translation continues in the background. This page updates when the document is ready.<span class="sr-only"> Processing is still running.</span>{% elif job.status == "completed" %}The translated document is ready to preview or download.{% elif has_failed %}The document was not changed. You can return to the upload page and try again.{% endif %}</p>
+          <p id="translation-partial-warning" class="alert warning"{% if not result_summary.partial %} hidden{% endif %}>Only part of this document was processed. Review the original and translated pages before using the output.</p>
+          {% if translation_has_review_items %}<p class="alert warning">Some text was kept unchanged because a suitable translation was unavailable.</p><p>Review required: {{ review_segment_count }} of {{ segment_count }} segments.</p>{% endif %}
+          {% if ocr_warnings %}<p class="alert warning">OCR may have affected some scanned text. Review the original and translated pages before using the output.</p>{% endif %}
+          <p><a href="{% url 'translator:history' %}" class="button-link">View history</a></p>
+          <ol class="status-timeline sr-only" aria-label="Translation workflow">
+            {% for step in workflow_steps %}<li class="timeline-step {{ step.state }}"><span>{{ step.label }}</span></li>{% endfor %}
+          </ol>
         </div>
-        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ progress_percent }}">
-          <div id="status-monitor-fill" style="width:{{ progress_percent }}%"></div>
-        </div>
-        <div class="status-monitor-meta">
-          <span>Phase: <strong id="status-monitor-phase">{{ job.current_phase|default:"queued" }}</strong></span>
-          <span>Last update: <strong id="status-monitor-updated">{{ job.updated_at|date:"M j, Y H:i:s" }}</strong></span>
-          <span>Last successful check: <strong id="status-monitor-last-check">Just now</strong></span>
-        </div>
-        <p id="status-monitor-network" class="status-network" hidden></p>
-        {% if is_taking_longer %}
-          <p id="status-monitor-long" class="alert warning" role="status">This is taking longer than usual. Processing may still finish in the background.</p>
-        {% else %}
-          <p id="status-monitor-long" class="alert warning" role="status" hidden>This is taking longer than usual. Processing may still finish in the background.</p>
-        {% endif %}
-        <button id="reload-status-button" class="button secondary" type="button">Reload Status</button>
-      </section>
-
-      <dl class="job-meta-list">
-        <div class="job-meta-row">
-          <dt>Current Step</dt>
-          <dd id="job-current-step">
-            {% if has_failed %}
-              <span class="text-danger">Failed during processing</span>
-            {% elif job.current_step %}
-              {{ job.current_step }}
-            {% else %}
-              <span class="text-muted">—</span>
-            {% endif %}
-          </dd>
-        </div>
-
-        <div class="job-meta-row">
-          <dt>Started</dt>
-          <dd>{{ uploaded_at|date:"M j, Y H:i" }}</dd>
-        </div>
-
-        <div class="job-meta-row">
-          <dt>Elapsed</dt>
-          <dd>{{ job.created_at|timesince }}</dd>
-        </div>
-
-        <div class="job-meta-row">
-          <dt>Retrying</dt>
-          <dd id="job-retrying-state">{% if is_retrying %}Yes{% else %}No{% endif %}</dd>
-        </div>
-
-        <div class="job-meta-row">
-          <dt>Completed</dt>
-          <dd>
-            {% if completed_at %}
-              {{ completed_at|date:"M j, Y H:i" }}
-            {% else %}
-              <span class="text-muted">Not completed</span>
-            {% endif %}
-          </dd>
-        </div>
-
-        <div class="job-meta-row">
-          <dt>Segments</dt>
-          <dd>{{ segment_count }}</dd>
-        </div>
-
-        <div class="job-meta-row">
-          <dt>Translation Confidence</dt>
-          <dd>
-            {% if translation_confidence_pct is not None %}
-              {{ translation_confidence_pct }}%
-            {% else %}
-              <span class="text-muted">Not computed</span>
-            {% endif %}
-          </dd>
-        </div>
-
-        <div class="job-meta-row">
-          <dt>Needs Review</dt>
-          <dd>
-            {% if request.user.is_staff or request.user.is_superuser %}
-              {% if segment_count %}
-                <span class="{% if translation_has_review_items %}needs-review{% endif %}">
-                  {{ review_segment_count }} of {{ segment_count }}
-                </span>
-              {% else %}
-                <span class="text-muted">No segments</span>
-              {% endif %}
-            {% elif translation_has_review_items %}
-              <span class="text-muted">Some text may remain unchanged because it was not found in the validated translation dataset and may need review.</span>
-            {% else %}
-              <span class="text-muted">No review needed</span>
-            {% endif %}
-          </dd>
-        </div>
-      </dl>
-
-      {% if request.user.is_staff or request.user.is_superuser %}
-      {# Technical details: Extraction Method, OCR Confidence, OCR Warnings, and the raw failure error #}
-      {% if extraction_method_label and extraction_method_label != "—" or extraction_method == "ocr_image" or ocr_warnings or technical_error_detail %}
-      <details class="technical-details-panel">
-        <summary class="technical-details-summary">Technical Details</summary>
-        <dl class="job-meta-list technical-meta">
-          {% if extraction_method_label and extraction_method_label != "—" %}
-          <div class="job-meta-row">
-            <dt>Extraction Method</dt>
-            <dd><span class="badge-method">{{ extraction_method_label }}</span></dd>
-          </div>
-          {% endif %}
-
-          {% if extraction_method == "ocr_image" %}
-          <div class="job-meta-row">
-            <dt>OCR Confidence</dt>
-            <dd>
-              {% if ocr_confidence_pct is not None %}
-                <div class="ocr-confidence-row">
-                  <div class="ocr-confidence-bar-wrap" role="progressbar"
-                       aria-valuenow="{{ ocr_confidence_pct }}" aria-valuemin="0" aria-valuemax="100"
-                       aria-label="OCR confidence {{ ocr_confidence_pct }}%">
-                    <div class="ocr-confidence-bar {% if ocr_has_low_quality %}ocr-conf-low{% else %}ocr-conf-ok{% endif %}"
-                         style="width:{{ ocr_confidence_pct }}%"></div>
-                  </div>
-                  <span class="ocr-confidence-label {% if ocr_has_low_quality %}text-warning{% endif %}">
-                    {{ ocr_confidence_pct }}%
-                    {% if ocr_has_low_quality %}
-                      <span class="badge-warning" title="Low OCR quality may affect translation accuracy">⚠ Low</span>
-                    {% endif %}
-                  </span>
-                </div>
-              {% else %}
-                <span class="text-muted">Not computed</span>
-              {% endif %}
-            </dd>
-          </div>
-          {% endif %}
-
-          {% if technical_error_detail %}
-          <div class="job-meta-row">
-            <dt>Error Detail</dt>
-            <dd><code class="technical-error-detail">{{ technical_error_detail }}</code></dd>
-          </div>
-          {% endif %}
-        </dl>
-
-        {% if ocr_warnings %}
-        <div class="ocr-warnings-panel" id="ocr-warnings-panel">
-          <p class="ocr-warnings-summary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-                 aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            OCR Quality Warnings ({{ ocr_warnings|length }})
-          </p>
-          <ul class="ocr-warnings-list" role="list">
-            {% for warning in ocr_warnings %}
-              <li>{{ warning }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-        {% endif %}
       </details>
       {% endif %}
-      {% endif %}
 
-      {% if has_failed and failure_message %}
-        <div id="failed-guidance" class="alert error" role="alert">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span>{{ failure_message }} Check the document quality or try uploading again. If this repeats, contact an administrator with this job ID.</span>
-        </div>
-      {% else %}
-        <div id="failed-guidance" class="alert error" role="alert" hidden></div>
-      {% endif %}
-
-      {% if is_processing %}
-        <div class="alert info" role="status">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span>Processing is still running. Preview and download will appear when the translated output is ready.</span>
-        </div>
-      {% endif %}
     </section>
+    {% endif %}
+
+    {% if can_view_system_diagnostics %}
+      {% if technical_error_detail or extraction_method_label and extraction_method_label != "—" or ocr_warnings %}
+        <details class="technical-details-panel"><summary class="technical-details-summary">Technical Details</summary>
+          {% if extraction_method_label and extraction_method_label != "—" %}<p>Extraction method: {{ extraction_method_label }}</p>{% endif %}
+          {% if extraction_method == "ocr_image" and ocr_confidence_pct is not None %}<p>OCR confidence: {{ ocr_confidence_pct }}%{% if ocr_has_low_quality %} <span class="badge-warning">⚠ Low</span>{% endif %}</p>{% endif %}
+          {% if ocr_warnings %}<ul>{% for warning in ocr_warnings %}<li>{{ warning }}</li>{% endfor %}</ul>{% endif %}
+          {% if technical_error_detail %}<p><code class="technical-error-detail">{{ technical_error_detail }}</code></p>{% endif %}
+        </details>
+      {% endif %}
+    {% endif %}
+    {% endif %}
   </section>
+
+  {% if job.status == "completed" and can_view_translation_details %}
+    <section class="card" aria-labelledby="result-summary-heading">
+      <div class="section-title-row"><div><h2 id="result-summary-heading">Translation result summary</h2><p class="section-subtitle">Counts describe how this document was processed; they are not language approval.</p></div></div>
+      <dl class="result-summary"><div><dt>Pages processed</dt><dd>{{ result_summary.pages }}</dd></div><div><dt>Unknown text</dt><dd>{{ result_summary.unknown }}</dd></div><div><dt>OCR warnings</dt><dd>{{ result_summary.ocr_warnings }}</dd></div><div><dt>Translation Confidence</dt><dd>{% if translation_confidence_pct is not None %}{{ translation_confidence_pct }}%{% else %}Not computed{% endif %}</dd></div></dl>
+    </section>
+    <section class="card" aria-labelledby="download-choices-heading">
+      <h2 id="download-choices-heading">Download choices</h2><p class="section-subtitle">Available files depend on job status and your Django permissions.</p>
+      <div class="download-grid"><article class="download-card"><h3>Clean translated document</h3><p>For reading or sharing a completed translation.</p>{% if can_download %}<a class="button primary" href="{% url 'translator:job_download' job.id %}">Download translated document</a>{% else %}<span class="button secondary" aria-disabled="true">Available when complete</span>{% endif %}</article>{% if can_download_teacher_copy %}<article class="download-card"><h3>Teacher review copy</h3><p>For classroom review with the original and translation together.</p><a class="button secondary" href="{% url 'translator:job_download' job.id %}?format=bilingual">Download teacher review copy</a></article>{% endif %}{% if can_download_validator_copy %}<article class="download-card"><h3>Validator review copy</h3><p>Detailed validation markers and review information.</p><a class="button secondary" href="{% url 'translator:job_preview' job.id %}?review=1">Open validator review copy</a><a class="button-link" href="{% url 'translator:review_manifest' job.id %}">Download review manifest</a></article>{% endif %}<article class="download-card"><h3>Original Document</h3><p>The source file you uploaded, retained for comparison.</p><a class="button secondary" href="{% url 'translator:job_download_original' job.id %}">Download original</a></article></div>
+    </section>
+  {% elif job.status == "completed" and can_download_teacher_copy %}
+    <section class="hero-actions compact-result-actions" aria-label="Teacher review action">
+      <a class="button secondary" href="{% url 'translator:job_download' job.id %}?format=bilingual">Teacher review copy</a>
+    </section>
+  {% endif %}
 </main>
 {% endblock %}

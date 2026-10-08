@@ -1,0 +1,78 @@
+<article id="section-{{ slide.slug }}" class="story-slide{% if index == 0 %} is-active{% endif %}" data-story-slide="{{ index }}" role="group" aria-roledescription="slide" aria-label="Chapter {{ index|add:1 }} of {{ sections|length }}: {{ slide.title }}" aria-hidden="{% if index == 0 %}false{% else %}true{% endif %}"{% if index != 0 %} hidden{% endif %}>
+  {% if slide.media %}
+  <figure class="story-slide__media editorial-media story-slide__media--clickable" data-open-gallery-item="{{ index|add:1 }}" role="button" tabindex="0" aria-label="View {{ slide.title }} in photographic archive lightbox">
+    {% include "translator/partials/_responsive_editorial_image.html" with editorial_image=slide.media %}
+    <span class="story-slide__media-badge" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      <span>Enlarge View</span>
+    </span>
+    <figcaption class="image-credit">
+      <a class="image-credit__link" href="{{ slide.media.source_url }}" target="_blank" rel="noopener noreferrer" title="{{ slide.media.full_attribution }}">
+        <span>{{ slide.media.short_credit }}</span>
+        <span class="image-credit__license">{{ slide.media.license }}</span>
+      </a>
+    </figcaption>
+  </figure>
+  {% endif %}
+
+  <div class="story-slide__content">
+    <div class="story-slide__header-meta">
+      <span class="story-slide__index" aria-hidden="true">CHAPTER 0{{ index|add:1 }}</span>
+      <p class="eyebrow">{{ slide.eyebrow }}</p>
+    </div>
+    <h2>{{ slide.title }}</h2>
+    <p class="story-slide__body">{{ slide.body }}</p>
+
+    {% if slide.study_figures %}
+    <section class="story-slide__study-figures" aria-label="Documented study figures">
+      <p class="story-slide__study-context">Figures from the documented study cited in Sources and Further Reading.</p>
+      <div class="story-slide__study-figure-list">
+        {% for figure in slide.study_figures %}
+        <div class="story-slide__study-figure">
+          <strong>{{ figure.value }}</strong>
+          <span>{{ figure.label }}</span>
+          <small>{{ figure.context }}</small>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+    
+    {% if slide.facts %}
+    <ul class="story-slide__facts">
+      {% for fact in slide.facts %}
+      <li>
+        <span class="story-slide__fact-bullet" aria-hidden="true">&#9670;</span>
+        <span>{{ fact }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if slide.slug == 'textiles' %}
+    <div class="story-slide__actions">
+      <button type="button" class="button secondary story-slide__detail-btn" data-open-gallery-item="3" aria-label="View Inabal textile detail in photographic archive lightbox">
+        <span>View Detail</span> <span aria-hidden="true">&nearr;</span>
+      </button>
+    </div>
+    {% endif %}
+
+    {% if slide.cards %}
+    <div class="contemporary-practices">
+      <p class="contemporary-practices__heading eyebrow">CONTEMPORARY PRACTICE</p>
+      <div class="contemporary-practices__list">
+        {% for card in slide.cards %}
+        <div class="contemporary-practice-item">
+          <div class="contemporary-practice-item__header">
+            <h3 class="contemporary-practice-item__title">{{ card.title }}</h3>
+            <span class="contemporary-practice-item__org">{{ card.organization }}</span>
+          </div>
+          <p class="contemporary-practice-item__summary">{{ card.summary }}</p>
+          <p class="contemporary-practice-item__source">Source: {{ card.source }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</article>

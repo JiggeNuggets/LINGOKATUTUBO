@@ -1,0 +1,27 @@
+{% extends "translator/base.html" %}
+{% block title %}Language Resource Review Queue{% endblock %}
+{% block content %}
+<main class="translator-page">
+  <header class="page-heading compact"><h1>Language resource review queue</h1><p class="page-subtitle">Every decision is recorded for human review. Pending and imported records are not verified or runtime-approved.</p></header>
+  <section class="queue-summary" aria-label="Review queue counts">
+    <a href="?validation_status=pending"><strong>{{ queue_counts.pending_entries }}</strong><span>Pending language entries</span></a>
+    <a href="#queue-table"><strong>{{ queue_counts.unknown_terms }}</strong><span>Unknown terms awaiting review</span></a>
+    <a href="#queue-table"><strong>{{ queue_counts.ocr_corrections }}</strong><span>Proposed OCR corrections</span></a>
+    <a href="#queue-table"><strong>{{ queue_counts.correction_suggestions }}</strong><span>User correction suggestions</span></a>
+  </section>
+  <form method="get" class="history-filters" aria-label="Filter language review queue">
+    <label><span>Search entries</span><input type="search" name="q" value="{{ search_query }}" placeholder="Search any language field"></label>
+    <label><span>Validation status</span><input name="validation_status" value="{{ request.GET.validation_status }}" placeholder="For example: pending"></label>
+    <label><span>Import batch</span><input name="import_batch_id" value="{{ request.GET.import_batch_id }}"></label>
+    <label><span>Access restriction</span><input name="access_restriction" value="{{ request.GET.access_restriction }}"></label>
+    <label><span>Sort</span><select name="sort"><option value="status" {% if selected_sort == "status" %}selected{% endif %}>Status</option><option value="recent" {% if selected_sort == "recent" %}selected{% endif %}>Recently updated</option></select></label>
+    <label><input type="checkbox" name="missing_provenance" value="1" {% if request.GET.missing_provenance %}checked{% endif %}> Missing provenance</label>
+    <label><input type="checkbox" name="conflict" value="1" {% if request.GET.conflict %}checked{% endif %}> Unresolved conflict</label>
+    <button class="button secondary" type="submit">Apply filters</button>
+  </form>
+  <div id="queue-table" class="data-table-wrap"><table class="data-table"><caption>{{ entries.paginator.count }} language entries matching the current filters.</caption><thead><tr><th scope="col">Entry</th><th scope="col">Validation</th><th scope="col">Access</th><th scope="col">Provenance</th><th scope="col">Updated</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>
+  {% for entry in entries %}<tr><td><strong>{{ entry.english|default:entry.tagabawa }}</strong><br><span class="text-muted small">{{ entry.tagabawa|default:"No Bagobo-Tagabawa text recorded" }}</span></td><td><span class="status-pill {% if entry.validation_status == 'verified' %}verified{% elif entry.validation_status == 'rejected' %}rejected{% else %}needs-validation{% endif %}"><span class="status-icon" aria-hidden="true">{% if entry.validation_status == 'verified' %}✓{% elif entry.validation_status == 'rejected' %}×{% else %}⚠{% endif %}</span>{% if entry.validation_status == 'verified' %}Verified{% elif entry.validation_status == 'rejected' %}Rejected{% elif entry.validation_status == 'under_review' %}Pending review{% else %}Needs validation{% endif %}</span></td><td>{{ entry.get_access_restriction_display|default:entry.access_restriction }}</td><td>{{ entry.source_title|default:"Missing provenance" }}</td><td>{{ entry.updated_at|date:"M j, Y" }}</td><td><a class="button secondary" href="{% url 'translator:validator_entry' entry.id %}">Review</a></td></tr>{% empty %}<tr><td colspan="6"><div class="empty-state empty-state-inline"><h2 class="empty-state-title">No matching entries</h2><p class="empty-state-body">Adjust the filters to review another queue.</p></div></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if entries.paginator.num_pages > 1 %}<nav class="pagination" aria-label="Review queue pages">{% if entries.has_previous %}<a class="button secondary" href="?page={{ entries.previous_page_number }}&amp;q={{ search_query|urlencode }}&amp;sort={{ selected_sort }}">Previous</a>{% endif %}<span>Page {{ entries.number }} of {{ entries.paginator.num_pages }}</span>{% if entries.has_next %}<a class="button secondary" href="?page={{ entries.next_page_number }}&amp;q={{ search_query|urlencode }}&amp;sort={{ selected_sort }}">Next</a>{% endif %}</nav>{% endif %}
+</main>
+{% endblock %}

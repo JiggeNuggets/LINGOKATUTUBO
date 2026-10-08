@@ -15,6 +15,7 @@ Loads from (in priority order):
 """
 
 import csv as _csv
+import difflib
 import glob as _glob
 import json
 import os
@@ -23,6 +24,116 @@ import unicodedata
 from typing import Dict, List, Optional
 
 from .display_utils import clean_invisible_unicode, safe_print
+from .translation_result import make_result
+
+SUPPORTED_LANGS = ["english", "tagabawa", "filipino", "cebuano"]
+UNKNOWN_FOR_REVIEW = "[UNKNOWN_FOR_REVIEW]"
+
+_LANG_ALIASES = {
+    "bagobo": "tagabawa",
+    "tagabawa": "tagabawa",
+    "bagobo-tagabawa": "tagabawa",
+    "bagobo_tagabawa": "tagabawa",
+    "bagobo tagabawa": "tagabawa",
+    "bgs": "tagabawa",
+    "english": "english",
+    "en": "english",
+    "eng": "english",
+    "filipino": "filipino",
+    "tagalog": "filipino",
+    "fil": "filipino",
+    "tgl": "filipino",
+    "cebuano": "cebuano",
+    "ceb": "cebuano",
+    "bisaya": "cebuano",
+    "visayan": "cebuano",
+}
+
+# --- Column normalization for CSV/Excel loaders ---
+_COL_ALIASES = {
+    "tagalog": "filipino_source",
+    "tagalog text": "filipino_source",
+    "tagalog source": "filipino_source",
+    "bagobo": "tagabawa_source",
+    "bagobo text": "tagabawa_source",
+    "bagobo source": "tagabawa_source",
+    "bagobo-tagabawa": "tagabawa_source",
+    "bagobo_tagabawa": "tagabawa_source",
+    "bagobo tagabawa": "tagabawa_source",
+    "bagobo tagabawa text": "tagabawa_source",
+    "bgs": "tagabawa_source",
+    "en": "english_source",
+    "eng": "english_source",
+    "english text": "english_source",
+    "english source": "english_source",
+    "fil": "filipino_source",
+    "tgl": "filipino_source",
+    "ceb": "cebuano_source",
+    "cebuano text": "cebuano_source",
+    "cebuano source": "cebuano_source",
+    "bisaya": "cebuano_source",
+    "visayan": "cebuano_source",
+}
+
+
+def _normalize_column(header: str) -> Optional[str]:
+    """Map a raw CSV/Excel column header to its canonical {lang}_source key."""
+    raw = str(header or "").strip().lower()
+    if raw in (f"{l}_source" for l in SUPPORTED_LANGS):
+        return raw
+
+    h = _normalize_alias_key(header)
+    if h in _COL_ALIASES:
+        return _COL_ALIASES[h]
+    canonical_lang = _normalize_lang(h)
+    if canonical_lang in SUPPORTED_LANGS:
+        return f"{canonical_lang}_source"
+    return None
+
+
+def _normalize_alias_key(value: str) -> str:
+    return re.sub(r"\s+", " ", clean_invisible_unicode(value).strip().lower().replace("_", " "))
+
+
+def _strip_diacritics(value: str) -> str:
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFKD", value)
+        if not unicodedata.combining(char)
+    )
+
+
+def _normalize_lookup_text(value: str, *, strip_diacritics: bool = False) -> str:
+    text = clean_invisible_unicode(value).strip().lower()
+    if strip_diacritics:
+        text = _strip_diacritics(text)
+    # Underscore runs are fill-in-the-blank filler from worksheets/forms
+    # ("Kahibalo ka ba magsulti ug Tagalog? ____________"), not language.
+    # Underscores count as \w so the punctuation strip below keeps them;
+    # convert them to spaces first so normalized variants can match the
+    # dataset phrase. Index keys are built with this same function, so
+    # lookup and index stay consistent.
+    text = re.sub(r"_+", " ", text)
+    text = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _lookup_variants(value: str) -> List[str]:
+    raw = clean_invisible_unicode(value).strip().lower()
+    variants = [
+        raw,
+        _normalize_lookup_text(value),
+        _normalize_lookup_text(value, strip_diacritics=True),
+    ]
+    output: List[str] = []
+    for variant in variants:
+        if variant and variant not in output:
+            output.append(variant)
+    return output
+
+
+# Straight and curly quote characters that extraction may glue onto phrases.
 
 SUPPORTED_LANGS = ["english", "tagabawa", "filipino", "cebuano"]
 UNKNOWN_FOR_REVIEW = "[UNKNOWN_FOR_REVIEW]"
@@ -150,8 +261,12 @@ def _split_sentence_parts(text: str) -> List[str]:
     extraction noise. Returns [] when the line does not split into at least
     two candidate parts.
     """
+    cleaned = clean_invisible_unicode(text)
+    raw_parts = _SENTENCE_BOUNDARY_RE.split(cleaned)
+    if len(raw_parts) < 2 and any(d in cleaned for d in (",", ";")):
+        raw_parts = re.split(r"[,;]\s*", cleaned)
     parts = []
-    for raw_part in _SENTENCE_BOUNDARY_RE.split(clean_invisible_unicode(text)):
+    for raw_part in raw_parts:
         candidate = raw_part.strip().strip(_QUOTE_CHARS + " \t").strip()
         # \w includes underscores, so require a real letter or digit.
         if re.search(r"[^\W_]", candidate, flags=re.UNICODE):
@@ -168,8 +283,21 @@ class TranslationDataset:
         include_default_corpus: Optional[bool] = None,
         include_validated_imports: Optional[bool] = None,
         validated_imports_dir: Optional[str] = None,
+        data_mode: Optional[str] = None,
     ):
         default_runtime_dataset = dataset_path is None
+        # Runtime data policy is deliberately fail-closed.  In verified_only
+        # mode there is no fallback to the legacy phrasebook/corpus.
+        configured_mode = data_mode or os.environ.get(
+            "TRANSLATION_DATA_MODE", "development_unverified"
+        )
+        self.data_mode = configured_mode.strip().lower()
+        if self.data_mode not in {"development_unverified", "development_resources", "verified_only"}:
+            raise ValueError(
+                "TRANSLATION_DATA_MODE must be development_unverified, development_resources, or verified_only"
+            )
+        self.fuzzy_threshold = float(os.environ.get("TRANSLATION_FUZZY_THRESHOLD", "0.90"))
+        self.fuzzy_short_threshold = float(os.environ.get("TRANSLATION_FUZZY_SHORT_THRESHOLD", "0.97"))
         self.include_default_corpus = (
             default_runtime_dataset
             if include_default_corpus is None
@@ -212,6 +340,25 @@ class TranslationDataset:
     # ------------------------------------------------------------------
 
     def load(self):
+        if self.data_mode == "verified_only":
+            self.data = self._load_runtime_approved_entries()
+            if self.data:
+                self._build_all_indices()
+                self.is_loaded = True
+            else:
+                safe_print("[Translation] verified_only selected; no runtime-approved governed entries are available.")
+            return
+        if self.data_mode == "development_resources":
+            # This mode is deliberately database-only.  It must never silently
+            # merge JSON/CSV/corpus rows with active resource records.
+            self.data = self._load_active_resource_entries()
+            if self.data:
+                self._build_all_indices()
+                self.is_loaded = True
+                safe_print(f"[Translation] development_resources loaded: {len(self.data)} active entries")
+            else:
+                safe_print("[Translation] development_resources selected; no active resources are available.")
+            return
         # --- Attempt 1: JSON (the configured path) ---
         json_loaded = False
         if os.path.exists(self.dataset_path):
@@ -306,6 +453,66 @@ class TranslationDataset:
             tg = row.get("tagabawa_source", "")
             fi = row.get("filipino_source", "")
             safe_print(f"  [{i+1}] en={en!r}  tagabawa={tg!r}  filipino={fi!r}")
+
+    @staticmethod
+    def _load_runtime_approved_entries() -> List[Dict]:
+        """Load only governed records explicitly eligible for public runtime.
+
+        Importing models lazily keeps the standalone dataset tools usable.  A
+        database or Django setup error is treated as an empty approved set,
+        never as permission to use unverified data.
+        """
+        try:
+            from translator.models import PhrasebookEntry
+            from translator.services.governance import is_runtime_eligible
+            rows = []
+            for entry in PhrasebookEntry.objects.filter(
+                is_active=True, is_approved_for_runtime=True,
+                validation_status="verified",
+            ):
+                if not is_runtime_eligible(entry):
+                    continue
+                rows.append({
+                    "id": str(entry.pk), "english_source": entry.english,
+                    "tagabawa_source": entry.tagabawa, "filipino_source": entry.filipino,
+                    "cebuano_source": entry.cebuano, "source": "governed_runtime",
+                    "validation_status": "verified", "runtime_approval_status": "approved",
+                    "revision_number": entry.revision_number,
+                    "access_restriction": entry.access_restriction,
+                })
+            return rows
+        except Exception as exc:
+            safe_print(f"[Translation] verified_only governed dataset unavailable: {exc}")
+            return []
+
+    @staticmethod
+    def _load_active_resource_entries() -> List[Dict]:
+        """Load active PhrasebookEntry records, without governance filtering.
+
+        This is a distinct development source intended for the Translation
+        Resources UI.  It does not fall through to legacy JSON/CSV sources.
+        """
+        try:
+            from translator.models import PhrasebookEntry
+
+            return [
+                {
+                    "id": str(entry.pk),
+                    "english_source": entry.english,
+                    "tagabawa_source": entry.tagabawa,
+                    "filipino_source": entry.filipino,
+                    "cebuano_source": entry.cebuano,
+                    "source": "database_resource",
+                    "validation_status": entry.validation_status,
+                    "runtime_approval_status": "not_approved",
+                    "revision_number": entry.revision_number,
+                    "access_restriction": entry.access_restriction,
+                }
+                for entry in PhrasebookEntry.objects.filter(is_active=True)
+            ]
+        except Exception as exc:
+            safe_print(f"[Translation] development_resources database unavailable: {exc}")
+            return []
 
     def _load_default_text_corpus(self) -> None:
         """Append the prepared cleaned text corpus to the runtime phrasebook.
@@ -587,7 +794,9 @@ class TranslationDataset:
         original = clean_invisible_unicode(text).strip()
         if not self.is_loaded or not original:
             self._log_lookup("unknown_for_review", source_lang, target_lang, False)
-            return _translation_result(original, "unknown_for_review", 0.0, True)
+            return _translation_result(original, "unknown_for_review", 0.0, True, source_text=original,
+                                       source_lang=source_lang, target_lang=target_lang,
+                                       unknown_tokens=_unknown_tokens(original))
 
         # Normalize language aliases
         source_lang = _normalize_lang(source_lang)
@@ -595,7 +804,10 @@ class TranslationDataset:
 
         if source_lang == target_lang:
             self._log_lookup("identity", source_lang, target_lang, True)
-            return _translation_result(text, "identity", 1.0)
+            return _translation_result(text, "source_retained", 1.0, source_text=text,
+                                       source_lang=source_lang, target_lang=target_lang,
+                                       validation_status="not_applicable",
+                                       runtime_approval_status="not_applicable")
 
         target_key = f"{target_lang}_source"
         src_index = self._phrase_indices.get(source_lang, {})
@@ -613,8 +825,9 @@ class TranslationDataset:
         # 1. Exact/normalized dataset match. The first variant is the cleaned
         # raw text; later variants are punctuation/case/diacritic tolerant.
         for variant_index, norm in enumerate(_lookup_variants(original)):
-            result = _first_result(src_index.get(norm, []), target_key)
-            if result:
+            match = _first_result(src_index.get(norm, []), target_key)
+            if match:
+                result, row = match
                 method = "exact_phrase" if variant_index == 0 else "normalized_phrase"
                 self._log_lookup(method, source_lang, target_lang, True, key=norm)
                 translated = _reattach_trailing_punctuation(
@@ -624,6 +837,11 @@ class TranslationDataset:
                     translated,
                     method,
                     1.0,
+                    source_text=original,
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    row=row,
+                    matched_term=norm,
                 )
 
         # 2. Whole-line lookup missed: extraction sometimes fuses two dataset
@@ -637,8 +855,76 @@ class TranslationDataset:
             if segmented is not None:
                 return segmented
 
+        fuzzy = self._translate_fuzzy(original, source_lang, target_lang, src_index, target_key)
+        if fuzzy is not None:
+            return fuzzy
+
         self._log_lookup("unknown_for_review", source_lang, target_lang, False)
-        return _translation_result(original, "unknown_for_review", 0.0, True)
+        return _translation_result(original, "unknown_for_review", 0.0, True, source_text=original,
+                                   source_lang=source_lang, target_lang=target_lang,
+                                   unknown_tokens=_unknown_tokens(original))
+
+    def _translate_fuzzy(self, original: str, source_lang: str, target_lang: str,
+                         src_index: Dict[str, List[Dict]], target_key: str) -> Optional[Dict]:
+        """Conservative final lookup stage; punctuation/numbers never fuzzy-match."""
+        key = _normalize_lookup_text(original, strip_diacritics=True)
+        if not key or not re.search(r"[^\W_]", key, re.UNICODE) or not re.search(r"[A-Za-zÀ-ſ]", key):
+            return None
+        if re.fullmatch(r"[\d\W_]+", original, re.UNICODE):
+            return None
+        threshold = self.fuzzy_short_threshold if len(key) < 5 else self.fuzzy_threshold
+        candidate_key = None
+        score = 0.0
+        # get_close_matches does not disclose the score, so calculate it and
+        # retain both the matched term and score as review evidence.
+        for indexed_key in src_index:
+            if not indexed_key or abs(len(indexed_key) - len(key)) > max(3, len(key) // 3):
+                continue
+            candidate_score = difflib.SequenceMatcher(None, key, indexed_key).ratio()
+            if candidate_score > score:
+                candidate_key, score = indexed_key, candidate_score
+        if candidate_key is None or score < threshold:
+            return None
+        match = _first_result(src_index.get(candidate_key, []), target_key)
+        if not match:
+            return None
+        translated, row = match
+        self._log_lookup("fuzzy_match", source_lang, target_lang, True, key=candidate_key)
+        verified = str(row.get("validation_status", "")).lower() == "verified"
+        return _translation_result(
+            _preserve_case(original, translated), "fuzzy_match", score,
+            # Fuzzy suggestions remain review-required unless a later policy
+            # explicitly permits verified automatic fuzzy use.
+            True, source_text=original, source_lang=source_lang, target_lang=target_lang, row=row,
+            matched_term=candidate_key, match_score=score,
+            extra_warnings=["Fuzzy match requires validation before linguistic use."],
+        )
+
+    def candidate_matches(self, text: str, source_lang: str, target_lang: str, limit: int = 3) -> List[Dict]:
+        """Return diagnostic candidates using the same normalized index as matching.
+
+        This does not affect the translation cascade.  It is only exposed by
+        the administrator Match Tester so a resource manager can inspect why
+        a fuzzy result was (or was not) available.
+        """
+        source_lang, target_lang = _normalize_lang(source_lang), _normalize_lang(target_lang)
+        key = _normalize_lookup_text(text, strip_diacritics=True)
+        target_key = f"{target_lang}_source"
+        if not key or source_lang == target_lang:
+            return []
+        candidates = []
+        for indexed_key, rows in self._phrase_indices.get(source_lang, {}).items():
+            match = _first_result(rows, target_key)
+            if not match:
+                continue
+            translated, row = match
+            candidates.append({
+                "source": indexed_key,
+                "translation": translated,
+                "score": round(difflib.SequenceMatcher(None, key, indexed_key).ratio(), 3),
+                "entry_id": row.get("id", ""),
+            })
+        return sorted(candidates, key=lambda candidate: candidate["score"], reverse=True)[:limit]
 
     def _translate_segmented(
         self,
@@ -677,11 +963,15 @@ class TranslationDataset:
             True,
             key=" / ".join(parts)[:80],
         )
+        sep = ", " if "," in original else "; " if ";" in original else " "
         return _translation_result(
-            " ".join(translated_parts),
+            sep.join(translated_parts),
             "segmented_phrase",
             1.0,
             False,
+            source_text=original,
+            source_lang=source_lang,
+            target_lang=target_lang,
         )
 
     @staticmethod
@@ -736,11 +1026,11 @@ def _normalize_lang(lang: str) -> str:
     )
 
 
-def _first_result(rows: List[Dict], key: str) -> Optional[str]:
+def _first_result(rows: List[Dict], key: str) -> Optional[tuple[str, Dict]]:
     for row in rows:
         val = row.get(key, "").strip()
         if val:
-            return val
+            return val, row
     return None
 
 
@@ -749,16 +1039,40 @@ def _translation_result(
     method: str,
     confidence: float,
     needs_review: Optional[bool] = None,
+    *,
+    source_text: Optional[str] = None,
+    source_lang: str = "",
+    target_lang: str = "",
+    row: Optional[Dict] = None,
+    unknown_tokens: Optional[List[str]] = None,
+    matched_term: Optional[str] = None,
+    match_score: Optional[float] = None,
+    extra_warnings: Optional[List[str]] = None,
 ) -> Dict:
     if needs_review is None:
         needs_review = method in {"unknown_for_review", "untranslated_needs_review"}
-    return {
-        "translated": translated,
-        "method": method,
-        "cascade_stage": method,
-        "confidence": round(max(0.0, min(1.0, float(confidence))), 4),
-        "needs_review": bool(needs_review),
-    }
+    row = row or {}
+    provenance = str(row.get("source") or "legacy_development")
+    validation_status = str(row.get("validation_status") or "unverified")
+    approval = str(row.get("runtime_approval_status") or "not_approved")
+    warnings = list(extra_warnings or [])
+    if provenance != "governed_runtime":
+        warnings.append("Development resource is unverified; linguistic validation is still required.")
+    return make_result(
+        source_text=source_text if source_text is not None else translated,
+        displayed_text=translated, source_language=source_lang, target_language=target_lang,
+        match_method=method, confidence=confidence, review_required=bool(needs_review),
+        validation_status=validation_status, runtime_approval_status=approval,
+        matched_entry_id=str(row.get("id") or row.get("record_id") or "") or None,
+        matched_entry_revision=row.get("revision_number"), unknown_tokens=unknown_tokens,
+        warnings=list(dict.fromkeys(warnings)), provenance_status=provenance,
+        restriction_status=str(row.get("access_restriction") or "unrestricted"),
+        matched_term=matched_term, match_score=match_score,
+    )
+
+
+def _unknown_tokens(text: str) -> List[str]:
+    return re.findall(r"[^\W_]+", clean_invisible_unicode(text), flags=re.UNICODE)
 
 
 def _preserve_case(original: str, translated: str) -> str:
@@ -819,6 +1133,12 @@ def get_translation_dataset() -> TranslationDataset:
     if _dataset is None:
         _dataset = TranslationDataset()
     return _dataset
+
+
+def reset_translation_dataset() -> None:
+    """Discard the process cache after a deliberate resource management save."""
+    global _dataset
+    _dataset = None
 
 
 def translate(text: str, target_lang: str = "tagabawa") -> str:

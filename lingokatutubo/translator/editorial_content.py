@@ -1,0 +1,626 @@
+"""Structured interactive content for the public cultural experience pages.
+
+Only items with status="VERIFIED" or status="VERIFIED_BROADER_BAGOBO" are rendered publicly.
+Items with COMMUNITY_REVIEW_NEEDED, NEEDS_RESEARCH, or REMOVE are excluded from public display.
+"""
+
+from .editorial_media import (
+    BAGOBO_TAGABAWA_HOUSE,
+    BAGOBO_TAGABAWA_INABAL,
+    MOUNT_APO,
+    MOUNT_APO_ECOLOGY,
+    MOUNT_APO_AGROFORESTRY,
+    MOUNT_APO_STEWARDSHIP,
+)
+
+BAGOBO_TAGABAWA_CONTENT = {
+    "hero": {
+        "eyebrow": "EXPLORE",
+        "title": "Bagobo-Tagabawa",
+        "description": "An educational introduction to the Bagobo-Tagabawa people, their ancestral domain around Mount Apo, and their living cultural traditions.",
+        "media": BAGOBO_TAGABAWA_HOUSE,
+        "action_label": "Explore Their Story",
+    },
+    "story_navigation": [
+        {"id": "who-are-they", "label": "People"},
+        {"id": "homeland", "label": "Homeland"},
+        {"id": "community", "label": "Community"},
+        {"id": "land", "label": "Land"},
+        {"id": "textiles", "label": "Textiles"},
+        {"id": "living-culture", "label": "Today"},
+        {"id": "gallery", "label": "Gallery"},
+        {"id": "sources", "label": "Sources"},
+    ],
+    "sections": [
+        {
+            "slug": "who-are-they",
+            "title": "Who Are the Bagobo-Tagabawa?",
+            "eyebrow": "PEOPLE",
+            "body": "The Bagobo-Tagabawa are an Indigenous people residing primarily in the foothills of Mount Apo in Davao del Sur and surrounding areas in Region XI. Historical and ethnological records document their distinct language, ancestral governance, and cultural heritage.",
+            "facts": [
+                "Reside primarily in Davao del Sur and the foothills of Mount Apo.",
+                "Ancestral settlement historically centered around areas such as Sibulan.",
+                "Maintain customary governance recognized under Philippine ancestral domain law.",
+            ],
+            "media": BAGOBO_TAGABAWA_HOUSE,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Government / Academic",
+            "source": "NCIP / USeP",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "homeland",
+            "title": "Apo Sandawa",
+            "eyebrow": "HOMELAND",
+            "body": "Mount Apo, known to the Bagobo-Tagabawa and other Indigenous peoples of the region as Apo Sandawa, is the highest peak in the Philippines at 2,954 meters. For the Bagobo-Tagabawa, it serves as the core of their ancestral domain and a sacred mountain.",
+            "facts": [
+                "Highest mountain in the Philippines at 2,954 meters above sea level (DENR).",
+                "Revered by the Bagobo-Tagabawa as the ancestral mountain Apo Sandawa.",
+                "Designated as a protected National Park and ASEAN Heritage Park.",
+            ],
+            "media": MOUNT_APO,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Academic / Government",
+            "source": "USeP / NCIP / DENR",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "community",
+            "title": "Community Leadership and Governance",
+            "eyebrow": "GOVERNANCE",
+            "body": "Bagobo-Tagabawa customary governance is led by traditional leaders, historically referred to as the Matanem (community leader or elder arbiter), supported by the Council of Elders. This customary structure resolves community disputes and oversees ancestral domain protection under customary law.",
+            "facts": [
+                "Matanem: Traditional leader and arbiter within the community structure.",
+                "Council of Elders: Provides collective guidance and customary dispute settlement.",
+                "Customary governance operates alongside the Indigenous Peoples' Rights Act (IPRA).",
+            ],
+            "media": None,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Government",
+            "source": "NCIP ADSDPP",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "land",
+            "title": "Agriculture and Land Use",
+            "eyebrow": "AGRICULTURE",
+            "body": "In the fertile volcanic slopes of Mount Apo, Bagobo-Tagabawa farming households cultivate crops including abaca, coffee (Robusta and Arabica), and cacao alongside subsistence agriculture. Traditional farming practices integrate shade trees and crop rotation to maintain soil quality on mountain slopes.",
+            "facts": [
+                "Cultivation of abaca fiber, high-altitude coffee, and cacao on mountain slopes.",
+                "Traditional multi-cropping and agroforestry methods help prevent soil erosion.",
+                "Community members participate in mutual agricultural cooperation during planting and harvest.",
+            ],
+            "media": None,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Government",
+            "source": "Department of Agriculture / NCIP",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "textiles",
+            "title": "Inabal Textile Tradition",
+            "eyebrow": "TEXTILES",
+            "body": "Inabal is the traditional abaca textile woven by Tagabawa Bagobo women on a backstrap loom. Using the ikat resist-dye technique, weavers create geometric patterns using natural dyes derived from plants and mud. Master weaver Salinta Monon was recognized as a National Living Treasure for preserving this craft.",
+            "facts": [
+                "Woven from fine abaca (Musa textilis) fiber on a traditional backstrap loom.",
+                "Patterns formed through the ikat tie-dye resist method before weaving.",
+                "Preserved and elevated by Tagabawa master weaver Salinta Monon (1920–2009).",
+            ],
+            "media": BAGOBO_TAGABAWA_INABAL,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Museum / Government",
+            "source": "National Museum of the Philippines / NCCA",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "living-culture",
+            "title": "Contemporary Initiatives",
+            "eyebrow": "TODAY",
+            "body": "Contemporary Bagobo-Tagabawa communities engage in cultural transmission programs and sustainable livelihood projects to preserve their traditions and protect their ancestral lands.",
+            "cards": [
+                {
+                    "year": "Contemporary",
+                    "title": "Highland Agroforestry & Coffee",
+                    "organization": "DA MIADP & Local Cooperatives",
+                    "summary": "Sustainable agriculture initiatives supporting highland coffee and cacao cultivation within ancestral domains.",
+                    "source": "Department of Agriculture (MIADP)",
+                    "classification": "GENERAL-GOVERNMENT",
+                    "status": "VERIFIED",
+                },
+                {
+                    "year": "Contemporary",
+                    "title": "Schools of Living Traditions (SLT)",
+                    "organization": "NCCA / Community Culture-Bearers",
+                    "summary": "Community-led learning centers where master weavers teach backstrap loom weaving and oral lore to younger generations.",
+                    "source": "National Commission for Culture and the Arts (NCCA)",
+                    "classification": "GENERAL-GOVERNMENT / TAGABAWA-SPECIFIC",
+                    "status": "VERIFIED",
+                },
+            ],
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Government",
+            "source": "NCCA / DA",
+            "status": "VERIFIED",
+        },
+    ],
+    "sources": [
+        {
+            "organization": "University of Southeastern Philippines (USeP)",
+            "title": "The Cosmology of Bagobo Tagabawa",
+            "type": "Academic",
+            "description": "Research on Bagobo-Tagabawa oral lore and the spiritual significance of Apo Sandawa.",
+            "url": "https://www.usep.edu.ph",
+        },
+        {
+            "organization": "National Commission on Indigenous Peoples (NCIP)",
+            "title": "Ancestral Domain Sustainable Development and Protection Plan",
+            "type": "Government",
+            "description": "Documentation on indigenous governance (Matanem, Council of Elders) and land stewardship.",
+            "url": "https://ncip.gov.ph",
+        },
+        {
+            "organization": "National Museum of the Philippines",
+            "title": "Inabal Textile Heritage",
+            "type": "Heritage",
+            "description": "Records on Inabal abaca textiles and the legacy of Salinta Monon.",
+            "url": "https://www.nationalmuseum.gov.ph",
+        },
+        {
+            "organization": "Department of Agriculture",
+            "title": "Mindanao Inclusive Agriculture Development Project",
+            "type": "Government",
+            "description": "Initiatives supporting organic coffee, cacao, and sustainable agroforestry.",
+            "url": "https://miadp.da.gov.ph",
+        },
+    ],
+    "continue_exploring": [
+        {
+            "title": "Culture & Heritage",
+            "description": "Explore the traditional Inabal textile art, weaving mastery, and cultural traditions.",
+            "url_name": "translator:culture",
+            "cta_label": "Explore Culture",
+        },
+        {
+            "title": "Nature & Homeland",
+            "description": "Discover Mount Apo (Apo Sandawa), highland biodiversity, and agroforestry.",
+            "url_name": "translator:nature",
+            "cta_label": "Explore Nature",
+        },
+    ],
+}
+
+CULTURE_CONTENT = {
+    "hero": {
+        "eyebrow": "EXPLORE",
+        "title": "Cultural Heritage",
+        "description": "Educational documentation of Bagobo-Tagabawa textile weaving, linguistic heritage, and cultural transmission.",
+        "media": BAGOBO_TAGABAWA_INABAL,
+        "action_label": "Explore Cultural Heritage",
+    },
+    "story_navigation": [
+        {"id": "inabal-art", "label": "Inabal Art"},
+        {"id": "salinta-monon", "label": "Living Treasure"},
+        {"id": "language", "label": "Language"},
+        {"id": "living-traditions", "label": "Continuity"},
+        {"id": "gallery", "label": "Gallery"},
+        {"id": "sources", "label": "Sources"},
+    ],
+    "sections": [
+        {
+            "slug": "inabal-art",
+            "title": "Traditional Inabal Weaving",
+            "eyebrow": "TEXTILE HERITAGE",
+            "body": "Inabal is the traditional woven abaca cloth of the Tagabawa Bagobo. The production process begins with harvesting and stripping abaca (Musa textilis) fibers, softening them, and selecting warp threads. The warp is bound in precise patterns to resist dye—the ikat technique—using natural dyes prepared from local plants and earth. The cloth is then woven on a tension backstrap loom.",
+            "facts": [
+                "Woven on a tension backstrap loom from hand-stripped abaca fiber.",
+                "Ikat resist-dye technique produces traditional geometric motifs.",
+                "Dyed using traditional natural pigments from local vegetation and mud.",
+            ],
+            "media": BAGOBO_TAGABAWA_INABAL,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Museum / Government",
+            "source": "National Museum of the Philippines",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "salinta-monon",
+            "title": "Salinta Monon: Master Weaver",
+            "eyebrow": "LIVING TREASURE",
+            "body": "Salinta Monon (December 12, 1920 – June 4, 2009) was a Tagabawa Bagobo textile weaver from Bitaug, Bansalan, Davao del Sur. In 1998, the Philippine Government awarded her the Gawad sa Manlilikha ng Bayan (National Living Treasure) through the National Commission for Culture and the Arts (NCCA) for her mastery of traditional Inabal abaca weaving.",
+            "facts": [
+                "Born December 12, 1920; died June 4, 2009; native of Bansalan, Davao del Sur.",
+                "Conferred the Gawad sa Manlilikha ng Bayan (GAMABA) by the NCCA in 1998.",
+                "Recognized by the National Museum of the Philippines as a Tagabawa Bagobo textile weaver.",
+            ],
+            "media": None,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Government / Museum",
+            "source": "NCCA / National Museum of the Philippines",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "language",
+            "title": "The Bagobo-Tagabawa Language",
+            "eyebrow": "LINGUISTIC HERITAGE",
+            "body": "Tagabawa (ISO 639-3: bgs) is an Austronesian language belonging to the Manobo subgroup of the Southern Philippine languages, spoken by the Bagobo-Tagabawa in Davao del Sur and adjacent areas of Mount Apo. The language preserves specialized terms for local biodiversity, customary legal concepts, and oral traditions.",
+            "facts": [
+                "Austronesian language classified within the Southern Philippine / Manobo subgroup.",
+                "Spoken primarily in communities across Davao del Sur and the Mount Apo slopes.",
+                "Transmits ancestral vocabulary related to indigenous governance, flora, and weaving.",
+            ],
+            "media": None,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Academic",
+            "source": "Ethnologue / USeP Linguistics",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "living-traditions",
+            "title": "Schools of Living Traditions",
+            "eyebrow": "CONTINUITY",
+            "body": "Schools of Living Traditions (SLT) are non-formal, community-managed programs supported by the NCCA where master artisans and culture-bearers pass on traditional skills—such as Inabal weaving, music, and oral lore—directly to youth in their own ancestral communities.",
+            "cards": [
+                {
+                    "year": "Contemporary",
+                    "title": "Schools of Living Traditions (SLT)",
+                    "organization": "NCCA / Community Culture-Bearers",
+                    "summary": "Non-formal community learning centers where master weavers teach backstrap weaving directly to youth.",
+                    "source": "National Commission for Culture and the Arts (NCCA)",
+                    "classification": "GENERAL-GOVERNMENT / TAGABAWA-SPECIFIC",
+                    "status": "VERIFIED",
+                },
+                {
+                    "year": "Contemporary",
+                    "title": "National Museum Textile Documentation",
+                    "organization": "National Museum of the Philippines",
+                    "summary": "Museum documentation and exhibitions preserving the heritage of Philippine traditional textiles.",
+                    "source": "National Museum of the Philippines",
+                    "classification": "GENERAL-GOVERNMENT",
+                    "status": "VERIFIED",
+                },
+            ],
+            "classification": "GENERAL-GOVERNMENT / TAGABAWA-SPECIFIC",
+            "source_type": "Government",
+            "source": "NCCA / National Museum",
+            "status": "VERIFIED",
+        },
+    ],
+    "sources": [
+        {
+            "organization": "National Commission for Culture and the Arts (NCCA)",
+            "title": "Gawad sa Manlilikha ng Bayan: Salinta Monon",
+            "type": "Heritage",
+            "description": "Official documentation of the life, artistry, and legacy of National Living Treasure Salinta Monon (1920–2009).",
+            "url": "https://ncca.gov.ph",
+        },
+        {
+            "organization": "National Museum of the Philippines",
+            "title": "Traditional Philippine Textiles: Inabal of the Bagobo-Tagabawa",
+            "type": "Heritage",
+            "description": "Ethnological records on abaca fiber preparation, ikat dyeing, and back-strap loom weaving.",
+            "url": "https://www.nationalmuseum.gov.ph",
+        },
+        {
+            "organization": "University of Southeastern Philippines (USeP)",
+            "title": "Bagobo-Tagabawa Language and Oral Lore Documentation",
+            "type": "Academic",
+            "description": "Linguistic and cultural documentation of Tagabawa oral traditions and community knowledge.",
+            "url": "https://www.usep.edu.ph",
+        },
+    ],
+    "continue_exploring": [
+        {
+            "title": "Bagobo-Tagabawa",
+            "description": "Discover the people, community governance, and history anchored in the Mount Apo foothills.",
+            "url_name": "translator:bagobo_tagabawa",
+            "cta_label": "Explore Bagobo-Tagabawa",
+        },
+        {
+            "title": "Nature & Homeland",
+            "description": "Discover Mount Apo (Apo Sandawa), highland biodiversity, and agroforestry.",
+            "url_name": "translator:nature",
+            "cta_label": "Explore Nature",
+        },
+    ],
+}
+
+NATURE_CONTENT = {
+    "hero": {
+        "eyebrow": "EXPLORE",
+        "title": "Nature & Homeland",
+        "description": "An educational overview of Mount Apo (Apo Sandawa), highland ecosystems, and ancestral domain stewardship.",
+        "media": MOUNT_APO,
+        "action_label": "Explore Mount Apo & Land",
+    },
+    "story_navigation": [
+        {"id": "apo-sandawa", "label": "Apo Sandawa"},
+        {"id": "foothill-ecology", "label": "Ecosystem"},
+        {"id": "agroforestry", "label": "Agroforestry"},
+        {"id": "ancestral-stewardship", "label": "Stewardship"},
+        {"id": "documentary", "label": "Documentary"},
+        {"id": "gallery", "label": "Gallery"},
+        {"id": "sources", "label": "Sources"},
+    ],
+    "sections": [
+        {
+            "slug": "apo-sandawa",
+            "title": "Apo Sandawa: Mount Apo",
+            "eyebrow": "SACRED PEAK",
+            "body": "Mount Apo, with an elevation of 2,954 meters (9,692 feet), is the highest peak in the Philippines. Known to the Bagobo-Tagabawa and neighboring Indigenous peoples as Apo Sandawa, the mountain is the geographic center of their ancestral domain and holds profound cultural and spiritual significance.",
+            "facts": [
+                "Highest mountain in the Philippines at 2,954 meters above sea level (DENR/NAMRIA).",
+                "Recognized as ancestral domain of the Bagobo-Tagabawa and neighboring Indigenous cultural communities.",
+                "Established as a protected area under the National Integrated Protected Areas System (NIPAS) and designated an ASEAN Heritage Park.",
+            ],
+            "media": MOUNT_APO,
+            "classification": "GENERAL-ENVIRONMENTAL / TAGABAWA-SPECIFIC",
+            "source_type": "Government / Environmental",
+            "source": "DENR-BMB / NCIP",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "foothill-ecology",
+            "title": "Montane Ecosystems and Biodiversity",
+            "eyebrow": "ECOLOGY",
+            "body": "Mount Apo Natural Park encompasses varied ecological zones, from lowland secondary forests and mid-montane dipterocarp forests to upper montane mossy forests near the summit. According to DENR environmental assessments, the park supports hundreds of plant and animal species, including the critically endangered Philippine Eagle (Pithecophaga jefferyi).",
+            "facts": [
+                "Forest zones include lowland dipterocarp, mid-montane, and upper montane mossy cloud forests.",
+                "Habitat for endemic and threatened species including the Philippine Eagle (Pithecophaga jefferyi).",
+                "Functions as a major watershed supplying water resources to the Davao and Cotabato river basins.",
+            ],
+            "media": MOUNT_APO_ECOLOGY,
+            "classification": "GENERAL-ENVIRONMENTAL",
+            "source_type": "Government / Scientific",
+            "source": "DENR-BMB / Philippine Eagle Foundation",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "agroforestry",
+            "title": "Highland Agroforestry and Agriculture",
+            "eyebrow": "AGROFORESTRY",
+            "body": "In the lower slopes and buffer zones of Mount Apo, Bagobo-Tagabawa agriculturalists practice agroforestry systems. Farmers grow shade-tolerant coffee (Arabica and Robusta), cacao, and abaca beneath existing forest canopies, supporting household livelihoods while conserving soil and canopy structure.",
+            "facts": [
+                "Integration of high-altitude shade coffee and cacao beneath native tree canopies.",
+                "Abaca cultivation provides raw material for traditional weaving and commercial fiber.",
+                "Agroforestry practices reduce slope erosion compared to clear-cut monoculture.",
+            ],
+            "media": MOUNT_APO_AGROFORESTRY,
+            "classification": "TAGABAWA-SPECIFIC / GENERAL-ENVIRONMENTAL",
+            "source_type": "Government",
+            "source": "Department of Agriculture / NCIP",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "ancestral-stewardship",
+            "title": "Ancestral Domain Stewardship",
+            "eyebrow": "STEWARDSHIP",
+            "body": "Under the Indigenous Peoples' Rights Act (IPRA, Republic Act No. 8371), the Bagobo-Tagabawa develop Ancestral Domain Sustainable Development and Protection Plans (ADSDPP). These community plans guide forest protection, watershed conservation, and resource management within their Certificate of Ancestral Domain Title (CADT) areas.",
+            "facts": [
+                "Community-formulated ADSDPP frameworks guide conservation within ancestral domains.",
+                "Customary leadership collaborates with protected area boards to prevent illegal deforestation.",
+                "Protects indigenous biodiversity and cultural heritage for future generations.",
+            ],
+            "cards": [
+                {
+                    "year": "Contemporary",
+                    "title": "Ancestral Domain Sustainable Development Plan (ADSDPP)",
+                    "organization": "NCIP / Bagobo-Tagabawa Indigenous Political Structure",
+                    "summary": "Community-formulated plans for managing ancestral domain lands, preserving natural resources, and applying customary law.",
+                    "source": "National Commission on Indigenous Peoples (NCIP)",
+                    "classification": "GENERAL-GOVERNMENT / TAGABAWA-SPECIFIC",
+                    "status": "VERIFIED",
+                },
+                {
+                    "year": "Contemporary",
+                    "title": "Mindanao Inclusive Agriculture Development Project (MIADP)",
+                    "organization": "Department of Agriculture",
+                    "summary": "Government initiative supporting sustainable indigenous agricultural enterprises and agroforestry in ancestral domains.",
+                    "source": "Department of Agriculture (MIADP)",
+                    "classification": "GENERAL-GOVERNMENT",
+                    "status": "VERIFIED",
+                },
+            ],
+            "media": MOUNT_APO_STEWARDSHIP,
+            "classification": "TAGABAWA-SPECIFIC / GENERAL-GOVERNMENT",
+            "source_type": "Government / Legal",
+            "source": "NCIP / Republic Act No. 8371",
+            "status": "VERIFIED",
+        },
+    ],
+    "video_feature": {
+        "eyebrow": "DOCUMENTARY SPOTLIGHT",
+        "title": "Expedition Apo Sandawa: Sacred Peak & Protected Ecosystem",
+        "description": "An educational video expedition exploring Mount Apo's cloud forests, volcanic boulder faces, and the living ancestral landscape of Apo Sandawa.",
+        "video_url": "https://www.youtube-nocookie.com/embed/okBvl24bDLM",
+        "caption": "Educational documentary documentation: Mount Apo Natural Park ASEAN Heritage Park and indigenous ancestral domain.",
+        "source": "Expedition Asia / ASEAN Heritage Park Documentation",
+    },
+    "sources": [
+        {
+            "organization": "Department of Environment and Natural Resources (DENR-BMB)",
+            "title": "Mount Apo Natural Park Biodiversity Profile",
+            "type": "Government",
+            "description": "Conservation status, protected area boundaries, and ecological monitoring records for Mount Apo.",
+            "url": "https://bmb.gov.denr.gov.ph",
+        },
+        {
+            "organization": "Provincial Government of Davao del Sur",
+            "title": "Mount Apo (Apo Sandawa) Heritage and Ecotourism",
+            "type": "Government",
+            "description": "Official provincial documentation on Mount Apo ecotourism and indigenous cultural significance.",
+            "url": "https://davaodelsur.gov.ph",
+        },
+        {
+            "organization": "National Commission on Indigenous Peoples (NCIP)",
+            "title": "Ancestral Domain Sustainable Development and Protection Plan (ADSDPP)",
+            "type": "Government",
+            "description": "Guidelines on indigenous customary law, environmental stewardship, and ancestral land protection.",
+            "url": "https://ncip.gov.ph",
+        },
+        {
+            "organization": "Department of Agriculture",
+            "title": "Mindanao Inclusive Agriculture Development Project (MIADP)",
+            "type": "Government",
+            "description": "Sustainable agroforestry support and organic coffee cultivation in indigenous ancestral domains.",
+            "url": "https://miadp.da.gov.ph",
+        },
+    ],
+    "continue_exploring": [
+        {
+            "title": "Bagobo-Tagabawa",
+            "description": "Discover the people, community governance, and history anchored in the Mount Apo foothills.",
+            "url_name": "translator:bagobo_tagabawa",
+            "cta_label": "Explore Bagobo-Tagabawa",
+        },
+        {
+            "title": "Culture & Heritage",
+            "description": "Explore the traditional Inabal textile art, weaving mastery, and cultural traditions.",
+            "url_name": "translator:culture",
+            "cta_label": "Explore Culture",
+        },
+    ],
+}
+
+COMMUNITY_CONTENT = {
+    "hero": {
+        "eyebrow": "COMMUNITY",
+        "title": "Community Life, Learning & Continuity",
+        "description": "An introduction to community-based education, contextual learning materials, and documented folk speech in Bagobo-Tagabawa communities.",
+        "media": BAGOBO_TAGABAWA_HOUSE,
+        "action_label": "Explore Community Stories",
+    },
+    "story_intro_eyebrow": "COMMUNITY STORIES",
+    "story_headline": "Learning, collaboration, and documented knowledge",
+    "story_subtext": "Three source-grounded perspectives on contemporary Bagobo-Tagabawa community initiatives and documentation.",
+    "story_navigation": [
+        {"id": "community-education", "label": "Education"},
+        {"id": "learning-materials", "label": "Learning Materials"},
+        {"id": "folk-speech", "label": "Folk Speech"},
+        {"id": "sources", "label": "Sources"},
+    ],
+    "sections": [
+        {
+            "slug": "community-education",
+            "title": "Community-Based Education in Astorga",
+            "eyebrow": "COMMUNITY TODAY",
+            "body": "In 2023, the University of Southeastern Philippines and Tagabawa Christian School formalized the PANGANDOY extension partnership for Bagobo-Tagabawa learners in Astorga, Santa Cruz, Davao del Sur. The initiative is presented by USeP as community-based Indigenous Peoples Education, with local partners shaping its direction.",
+            "facts": [
+                "The partnership connects USeP and Tagabawa Christian School around community-based education.",
+                "USeP identifies Astorga, Santa Cruz, Davao del Sur as the partner-community setting.",
+                "The MOA account names Matanem Renante D. Talabon among the Tagabawa Christian School representatives.",
+            ],
+            "media": None,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "University / community-partner documentation",
+            "source": "University of Southeastern Philippines, 2023 PANGANDOY MOA announcement",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "learning-materials",
+            "title": "Learning Materials With Local Context",
+            "eyebrow": "KNOWLEDGE SHARING",
+            "body": "PANGANDOY centers educational materials on the Bagobo-Tagabawa community context. USeP describes the partnership as supporting instructional and information, education, and communication materials contextualized to Bagobo-Tagabawa culture, and later reported a writeshop for learning materials tailored to the community.",
+            "facts": [
+                "USeP describes the materials as contextualized to Bagobo-Tagabawa culture.",
+                "The 2024 USeP report documents a writeshop for learning materials tailored to the community.",
+                "USeP lists Tagabawa Christian School and NCIP Region XI among the PANGANDOY partners.",
+            ],
+            "media": None,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "University / community-partner documentation",
+            "source": "University of Southeastern Philippines, PANGANDOY program documentation",
+            "status": "VERIFIED",
+        },
+        {
+            "slug": "folk-speech",
+            "title": "Folk Speech in Scholarly Documentation",
+            "eyebrow": "DOCUMENTATION",
+            "body": "A 2021 USeP study examined Bagobo-Tagabawa folk speech through proverbs and riddles. It analyzed 90 proverbs and 97 riddles, presenting them as cultural materials for study and preservation. This chapter shares the scope of that publication without interpreting individual texts or claiming to represent all community knowledge.",
+            "study_figures": [
+                {"value": "90", "label": "Proverbs", "context": "documented in study"},
+                {"value": "97", "label": "Riddles", "context": "documented in study"},
+            ],
+            "facts": [
+                "The USeP study analyzes Bagobo-Tagabawa folk speech, specifically proverbs and riddles.",
+                "Its published dataset includes 90 proverbs and 97 riddles.",
+                "The article frames the work as documentation that can support preservation of cultural materials.",
+            ],
+            "media": None,
+            "classification": "TAGABAWA-SPECIFIC",
+            "source_type": "Peer-reviewed university journal",
+            "source": "Tuban, USeP, 2021",
+            "status": "VERIFIED",
+        },
+    ],
+    "sources": [
+        {
+            "organization": "University of Southeastern Philippines",
+            "title": "USeP and Tagabawa Christian School sign MOA for Pangandoy Extension Program",
+            "type": "University / community-partner documentation",
+            "description": "2023 announcement of the USeP–Tagabawa Christian School partnership for community-based Indigenous Peoples Education in Astorga, Santa Cruz, Davao del Sur.",
+            "url": "https://www.usep.edu.ph/op/2023/07/25/usep-and-tagabawa-christian-school-sign-moa-for-pangandoy-extension-program/",
+        },
+        {
+            "organization": "University of Southeastern Philippines",
+            "title": "PANGANDOY: A Community-Based Education for the Bagobo-Tagabawa Indigenous People",
+            "type": "University / community-partner documentation",
+            "description": "USeP program page identifying the PANGANDOY partners and its culture-sensitive, locally responsive education direction.",
+            "url": "https://www.usep.edu.ph/ilca/partnership/",
+        },
+        {
+            "organization": "University of Southeastern Philippines",
+            "title": "PANGANDOY Writeshop: developing Bagobo-Tagabawa learning materials",
+            "type": "University / community-partner documentation",
+            "description": "2024 USeP report on a writeshop developing learning materials tailored to the Bagobo-Tagabawa community.",
+            "url": "https://www.usep.edu.ph/ilca/2024/09/05/%F0%9D%90%93%F0%9D%90%91%F0%9D%90%80%F0%9D%90%8D%F0%9D%90%92%F0%9D%90%85%F0%9D%90%8E%F0%9D%90%91%F0%9D%90%8C%F0%9D%90%88%F0%9D%90%8D%F0%9D%90%86-%F0%9D%90%82%F0%9D%90%8E%F0%9D%90%8C%F0%9D%90%8C%F0%9D%90%94%F0%9D%90%8D%F0%9D%90%88%F0%9D%90%93%F0%9D%90%98/",
+        },
+        {
+            "organization": "Southeastern Philippines Journal of Research and Development",
+            "title": "A study of Bagobo Tagabawa folk speech using Murdock's and Eugenio's classification",
+            "type": "Peer-reviewed academic article",
+            "description": "2021 USeP publication documenting and analyzing Bagobo-Tagabawa proverbs and riddles.",
+            "url": "https://journal.usep.edu.ph/index.php/Southeastern_Philippines_Journal/article/view/157",
+        },
+    ],
+    "continue_exploring": [
+        {
+            "title": "Bagobo-Tagabawa",
+            "description": "Discover the people, community governance, and history anchored in the Mount Apo foothills.",
+            "url_name": "translator:bagobo_tagabawa",
+            "cta_label": "Explore Bagobo-Tagabawa",
+        },
+        {
+            "title": "Culture & Heritage",
+            "description": "Explore the traditional Inabal textile art, weaving mastery, and cultural traditions.",
+            "url_name": "translator:culture",
+            "cta_label": "Explore Culture",
+        },
+        {
+            "title": "Nature & Homeland",
+            "description": "Discover Mount Apo, highland ecosystems, and ancestral stewardship.",
+            "url_name": "translator:nature",
+            "cta_label": "Explore Nature",
+        },
+    ],
+}
+
+ALLOWED_PUBLIC_STATUSES = {"VERIFIED", "VERIFIED_BROADER_BAGOBO"}
+
+
+def get_public_content(page_key="bagobo_tagabawa"):
+    """Returns only VERIFIED or VERIFIED_BROADER_BAGOBO sections for a given public page.
+
+    Items with COMMUNITY_REVIEW_NEEDED, NEEDS_RESEARCH, or REMOVE are excluded.
+    """
+    content_map = {
+        "bagobo_tagabawa": BAGOBO_TAGABAWA_CONTENT,
+        "culture": CULTURE_CONTENT,
+        "nature": NATURE_CONTENT,
+        "community": COMMUNITY_CONTENT,
+    }
+    raw = content_map.get(page_key, BAGOBO_TAGABAWA_CONTENT)
+    content = dict(raw)
+    content["sections"] = [
+        s for s in raw.get("sections", []) if s.get("status") in ALLOWED_PUBLIC_STATUSES
+    ]
+    return content

@@ -1,0 +1,7512 @@
+{
+  "source": "translator\\services\\translation_data.json",
+  "checksum": "d66967bb45e365af20c21fb386eaaa7eeb25edd9d6d8c57013c3cc6b53b4645f",
+  "mode": "commit",
+  "processed": 1028,
+  "created": 1018,
+  "skipped": 10,
+  "duplicates": 10,
+  "conflicts": 77,
+  "incomplete": 0,
+  "requires_review": 1028,
+  "issues": [
+    {
+      "row": 2,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 3,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 4,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 5,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 6,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 7,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 8,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 9,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 10,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 11,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 12,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 13,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 14,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 15,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 16,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 17,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 18,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 19,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 20,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 21,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 22,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 23,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 24,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 25,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 26,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 27,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 28,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 29,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 30,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 31,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 32,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 33,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 34,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 35,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 36,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 37,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 38,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 39,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 40,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 41,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 42,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 43,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 44,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 45,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 46,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 47,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 48,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 49,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 50,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 51,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 52,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 53,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 54,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 55,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 56,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 57,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 58,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 59,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 60,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 61,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 62,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 63,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 64,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 65,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 66,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 67,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 68,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 69,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 70,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 71,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 72,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 73,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 74,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 75,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 76,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 77,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 78,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 79,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 80,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 81,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 82,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 83,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 84,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 85,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 86,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 87,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 88,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 89,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 90,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 91,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 92,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 93,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 94,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 95,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 96,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 97,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 98,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 99,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 100,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 101,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 102,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 103,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 104,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 105,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 106,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 107,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 108,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 109,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 110,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 111,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 112,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 113,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 114,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 115,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 116,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 117,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 118,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 119,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 120,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 121,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 122,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 123,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 124,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 125,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 126,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 127,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 128,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 129,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 130,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 131,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 132,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 133,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 134,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 135,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 136,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 137,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 138,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 139,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 140,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 141,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 142,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 143,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 144,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 145,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 146,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 147,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 148,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 149,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 150,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 151,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 152,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 153,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 154,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 155,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 156,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 157,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 158,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 159,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 160,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 161,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 162,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 163,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 164,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 165,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 166,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 167,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 168,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 169,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 170,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 171,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 172,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 173,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 174,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 175,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 176,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 177,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 178,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 179,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 180,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 181,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 182,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 183,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 184,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 185,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 186,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 187,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 188,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 189,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 190,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 191,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 192,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 193,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 194,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 195,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 196,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 197,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 198,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 199,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 200,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 201,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 202,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 203,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 204,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 205,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 206,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 207,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 208,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 209,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 210,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 211,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 212,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 213,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 214,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 215,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 216,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 217,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 218,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 219,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 220,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 221,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 222,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 223,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 224,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 225,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 226,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 227,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 228,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 229,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 230,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 231,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 232,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 233,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 234,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 235,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 236,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 237,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 238,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 239,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 240,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 241,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 242,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 243,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 244,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 245,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 246,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 247,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 248,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 249,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 250,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 251,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 252,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 253,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 254,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 255,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 256,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 257,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 258,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 259,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 260,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 261,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 262,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 263,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 264,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 265,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 266,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 267,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 268,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 269,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 270,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 271,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 272,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 273,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 274,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 275,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 276,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 277,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 278,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 279,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 280,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 281,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 282,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 283,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 284,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 285,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 286,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 287,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 288,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 289,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 290,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 291,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 292,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 293,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 294,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 295,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 296,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 297,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 298,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 299,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 300,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 301,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 302,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 303,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 304,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 305,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 306,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 307,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 308,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 309,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 310,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 311,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 312,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 313,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 314,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 315,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 316,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 317,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 318,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 319,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 320,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 321,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 322,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 323,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 324,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 325,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 326,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 327,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 328,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 329,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 330,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 331,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 332,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 333,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 334,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 335,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 336,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 337,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 338,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 339,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 340,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 341,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 342,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 343,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 344,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 345,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 346,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 347,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 348,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 349,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 350,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 351,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 352,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 353,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 354,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 355,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 356,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 357,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 358,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 359,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 360,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 361,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 362,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 363,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 364,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 365,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 366,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 367,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 368,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 369,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 370,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 371,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 372,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 373,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 374,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 375,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 376,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 377,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 378,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 379,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 380,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 381,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 382,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 383,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 384,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 385,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 386,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 387,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 388,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 389,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 390,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 391,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 392,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 393,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 394,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 395,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 396,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 397,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 398,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 399,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 400,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 401,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 402,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 403,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 404,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 405,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 406,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 407,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 408,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 409,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 410,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 411,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 412,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 413,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 414,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 415,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 416,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 417,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 418,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 419,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 420,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 421,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 422,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 423,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 424,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 425,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 426,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 427,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 428,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 429,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 430,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 431,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 432,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 433,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 434,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 435,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 436,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 437,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 438,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 439,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 440,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 441,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 442,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 443,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 444,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 445,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 446,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 447,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 448,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 449,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 450,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 451,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 452,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 453,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 454,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 455,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 456,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 457,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 458,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 459,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 460,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 461,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 462,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 463,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 464,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 465,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 466,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 467,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 468,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 469,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 470,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 471,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 472,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 473,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 474,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 475,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 476,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 477,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 478,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 479,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 480,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 481,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 482,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 483,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 484,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 485,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 486,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 487,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 488,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 489,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 490,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 491,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 492,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 493,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 494,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 495,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 496,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 497,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 498,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 499,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 500,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 501,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 502,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 503,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 504,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 505,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 506,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 507,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 508,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 509,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 510,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 511,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 512,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 513,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 514,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 515,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 516,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 517,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 518,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 519,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 520,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 521,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 522,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 523,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 524,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 525,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 526,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 527,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 528,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 529,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 530,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 531,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 532,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 533,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 534,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 535,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 536,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 537,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 538,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 539,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 540,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 541,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 542,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 543,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 544,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 545,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 546,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 547,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 548,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 549,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 550,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 551,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 552,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 553,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 554,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 555,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 556,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 557,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 558,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 559,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 560,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 561,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 562,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 563,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 564,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 565,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 566,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 567,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 568,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 569,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 570,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 571,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 572,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 573,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 574,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 575,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 576,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 577,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 578,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 579,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 580,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 581,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 582,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 583,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 584,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 585,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 586,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 587,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 588,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 589,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 590,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 591,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 592,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 593,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 594,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 595,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 596,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 597,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 598,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 599,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 600,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 601,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 602,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 603,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 604,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 605,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 606,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 607,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 608,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 609,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 610,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 611,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 612,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 613,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 614,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 615,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 616,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 617,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "exact_duplicate"
+      ]
+    },
+    {
+      "row": 618,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 619,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 620,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 621,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 622,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 623,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 624,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 625,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 626,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 627,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 628,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 629,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 630,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 631,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 632,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 633,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 634,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 635,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 636,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 637,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 638,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 639,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 640,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 641,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 642,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 643,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 644,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 645,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 646,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 647,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 648,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 649,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 650,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 651,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 652,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 653,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 654,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 655,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 656,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 657,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 658,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 659,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 660,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 661,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 662,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 663,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 664,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 665,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 666,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 667,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 668,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 669,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 670,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 671,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 672,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 673,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 674,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 675,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 676,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 677,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 678,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 679,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 680,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 681,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 682,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 683,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 684,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 685,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 686,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 687,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 688,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 689,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 690,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 691,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 692,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 693,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 694,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 695,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 696,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 697,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 698,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 699,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 700,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 701,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 702,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 703,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 704,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 705,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 706,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 707,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 708,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 709,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 710,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 711,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 712,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 713,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 714,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 715,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 716,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 717,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 718,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 719,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 720,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 721,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 722,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 723,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 724,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 725,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 726,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 727,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 728,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 729,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 730,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 731,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 732,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 733,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 734,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 735,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 736,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 737,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 738,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 739,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 740,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 741,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 742,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 743,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 744,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 745,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 746,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 747,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 748,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 749,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 750,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 751,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 752,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 753,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 754,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 755,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 756,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 757,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 758,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 759,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 760,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 761,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 762,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 763,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 764,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 765,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 766,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 767,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 768,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 769,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 770,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 771,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 772,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 773,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 774,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 775,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 776,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 777,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 778,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 779,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 780,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 781,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 782,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 783,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 784,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 785,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 786,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 787,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 788,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 789,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 790,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 791,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 792,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 793,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 794,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 795,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 796,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 797,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 798,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 799,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 800,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 801,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 802,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 803,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 804,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 805,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 806,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 807,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 808,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 809,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "exact_duplicate"
+      ]
+    },
+    {
+      "row": 810,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 811,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "exact_duplicate"
+      ]
+    },
+    {
+      "row": 812,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 813,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "exact_duplicate"
+      ]
+    },
+    {
+      "row": 814,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 815,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "exact_duplicate"
+      ]
+    },
+    {
+      "row": 816,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 817,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "exact_duplicate"
+      ]
+    },
+    {
+      "row": 818,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 819,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "exact_duplicate"
+      ]
+    },
+    {
+      "row": 820,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 821,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 822,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 823,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 824,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 825,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 826,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 827,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 828,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 829,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 830,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 831,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 832,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 833,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 834,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 835,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 836,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 837,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 838,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 839,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 840,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 841,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 842,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 843,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 844,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 845,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 846,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 847,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 848,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 849,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 850,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 851,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 852,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 853,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 854,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 855,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 856,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 857,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 858,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 859,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 860,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 861,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 862,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 863,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 864,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 865,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 866,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 867,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 868,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 869,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 870,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 871,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 872,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 873,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 874,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 875,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 876,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 877,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 878,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 879,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 880,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 881,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 882,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 883,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 884,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 885,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 886,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 887,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 888,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 889,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 890,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 891,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 892,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 893,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 894,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 895,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 896,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 897,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 898,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 899,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 900,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 901,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 902,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 903,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 904,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 905,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 906,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 907,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 908,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 909,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 910,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 911,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 912,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 913,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 914,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 915,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 916,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 917,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 918,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 919,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 920,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 921,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 922,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 923,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 924,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 925,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 926,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 927,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 928,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 929,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 930,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 931,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 932,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 933,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 934,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 935,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 936,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 937,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 938,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 939,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 940,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 941,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 942,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 943,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 944,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 945,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 946,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 947,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 948,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 949,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 950,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 951,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 952,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 953,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 954,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 955,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 956,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 957,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 958,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 959,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 960,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 961,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 962,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 963,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 964,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 965,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 966,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 967,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 968,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 969,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 970,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 971,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 972,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 973,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 974,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 975,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 976,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 977,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 978,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 979,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 980,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 981,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 982,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 983,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 984,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 985,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 986,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 987,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 988,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 989,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 990,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 991,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 992,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 993,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 994,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 995,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 996,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 997,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 998,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 999,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1000,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1001,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1002,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate",
+        "conflicting_translation"
+      ]
+    },
+    {
+      "row": 1003,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1004,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1005,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1006,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1007,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1008,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1009,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 1010,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1011,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1012,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1013,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1014,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1015,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1016,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "possible_duplicate"
+      ]
+    },
+    {
+      "row": 1017,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1018,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1019,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "exact_duplicate"
+      ]
+    },
+    {
+      "row": 1020,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "normalized_duplicate"
+      ]
+    },
+    {
+      "row": 1021,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1022,
+      "categories": [
+        "missing_provenance",
+        "missing_license",
+        "normalized_duplicate"
+      ]
+    },
+    {
+      "row": 1023,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1024,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1025,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1026,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1027,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1028,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    },
+    {
+      "row": 1029,
+      "categories": [
+        "missing_provenance",
+        "missing_license"
+      ]
+    }
+  ],
+  "batch": "phase2-canonical-json-20260802"
+}

@@ -1,3 +1,5 @@
+u{003E} **Document status: Historical / Proposed.** Verify current runtime and dataset claims against docs/CURRENT_STATE_CAPABILITIES.md (Phase 1, 2026-08-02).
+
 # IMPLEMENTATION_PLAN.md
 ## LingoKatutubo Implementation Plan
 

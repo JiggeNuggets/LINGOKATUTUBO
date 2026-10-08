@@ -7,6 +7,9 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from PIL import Image, UnidentifiedImageError
 
+from .models import PhrasebookEntry
+from .services.resource_management import LANGUAGE_FIELDS, usable_language_count
+
 
 LANGUAGE_CHOICES = [
     ("auto", "Auto-Detect"),
@@ -25,7 +28,7 @@ TARGET_LANGUAGE_CHOICES = [
 
 DEFAULT_OCR_LANGUAGES = "eng+fil+ceb"
 
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".jpg", ".jpeg", ".png", ".txt"}
+ALLOWED_EXTENSIONS = {".pdf", ".docx"}
 ALLOWED_CONTENT_TYPES = {
     ".pdf": {"application/pdf", "application/x-pdf"},
     ".docx": {
@@ -33,10 +36,6 @@ ALLOWED_CONTENT_TYPES = {
         "application/zip",
         "application/octet-stream",
     },
-    ".jpg": {"image/jpeg", "application/octet-stream"},
-    ".jpeg": {"image/jpeg", "application/octet-stream"},
-    ".png": {"image/png", "application/octet-stream"},
-    ".txt": {"text/plain", "application/octet-stream"},
 }
 
 
@@ -62,7 +61,7 @@ class DocumentUploadForm(forms.Form):
         uploaded = self.cleaned_data["file"]
         extension = Path(uploaded.name.lower()).suffix
         if extension not in ALLOWED_EXTENSIONS:
-            raise forms.ValidationError("Upload a PDF, DOCX, JPG, PNG, or TXT file.")
+            raise forms.ValidationError("Please upload a PDF or DOCX document.")
         if uploaded.size > settings.LINGOKATUTUBO_MAX_UPLOAD_BYTES:
             max_mb = settings.LINGOKATUTUBO_MAX_UPLOAD_BYTES // (1024 * 1024)
             raise forms.ValidationError(f"File is too large. Maximum size is {max_mb} MB.")
@@ -100,20 +99,7 @@ class DocumentUploadForm(forms.Form):
                 uploaded.seek(0)
             return
 
-        if extension == ".txt":
-            try:
-                header.decode("utf-8")
-            except UnicodeDecodeError as exc:
-                raise forms.ValidationError("The uploaded text file must be UTF-8 encoded.") from exc
-            return
-
-        try:
-            image = Image.open(uploaded)
-            image.verify()
-        except (UnidentifiedImageError, OSError) as exc:
-            raise forms.ValidationError("The uploaded image is not a valid image file.") from exc
-        finally:
-            uploaded.seek(0)
+        raise forms.ValidationError("Please upload a PDF or DOCX document.")
 
 
 class SignUpForm(UserCreationForm):
@@ -122,3 +108,64 @@ class SignUpForm(UserCreationForm):
     class Meta:
         model = User
         fields = ["username", "email", "password1", "password2"]
+
+
+class TranslationResourceForm(forms.ModelForm):
+    """The routine, non-governance fields exposed to resource managers."""
+
+    class Meta:
+        model = PhrasebookEntry
+        fields = [
+            "tagabawa", "english", "filipino", "cebuano", "part_of_speech",
+            "topic", "source", "notes", "is_active",
+        ]
+        labels = {
+            "tagabawa": "Bagobo-Tagabawa",
+            "part_of_speech": "Entry type",
+            "topic": "Category",
+            "is_active": "Active",
+        }
+        widgets = {
+            "notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["source"].required = False
+        self.fields["notes"].required = False
+        self.fields["part_of_speech"].required = False
+        self.fields["topic"].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("is_active") and usable_language_count(cleaned) < 2:
+            raise forms.ValidationError(
+                "Active resources require at least two usable language values."
+            )
+        cleaned["source"] = (cleaned.get("source") or "translation_resources").strip()
+        return cleaned
+
+
+class TranslationResourceImportForm(forms.Form):
+    file = forms.FileField(label="CSV or JSON resource file")
+
+    def clean_file(self):
+        uploaded = self.cleaned_data["file"]
+        suffix = Path(uploaded.name.lower()).suffix
+        if suffix not in {".csv", ".json"}:
+            raise forms.ValidationError("Upload a CSV or JSON resource file.")
+        if uploaded.size > 5 * 1024 * 1024:
+            raise forms.ValidationError("Resource imports are limited to 5 MB.")
+        return uploaded
+
+
+class ResourceMatchTesterForm(forms.Form):
+    source_language = forms.ChoiceField(choices=TARGET_LANGUAGE_CHOICES)
+    target_language = forms.ChoiceField(choices=TARGET_LANGUAGE_CHOICES)
+    text = forms.CharField(label="Text to test", max_length=1000, widget=forms.Textarea(attrs={"rows": 3}))
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("source_language") == cleaned.get("target_language"):
+            raise forms.ValidationError("Choose different source and target languages.")
+        return cleaned

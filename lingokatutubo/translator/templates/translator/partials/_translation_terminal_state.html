@@ -1,0 +1,13 @@
+<div class="translation-terminal-state{% if is_failed %} is-failed{% else %} is-complete{% endif %}" role="{% if is_failed %}alert{% else %}status{% endif %}" aria-live="polite" aria-atomic="true">
+  <svg class="translation-terminal-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <circle cx="32" cy="32" r="23"/>
+    {% if is_failed %}<path d="m24 24 16 16m0-16L24 40"/>{% else %}<path d="m20 33 8 8 17-19"/>{% endif %}
+  </svg>
+  <h2 id="translation-terminal-title">{% if is_failed %}Translation Failed{% else %}Translation Complete{% endif %}</h2>
+  {% if is_failed %}
+    <p class="translation-terminal-message">Translation could not be completed. Please try another file or contact the administrator.</p>
+    <a class="button primary" data-terminal-action href="{% url 'translator:translate' %}">Try Again</a>
+  {% else %}
+    <a id="job-preview-action" class="button primary js-preview-link" data-terminal-action data-loading-text="Preparing document preview&hellip;" href="{% url 'translator:job_preview' job.id %}">CHECK</a>
+  {% endif %}
+</div>

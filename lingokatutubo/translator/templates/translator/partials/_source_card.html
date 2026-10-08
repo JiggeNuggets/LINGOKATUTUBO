@@ -1,0 +1,18 @@
+<article class="source-card source-bibliography-item">
+  <div class="source-card__index-col">
+    {% if index %}<span class="source-card__number" aria-hidden="true">0{{ index }}</span>{% endif %}
+  </div>
+  <div class="source-card__content-col">
+    <div class="source-card__meta">
+      <span class="source-card__type eyebrow">{{ source.type }}</span>
+      <span class="source-card__org">{{ source.organization }}</span>
+    </div>
+    <h3 class="source-card__title">{{ source.title }}</h3>
+    <p class="source-card__desc">{{ source.description }}</p>
+  </div>
+  <div class="source-card__action-col">
+    <a class="source-card__link source-biblio-link" href="{{ source.url }}" target="_blank" rel="noopener noreferrer" aria-label="View source: {{ source.title }} (opens in new tab)">
+      <span>View Source</span> <span class="source-arrow" aria-hidden="true">&nearr;</span>
+    </a>
+  </div>
+</article>

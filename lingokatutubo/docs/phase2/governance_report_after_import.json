@@ -1,0 +1,26 @@
+{
+  "total_records": 1018,
+  "by_validation_status": {
+    "pending": 1018,
+    "under_review": 0,
+    "verified": 0,
+    "rejected": 0,
+    "restricted": 0,
+    "deprecated": 0
+  },
+  "runtime_approved": 0,
+  "missing_provenance": 1018,
+  "missing_license": 1018,
+  "unresolved_issues": 3345,
+  "export_eligible": 0,
+  "eligibility_exclusions": {
+    "validation_not_verified": 1018,
+    "runtime_not_approved": 1018,
+    "license_not_eligible": 1018,
+    "access_restricted": 1018,
+    "cultural_review_incomplete": 1018,
+    "provenance_incomplete": 1018,
+    "required_reviews_incomplete": 1018,
+    "unresolved_conflict": 77
+  }
+}

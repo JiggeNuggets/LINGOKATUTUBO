@@ -1,0 +1,13 @@
+{% load static %}
+<picture class="editorial-media__picture">
+  <img
+    class="editorial-media__image {{ editorial_image.image_class }}"
+    src="{% static editorial_image.image_960 %}"
+    srcset="{% static editorial_image.image_640 %} 640w, {% static editorial_image.image_960 %} 960w, {% static editorial_image.image_1440 %} 1440w"
+    sizes="(max-width: 900px) calc(100vw - 48px), (max-width: 1100px) 40vw, 50vw"
+    width="{{ editorial_image.width }}"
+    height="{{ editorial_image.height }}"
+    alt="{{ editorial_image.alt }}"
+    decoding="async"
+    fetchpriority="high">
+</picture>

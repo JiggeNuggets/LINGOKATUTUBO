@@ -232,9 +232,13 @@ class NeuralTranslationService:
                 truncation=True,
                 max_length=_MAX_SOURCE_LENGTH,
             ).to(self._device)
+            max_target = min(_MAX_TARGET_LENGTH, max(32, int(len(source_text) * 2.5)))
             generated_ids = self._model.generate(
                 **inputs,
-                max_length=_MAX_TARGET_LENGTH,
+                max_new_tokens=max_target,
+                repetition_penalty=1.25,
+                no_repeat_ngram_size=4,
+                early_stopping=True,
             )
             generated_text = clean_invisible_unicode(
                 self._tokenizer.decode(
@@ -246,10 +250,26 @@ class NeuralTranslationService:
             safe_print(f"[Neural] Inference failed; keeping phrasebook result ({exc}).")
             return None
 
-        if not generated_text:
+        if not generated_text or self._is_degenerate_loop(generated_text):
+            if generated_text:
+                safe_print("[Neural] Repetitive generation loop detected; discarding.")
             return None
 
         return _neural_result(generated_text)
+
+    @staticmethod
+    def _is_degenerate_loop(text: str) -> bool:
+        """Detect repetitive loops in generated text (e.g. repeating phrases)."""
+        words = text.lower().split()
+        if len(words) < 6:
+            return False
+        from collections import Counter
+        for n in (2, 3, 4):
+            ngrams = [" ".join(words[i : i + n]) for i in range(len(words) - n + 1)]
+            counts = Counter(ngrams)
+            if any(c >= 3 for c in counts.values()):
+                return True
+        return False
 
 
 def _neural_result(translated: str) -> Dict[str, Any]:

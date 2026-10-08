@@ -73,3 +73,21 @@ training_outputs/
 checkpoints/
 wandb/
 .venv-training/
+
+# Local database and backup files
+db.sqlite3
+db.sqlite3.*
+*.sqlite3
+*.sqlite3.*
+*.backup
+*.bak
+backups/
+
+# Runtime process files
+*.pid
+
+# Local review/staging datasets
+datasets/review_candidates/
+
+# Generated media
+media/

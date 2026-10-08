@@ -1,47 +1,160 @@
 {% extends "translator/base.html" %}
 {% load static %}
 
-{% block title %}LingoKatutubo Document Translation{% endblock %}
+{% block title %}Language, Culture, and Document Translation{% endblock %}
+{% block meta_description %}Explore source-conscious learning spaces and translate supported documents with LingoKatutubo.{% endblock %}
 
 {% block content %}
-<main>
-  <section class="hero">
-    <div class="hero-copy">
-      <p class="eyebrow">Preserving Indigenous Language</p>
-      <h1 class="hero-title">Bagobo-Tagabawa Document Translation</h1>
-      <p class="hero-text">
-        Translate documents across Bagobo-Tagabawa, Filipino, English, and Cebuano
-        while retaining page structure for review and download.
-      </p>
-      <div class="hero-actions">
-        <a class="button primary" href="{% url 'translator:translate' %}">Start Translating</a>
-        <a class="button secondary" href="#workflow">Learn More</a>
-      </div>
+<main class="home-page home-page--minimal">
+  <!-- =========================================================================
+       SECTION 1: FOUR MAIN EXPLORE PANELS
+       ========================================================================= -->
+  <section class="home-explore-hero" aria-labelledby="explore-hero-heading">
+    <div class="section-heading text-center">
+      <h1 id="explore-hero-heading" class="explore-hero-title">What do you want to explore?</h1>
     </div>
-    <div class="hero-logo">
-      <img
-        src="{% static 'images/lingokatutubo-logo.png' %}"
-        alt="LINGOKATUTUBO logo"
-      >
+
+    <div class="explore-panel-grid">
+      <!-- 1. Bagobo-Tagabawa -->
+      <article class="explore-panel-card explore-panel-card--bagobo">
+        <a class="explore-panel-card__media" href="{% url 'translator:bagobo_tagabawa' %}" aria-label="Explore Bagobo-Tagabawa">
+          <img class="explore-panel-card__img" src="{% static explore_cards.bagobo.image_640 %}" srcset="{% static explore_cards.bagobo.image_640 %} 640w, {% static explore_cards.bagobo.image_960 %} 960w" sizes="(max-width: 600px) calc(100vw - 32px), (max-width: 1100px) calc(50vw - 36px), 25vw" alt="{{ explore_cards.bagobo.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.bagobo.width }}" height="{{ explore_cards.bagobo.height }}">
+          <div class="explore-panel-card__overlay" aria-hidden="true"></div>
+          <span class="image-credit explore-panel-card__credit" aria-hidden="true">Photo: {{ explore_cards.bagobo.author }}</span>
+        </a>
+        <div class="explore-panel-card__content">
+          <div class="explore-panel-card__header">
+            <h2 class="explore-panel-card__title">Bagobo-Tagabawa</h2>
+          </div>
+          <p class="explore-panel-card__subtitle">People, language, and living heritage.</p>
+          <a class="explore-panel-card__btn button primary" href="{% url 'translator:bagobo_tagabawa' %}">
+            <span>Explore</span> <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </article>
+
+      <!-- 2. Culture -->
+      <article class="explore-panel-card explore-panel-card--culture">
+        <a class="explore-panel-card__media" href="{% url 'translator:culture' %}" aria-label="Explore Culture">
+          <img class="explore-panel-card__img" src="{% static explore_cards.culture.image_640 %}" srcset="{% static explore_cards.culture.image_640 %} 640w, {% static explore_cards.culture.image_960 %} 960w" sizes="(max-width: 600px) calc(100vw - 32px), (max-width: 1100px) calc(50vw - 36px), 25vw" alt="{{ explore_cards.culture.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.culture.width }}" height="{{ explore_cards.culture.height }}">
+          <div class="explore-panel-card__overlay" aria-hidden="true"></div>
+          <span class="image-credit explore-panel-card__credit" aria-hidden="true">Photo: {{ explore_cards.culture.author }}</span>
+        </a>
+        <div class="explore-panel-card__content">
+          <div class="explore-panel-card__header">
+            <h2 class="explore-panel-card__title">Culture</h2>
+          </div>
+          <p class="explore-panel-card__subtitle">Material culture, language, and traditions.</p>
+          <a class="explore-panel-card__btn button primary" href="{% url 'translator:culture' %}">
+            <span>Explore</span> <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </article>
+
+      <!-- 3. Nature -->
+      <article class="explore-panel-card explore-panel-card--nature">
+        <a class="explore-panel-card__media" href="{% url 'translator:nature' %}" aria-label="Explore Nature">
+          <img class="explore-panel-card__img" src="{% static explore_cards.nature.image_640 %}" srcset="{% static explore_cards.nature.image_640 %} 640w, {% static explore_cards.nature.image_960 %} 960w" sizes="(max-width: 600px) calc(100vw - 32px), (max-width: 1100px) calc(50vw - 36px), 25vw" alt="{{ explore_cards.nature.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.nature.width }}" height="{{ explore_cards.nature.height }}">
+          <div class="explore-panel-card__overlay" aria-hidden="true"></div>
+          <span class="image-credit explore-panel-card__credit" aria-hidden="true">Photo: {{ explore_cards.nature.author }}</span>
+        </a>
+        <div class="explore-panel-card__content">
+          <div class="explore-panel-card__header">
+            <h2 class="explore-panel-card__title">Nature</h2>
+          </div>
+          <p class="explore-panel-card__subtitle">Mount Apo, land, and environment.</p>
+          <a class="explore-panel-card__btn button primary" href="{% url 'translator:nature' %}">
+            <span>Explore</span> <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </article>
+
+      <!-- 4. Community -->
+      <article class="explore-panel-card explore-panel-card--community">
+        <a class="explore-panel-card__media" href="{% url 'translator:community' %}" aria-label="Explore Community">
+          <img class="explore-panel-card__img" src="{% static explore_cards.community.image_640 %}" srcset="{% static explore_cards.community.image_640 %} 640w, {% static explore_cards.community.image_960 %} 960w" sizes="(max-width: 600px) calc(100vw - 32px), (max-width: 1100px) calc(50vw - 36px), 25vw" alt="{{ explore_cards.community.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.community.width }}" height="{{ explore_cards.community.height }}">
+          <div class="explore-panel-card__overlay" aria-hidden="true"></div>
+          <span class="image-credit explore-panel-card__credit" aria-hidden="true">Photo: {{ explore_cards.community.author }}</span>
+        </a>
+        <div class="explore-panel-card__content">
+          <div class="explore-panel-card__header">
+            <h2 class="explore-panel-card__title">Community</h2>
+          </div>
+          <p class="explore-panel-card__subtitle">People, stories, and contemporary community life.</p>
+          <a class="explore-panel-card__btn button primary" href="{% url 'translator:community' %}">
+            <span>Explore</span> <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </article>
+    </div>
+
+    <!-- Centered Animated Circular Down Arrow -->
+    <div class="scroll-down-container">
+      <a href="#main-feature" class="scroll-down-btn" aria-label="Scroll to the main translation feature">
+        <svg class="scroll-down-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 4v14m0 0l-5-5m5 5l5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
     </div>
   </section>
 
-  <section class="feature-band" id="workflow">
-    <div class="section-inner">
-      <h2>Document Workflow</h2>
-      <div class="feature-grid">
-        <article>
-          <h3>Multiple Formats</h3>
-          <p>PDF, DOCX, JPG, and PNG uploads route through digital extraction or OCR.</p>
-        </article>
-        <article>
-          <h3>Persistent Jobs</h3>
-          <p>Uploads, progress, preview metadata, and user ownership are stored in Django.</p>
-        </article>
-        <article>
-          <h3>Bilingual Review</h3>
-          <p>Generated previews place original and translated pages side by side.</p>
-        </article>
+  <!-- =========================================================================
+       SECTION 2: CAPSTONE PROJECT + TRANSLATE A DOCUMENT
+       ========================================================================= -->
+  <section id="main-feature" class="capstone-main-feature" aria-labelledby="main-feature-heading">
+    <div class="capstone-main-feature__inner">
+      <div class="capstone-main-feature__copy">
+        <div class="capstone-attribution">
+          <span class="capstone-attribution__eyebrow">A CAPSTONE PROJECT OF</span>
+          <div class="capstone-attribution__names">
+            <span class="capstone-attribution__name">JOHN KIAN B. CAYAPOS</span>
+            <span class="capstone-attribution__name">JIGGEN FLORES</span>
+            <span class="capstone-attribution__name">CARL ABEDEJOS</span>
+            <span class="capstone-attribution__name">VINCE CABAÑOG</span>
+          </div>
+        </div>
+        <h2 id="main-feature-heading" class="capstone-main-feature__title">Translate a Document</h2>
+        <p class="capstone-main-feature__description">
+          Upload a document, choose a language direction, then review the original and translated pages side by side.
+        </p>
+        <ul class="translate-showcase__format-list capstone-format-list" aria-label="Supported document formats">
+          <li>PDF</li>
+          <li>DOCX</li>
+        </ul>
+        <div class="capstone-main-feature__actions">
+          <a class="button primary capstone-cta-btn" href="{% url 'translator:translate' %}">
+            <span>Translate a Document</span>
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="capstone-main-feature__workflow" aria-label="Document translation workflow">
+        <div class="capstone-workflow-card">
+          <div class="capstone-workflow-step">
+            <div class="capstone-workflow-icon">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="capstone-workflow-title">Document</span>
+            <small class="capstone-workflow-sub">Upload file</small>
+          </div>
+          <span class="capstone-workflow-connector" aria-hidden="true">&rarr;</span>
+          <div class="capstone-workflow-step">
+            <div class="capstone-workflow-icon capstone-workflow-icon--active">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="capstone-workflow-title">Translation</span>
+            <small class="capstone-workflow-sub">Direction &amp; OCR</small>
+          </div>
+          <span class="capstone-workflow-connector" aria-hidden="true">&rarr;</span>
+          <div class="capstone-workflow-step">
+            <div class="capstone-workflow-icon">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="capstone-workflow-title">Bilingual Preview</span>
+            <small class="capstone-workflow-sub">Side-by-side review</small>
+          </div>
+        </div>
       </div>
     </div>
   </section>

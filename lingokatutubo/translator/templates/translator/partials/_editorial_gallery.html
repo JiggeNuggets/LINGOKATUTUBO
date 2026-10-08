@@ -1,0 +1,76 @@
+{% load static %}
+{% if gallery_items %}
+<section id="section-gallery" class="gallery" data-gallery aria-labelledby="editorial-gallery-heading" data-reveal>
+  <div class="section-heading gallery__header">
+    <p class="eyebrow">PHOTOGRAPHIC ARCHIVE</p>
+    <h2 id="editorial-gallery-heading">Photographic Archive</h2>
+    <p>Authentic photographic documentation of Bagobo-Tagabawa architecture, textile mastery, and the Mount Apo landscape with complete source attribution.</p>
+  </div>
+
+  <div class="gallery__stage">
+    {% for item in gallery_items %}
+      <figure id="gallery-item-{{ forloop.counter }}" class="gallery__item{% if forloop.first %} is-active{% endif %}" role="tabpanel" aria-labelledby="gallery-thumb-{{ forloop.counter }}" data-gallery-item{% if not forloop.first %} hidden{% endif %}>
+        <div class="gallery__item-media">
+          <img src="{% static item.image_960 %}" srcset="{% static item.image_640 %} 640w, {% static item.image_960 %} 960w, {% static item.image_1440 %} 1440w" sizes="(max-width: 600px) calc(100vw - 32px), min(100vw - 48px, 1280px)" width="{{ item.width }}" height="{{ item.height }}" alt="{{ item.alt }}" loading="lazy" decoding="async">
+        </div>
+        <figcaption class="gallery__item-caption">
+          <div class="gallery__item-info">
+            {% if item.caption %}<p class="gallery__caption">{{ item.caption }}</p>{% endif %}
+            {% if item.source_url %}
+            <p class="gallery__source-details">
+              <a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer">{{ item.source_title }}</a>
+              {% if item.license_url %} <span aria-hidden="true">&middot;</span> <a href="{{ item.license_url }}" target="_blank" rel="noopener noreferrer">{{ item.license }}</a>{% endif %}
+              {% if item.adaptation %} <span aria-hidden="true">&middot;</span> {{ item.adaptation }}{% endif %}
+            </p>
+            {% endif %}
+          </div>
+          {% if item.photographer or item.source or item.license %}
+          <div class="gallery__item-credit">
+            <a class="image-credit__link" href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer" title="{{ item.full_attribution }}">
+              {% if item.photographer %}<span>Photo: {{ item.photographer }}{% if item.source %} / {{ item.source }}{% endif %}</span>{% endif %}
+              {% if item.license %}<span class="image-credit__license">{{ item.license }}</span>{% endif %}
+            </a>
+          </div>
+          {% endif %}
+        </figcaption>
+      </figure>
+    {% endfor %}
+    <div class="gallery__controls" aria-label="Gallery controls">
+      <button class="button secondary gallery__control-btn" type="button" data-gallery-previous aria-label="Previous image">
+        <span aria-hidden="true">&larr;</span> <span>Previous</span>
+      </button>
+      <button class="button secondary gallery__control-btn gallery__control-btn--expand" type="button" data-gallery-open aria-label="Open image in fullscreen lightbox">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        <span>Fullscreen</span>
+      </button>
+      <button class="button secondary gallery__control-btn" type="button" data-gallery-next aria-label="Next image">
+        <span>Next</span> <span aria-hidden="true">&rarr;</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="gallery__thumbs" role="tablist" aria-label="Choose an image">
+    {% for item in gallery_items %}
+      <button id="gallery-thumb-{{ forloop.counter }}" class="gallery__thumbnail{% if forloop.first %} is-active{% endif %}" type="button" role="tab" data-gallery-thumb aria-controls="gallery-item-{{ forloop.counter }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+        <img src="{% static item.image_640 %}" alt="{{ item.alt }}" loading="lazy" decoding="async" width="{{ item.width }}" height="{{ item.height }}">
+        <span class="gallery__thumbnail-label">0{{ forloop.counter }}</span>
+      </button>
+    {% endfor %}
+  </div>
+
+  <dialog class="gallery-lightbox" data-gallery-lightbox aria-labelledby="gallery-lightbox-caption">
+    <div class="gallery-lightbox__bar">
+      <span class="gallery-lightbox__brand">LingoKatutubo Photographic Archive</span>
+      <div class="gallery-lightbox__nav-btns">
+        <button class="button secondary gallery-lightbox__nav-btn" type="button" data-gallery-lightbox-previous aria-label="Previous image">&larr; Prev</button>
+        <button class="button secondary gallery-lightbox__nav-btn" type="button" data-gallery-lightbox-next aria-label="Next image">Next &rarr;</button>
+        <button class="button secondary gallery-lightbox__close-btn" type="button" data-gallery-lightbox-close aria-label="Close modal">&#x2715; Close</button>
+      </div>
+    </div>
+    <figure class="gallery-lightbox__figure">
+      <img data-gallery-lightbox-image src="" alt="">
+      <figcaption id="gallery-lightbox-caption" data-gallery-lightbox-caption></figcaption>
+    </figure>
+  </dialog>
+</section>
+{% endif %}

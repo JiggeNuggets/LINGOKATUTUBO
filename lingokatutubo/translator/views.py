@@ -3,6 +3,9 @@ import json
 import os
 import re
 import copy
+import csv
+import io
+import uuid
 from functools import wraps
 from pathlib import Path
 from urllib.parse import urlparse
@@ -11,12 +14,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth import views as auth_views
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Avg, Count, Prefetch, Q
-from django.http import FileResponse, Http404, JsonResponse
+from django.core.exceptions import PermissionDenied
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -24,7 +28,16 @@ from django.views.csrf import csrf_failure as _django_csrf_failure
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .forms import DocumentUploadForm, SignUpForm
+from .forms import (
+    DocumentUploadForm,
+    LANGUAGE_CHOICES,
+    ResourceMatchTesterForm,
+    SignUpForm,
+    TranslationResourceForm,
+    TranslationResourceImportForm,
+)
+from .editorial_media import PUBLIC_EDITORIAL_MEDIA
+from .editorial_content import get_public_content
 from .models import (
     GeneratedOutput,
     OCRResult,
@@ -33,6 +46,12 @@ from .models import (
     TranslationSegment,
     UploadedDocument,
     UserActivityLog,
+    CorrectionSuggestion,
+    OCRCorrection,
+    PhrasebookEntry,
+    LanguageResourceImportBatch,
+    LanguageResourceIssue,
+    UnknownTranslationRecord,
 )
 from .services import (
     detect_upload_file_type,
@@ -45,9 +64,28 @@ from .services import (
 )
 from .services.display_utils import clean_invisible_unicode
 from .services.translation_display import get_display_translation, get_display_translation_text
+from .services.governance import review_entry
+from .services.permissions import (
+    can_download_teacher_copy,
+    can_download_validator_copy,
+    can_view_translation_details,
+    can_view_validation_markers,
+    can_view_system_diagnostics,
+    translation_permissions,
+)
+from .services.resource_management import (
+    RESOURCE_FIELDS,
+    build_import_preview,
+    duplicate_report,
+    resource_values,
+)
+from .services.resource_parity import analyze_resource_inventory, staging_summary
+from .services.translation_dataset import TranslationDataset, reset_translation_dataset
 
 
 PREVIEW_IMAGE_NAME_RE = re.compile(r"^(?:original|translated)_page_\d+\.png$")
+LANGUAGE_DISPLAY_LABELS = dict(LANGUAGE_CHOICES)
+TRANSLATE_PAGE_RECENT_JOB_LIMIT = 2
 
 # Shown to every user (staff included) in the prominent failure banner and the
 # JSON status API. Raw backend exception text (codec errors, tracebacks, file
@@ -118,7 +156,486 @@ def api_login_required(view_func):
 
 
 def home(request):
-    return render(request, "translator/home.html")
+    return render(request, "translator/home.html", PUBLIC_EDITORIAL_MEDIA["home"])
+
+
+def bagobo_tagabawa(request):
+    content = get_public_content("bagobo_tagabawa")
+    return render(
+        request,
+        "translator/editorial_page.html",
+        {
+            **PUBLIC_EDITORIAL_MEDIA["bagobo_tagabawa"],
+            "page_key": "bagobo_tagabawa",
+            "eyebrow": content["hero"]["eyebrow"],
+            "title": content["hero"]["title"],
+            "intro": content["hero"]["description"],
+            "action_label": content["hero"].get("action_label", "Explore"),
+            "story_navigation": content.get("story_navigation", []),
+            "sections": content["sections"],
+            "sources": content.get("sources", []),
+            "continue_exploring": content.get("continue_exploring", []),
+        },
+    )
+
+
+def culture(request):
+    content = get_public_content("culture")
+    return render(
+        request,
+        "translator/editorial_page.html",
+        {
+            **PUBLIC_EDITORIAL_MEDIA["culture"],
+            "page_key": "culture",
+            "eyebrow": content["hero"]["eyebrow"],
+            "title": content["hero"]["title"],
+            "intro": content["hero"]["description"],
+            "action_label": content["hero"].get("action_label", "Explore"),
+            "story_navigation": content.get("story_navigation", []),
+            "sections": content["sections"],
+            "sources": content.get("sources", []),
+            "continue_exploring": content.get("continue_exploring", []),
+        },
+    )
+
+
+def nature(request):
+    content = get_public_content("nature")
+    return render(
+        request,
+        "translator/editorial_page.html",
+        {
+            **PUBLIC_EDITORIAL_MEDIA["nature"],
+            "page_key": "nature",
+            "eyebrow": content["hero"]["eyebrow"],
+            "title": content["hero"]["title"],
+            "intro": content["hero"]["description"],
+            "action_label": content["hero"].get("action_label", "Explore"),
+            "story_navigation": content.get("story_navigation", []),
+            "sections": content["sections"],
+            "video_feature": content.get("video_feature"),
+            "sources": content.get("sources", []),
+            "continue_exploring": content.get("continue_exploring", []),
+        },
+    )
+
+
+def community(request):
+    content = get_public_content("community")
+    return render(
+        request,
+        "translator/editorial_page.html",
+        {
+            **PUBLIC_EDITORIAL_MEDIA["community"],
+            "page_key": "community",
+            "eyebrow": content["hero"]["eyebrow"],
+            "title": content["hero"]["title"],
+            "intro": content["hero"]["description"],
+            "action_label": content["hero"].get("action_label", "Explore"),
+            "story_navigation": content.get("story_navigation", []),
+            "sections": content["sections"],
+            "sources": content.get("sources", []),
+            "continue_exploring": content.get("continue_exploring", []),
+        },
+    )
+
+
+@login_required
+def dashboard(request):
+    """Decision-oriented, owner-scoped dashboard for the active role."""
+    from datetime import timedelta
+    from django.utils import timezone
+
+    user = request.user
+    permissions = translation_permissions(user)
+    is_validator = permissions["is_validator"]
+    is_admin = permissions["is_administrator"]
+    is_teacher = permissions["is_teacher"]
+
+    owned_jobs = _owned_jobs_queryset(request)
+    total_jobs_count = owned_jobs.count()
+    completed_jobs_count = owned_jobs.filter(status=TranslationJob.Status.COMPLETED).count()
+    processing_jobs_count = owned_jobs.filter(status__in=[
+        TranslationJob.Status.QUEUED,
+        TranslationJob.Status.RETRYING,
+        TranslationJob.Status.PROCESSING,
+    ]).count()
+
+    recent_jobs_qs = owned_jobs.order_by("-created_at")[:12]
+    all_recent_states = [_job_card_context(job, user) for job in recent_jobs_qs]
+
+    now = timezone.now()
+    today_date = now.date()
+    yesterday_date = today_date - timedelta(days=1)
+    week_ago_date = today_date - timedelta(days=7)
+
+    today_group = {"label": "Today", "jobs": []}
+    yesterday_group = {"label": "Yesterday", "jobs": []}
+    this_week_group = {"label": "Earlier this Week", "jobs": []}
+    older_group = {"label": "Older", "jobs": []}
+
+    for state in all_recent_states:
+        title_lower = (state.get("document_title") or "").lower()
+        if title_lower.endswith(".pdf"):
+            state["format"] = "pdf"
+        elif title_lower.endswith(".docx"):
+            state["format"] = "docx"
+        else:
+            state["format"] = "doc"
+
+        uploaded_at = state.get("uploaded_at")
+        job_date = uploaded_at.date() if hasattr(uploaded_at, "date") else None
+
+        if job_date == today_date:
+            today_group["jobs"].append(state)
+        elif job_date == yesterday_date:
+            yesterday_group["jobs"].append(state)
+        elif job_date and job_date >= week_ago_date:
+            this_week_group["jobs"].append(state)
+        else:
+            older_group["jobs"].append(state)
+
+    date_groups = [g for g in [today_group, yesterday_group, this_week_group, older_group] if g["jobs"]]
+
+    context = {
+        "recent_jobs": all_recent_states[:5],
+        "all_recent_jobs": all_recent_states,
+        "date_groups": date_groups,
+        "total_jobs_count": total_jobs_count,
+        "completed_jobs_count": completed_jobs_count,
+        "processing_jobs_count": processing_jobs_count,
+        "is_validator": is_validator,
+        "is_administrator": is_admin,
+        "is_teacher": is_teacher,
+        "review_required_jobs": owned_jobs.filter(segments__needs_review=True).distinct().count(),
+        "correction_count": CorrectionSuggestion.objects.filter(submitted_by=user).count(),
+        **permissions,
+    }
+    if is_validator:
+        context["validator_counts"] = {
+            "pending_entries": PhrasebookEntry.objects.filter(validation_status__in=["pending", "under_review"]).count(),
+            "unknown_terms": UnknownTranslationRecord.objects.filter(review_status="pending").count(),
+            "conflicts": PhrasebookEntry.objects.filter(has_unresolved_conflict=True).count(),
+            "missing_provenance": PhrasebookEntry.objects.filter(Q(source_title="") | Q(source_owner="")).count(),
+        }
+    return render(request, "translator/dashboard.html", context)
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+def translation_resources(request):
+    """Admin resource catalogue; it deliberately excludes governance controls."""
+    entries = PhrasebookEntry.objects.all().order_by("-updated_at", "-id")
+    query = request.GET.get("q", "").strip()
+    active = request.GET.get("active", "active")
+    category = request.GET.get("category", "").strip()
+    completeness = request.GET.get("completeness", "")
+    warning = request.GET.get("warning", "")
+    if query:
+        entries = entries.filter(
+            Q(tagabawa__icontains=query) | Q(english__icontains=query)
+            | Q(filipino__icontains=query) | Q(cebuano__icontains=query)
+            | Q(topic__icontains=query) | Q(part_of_speech__icontains=query)
+        )
+    if active == "active":
+        entries = entries.filter(is_active=True)
+    elif active == "inactive":
+        entries = entries.filter(is_active=False)
+    if category:
+        entries = entries.filter(topic=category)
+    language_fields = ["tagabawa", "english", "filipino", "cebuano"]
+    if completeness == "complete":
+        for field in language_fields:
+            entries = entries.exclude(**{field: ""})
+    elif completeness == "incomplete":
+        entries = entries.filter(Q(tagabawa="") | Q(english="") | Q(filipino="") | Q(cebuano=""))
+    if warning == "conflict":
+        entries = entries.filter(has_unresolved_conflict=True)
+    elif warning == "duplicate":
+        entries = entries.filter(
+            governance_issues__is_resolved=False,
+            governance_issues__category__in=[
+                LanguageResourceIssue.Category.EXACT_DUPLICATE,
+                LanguageResourceIssue.Category.NORMALIZED_DUPLICATE,
+                LanguageResourceIssue.Category.POSSIBLE_DUPLICATE,
+            ],
+        ).distinct()
+    paginator = Paginator(entries, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    categories = (
+        PhrasebookEntry.objects.exclude(topic="").values_list("topic", flat=True).distinct().order_by("topic")
+    )
+    return render(request, "translator/translation_resources/list.html", {
+        "page_obj": page_obj, "categories": categories,
+        "filters": {"q": query, "active": active, "category": category,
+                    "completeness": completeness, "warning": warning},
+    })
+
+
+def _resource_form_response(request, entry=None):
+    form = TranslationResourceForm(request.POST or None, instance=entry)
+    if request.method == "POST" and form.is_valid():
+        report = duplicate_report(
+            form.cleaned_data,
+            PhrasebookEntry.objects.all(),
+            exclude_id=entry.pk if entry else None,
+        )
+        if report["exact"]:
+            form.add_error(None, "An exact duplicate resource already exists. No changes were saved.")
+        else:
+            saved = form.save(commit=False)
+            # Conflict warning is preserved for validator workflows; nothing is
+            # overwritten and routine edits never approve an entry.
+            if report["conflicts"]:
+                saved.has_unresolved_conflict = True
+                messages.warning(request, "Saved with a conflict warning for validator review.")
+            if report["normalized"]:
+                messages.warning(request, "Saved with a normalized-duplicate warning; review the similar entry.")
+            saved.save()  # PhrasebookEntry.save records an ordinary revision.
+            reset_translation_dataset()
+            messages.success(request, "Translation resource saved.")
+            return redirect("translator:translation_resources")
+    return render(request, "translator/translation_resources/form.html", {
+        "form": form, "entry": entry,
+    })
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+@require_http_methods(["GET", "POST"])
+def translation_resource_add(request):
+    return _resource_form_response(request)
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+@require_http_methods(["GET", "POST"])
+def translation_resource_edit(request, entry_id):
+    return _resource_form_response(request, get_object_or_404(PhrasebookEntry, pk=entry_id))
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+@require_POST
+def translation_resource_toggle(request, entry_id):
+    entry = get_object_or_404(PhrasebookEntry, pk=entry_id)
+    entry.is_active = not entry.is_active
+    entry.save()
+    reset_translation_dataset()
+    messages.success(request, "Resource reactivated." if entry.is_active else "Resource deactivated.")
+    return redirect("translator:translation_resources")
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+@require_http_methods(["GET", "POST"])
+def translation_resources_import(request):
+    form = TranslationResourceImportForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        uploaded = form.cleaned_data["file"]
+        try:
+            preview = build_import_preview(uploaded.name, uploaded.read(), PhrasebookEntry.objects.all())
+        except (UnicodeDecodeError, ValueError, json.JSONDecodeError, csv.Error) as exc:
+            form.add_error("file", f"Could not read resource file: {exc}")
+        else:
+            request.session["translation_resource_import_preview"] = preview
+            request.session.modified = True
+            return render(request, "translator/translation_resources/import.html", {"form": form, "preview": preview})
+    return render(request, "translator/translation_resources/import.html", {"form": form})
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+@require_POST
+def translation_resources_import_confirm(request):
+    preview = request.session.get("translation_resource_import_preview")
+    if not preview:
+        messages.error(request, "No import preview is awaiting confirmation.")
+        return redirect("translator:translation_resources_import")
+    created = 0
+    issue_categories = {
+        "duplicate": LanguageResourceIssue.Category.EXACT_DUPLICATE,
+        "normalized_duplicate": LanguageResourceIssue.Category.NORMALIZED_DUPLICATE,
+        "conflict": LanguageResourceIssue.Category.CONFLICTING_TRANSLATION,
+        "invalid": LanguageResourceIssue.Category.INCOMPLETE_RECORD,
+    }
+    with transaction.atomic():
+        batch = LanguageResourceImportBatch.objects.create(
+            identifier=f"translation-resources-{uuid.uuid4().hex[:12]}",
+            source_filename=preview["source_name"], source_checksum_sha256=preview["checksum"],
+            imported_by=request.user, rows_processed=preview["summary"]["processed"],
+            rows_duplicated=preview["summary"]["duplicates"], rows_conflicting=preview["summary"]["conflicts"],
+            rows_incomplete=preview["summary"]["invalid"],
+            rows_skipped=preview["summary"]["duplicates"] + preview["summary"]["conflicts"] + preview["summary"]["invalid"],
+            rows_requiring_review=preview["summary"]["conflicts"] + preview["summary"]["invalid"],
+            is_dry_run=False,
+            notes="Confirmed from Translation Resources dry-run preview; existing records were not overwritten.",
+        )
+        for item in preview["rows"]:
+            if item["status"] == "ready":
+                # Recheck before the write so a concurrent resource save cannot
+                # make this confirmation overwrite or duplicate an entry.
+                if duplicate_report(item["values"], PhrasebookEntry.objects.all())["exact"]:
+                    item["status"] = "duplicate"
+                else:
+                    PhrasebookEntry.objects.create(import_batch=batch, **item["values"])
+                    created += 1
+                    continue
+            LanguageResourceIssue.objects.create(
+                batch=batch, category=issue_categories[item["status"]],
+                source_row_number=item["row_number"], detail={"reason": item["reason"]},
+            )
+        batch.rows_created = created
+        batch.save(update_fields=["rows_created", "updated_at"])
+    request.session.pop("translation_resource_import_preview", None)
+    if created:
+        reset_translation_dataset()
+    messages.success(request, f"Import confirmed: {created} resources created; existing records were not changed.")
+    return redirect("translator:translation_resources")
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+def translation_resources_export(request):
+    scope = request.GET.get("scope", "active")
+    output_format = request.GET.get("format", "csv").lower()
+    entries = PhrasebookEntry.objects.all().order_by("id")
+    if scope != "all":
+        entries = entries.filter(is_active=True)
+        scope = "active"
+    rows = [resource_values(entry) for entry in entries]
+    if output_format == "json":
+        response = HttpResponse(json.dumps(rows, ensure_ascii=False, indent=2), content_type="application/json")
+        response["Content-Disposition"] = f'attachment; filename="translation-resources-{scope}.json"'
+        return response
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=RESOURCE_FIELDS)
+    writer.writeheader()
+    writer.writerows(rows)
+    response = HttpResponse(buffer.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="translation-resources-{scope}.csv"'
+    return response
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+@require_http_methods(["GET", "POST"])
+def translation_resources_match_tester(request):
+    form = ResourceMatchTesterForm(request.POST or None)
+    result = candidates = None
+    if request.method == "POST" and form.is_valid():
+        # Match Tester always demonstrates the explicitly selected active DB
+        # resource source, independent of the document runtime mode.
+        dataset = TranslationDataset(data_mode="development_resources")
+        result = dataset.translate_phrase_with_metadata(
+            form.cleaned_data["text"], form.cleaned_data["source_language"], form.cleaned_data["target_language"],
+        )
+        candidates = dataset.candidate_matches(
+            form.cleaned_data["text"], form.cleaned_data["source_language"], form.cleaned_data["target_language"],
+        )
+    return render(request, "translator/translation_resources/match_tester.html", {
+        "form": form, "result": result, "candidates": candidates,
+    })
+
+
+def _staging_key(item):
+    return json.dumps(item["normalized_key"], ensure_ascii=False, separators=(",", ":"))
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+def legacy_resource_staging(request):
+    """Read-only legacy corpus review surface; decisions remain session-local."""
+    report = analyze_resource_inventory()
+    records = report["legacy_only"]
+    query = request.GET.get("q", "").strip().lower()
+    selected_status = request.GET.get("status", "")
+    decisions = request.session.get("legacy_resource_staging_decisions", {})
+    for record in records:
+        record["staging_key"] = _staging_key(record)
+        record["decision"] = decisions.get(record["staging_key"], "")
+    if query:
+        records = [
+            record for record in records
+            if query in " ".join(str(record["values"].get(language, "")) for language in ("tagabawa", "english", "filipino", "cebuano")).lower()
+        ]
+    if selected_status:
+        records = [record for record in records if record["staging_status"] == selected_status]
+    records.sort(key=lambda record: (record["staging_status"], record["values"].get("english", "")))
+    page_obj = Paginator(records, 25).get_page(request.GET.get("page"))
+    selected_imports = sum(value == "IMPORT_SELECTED" for value in decisions.values())
+    return render(request, "translator/translation_resources/legacy_staging.html", {
+        "page_obj": page_obj, "summary": staging_summary(report), "query": query,
+        "selected_status": selected_status, "selected_imports": selected_imports,
+        "expected_count": PhrasebookEntry.objects.count() + selected_imports,
+        "status_choices": ["READY_FOR_ADMIN_REVIEW", "INCOMPLETE", "POSSIBLE_DUPLICATE", "CONFLICT", "POSSIBLE_OCR_ARTIFACT", "MANUAL_LANGUAGE_REVIEW"],
+    })
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+@require_POST
+def legacy_resource_staging_action(request):
+    action = request.POST.get("action", "")
+    staging_key = request.POST.get("staging_key", "")
+    action_map = {
+        "import": "IMPORT_SELECTED", "ignore": "IGNORED", "keep": "KEEP_LEGACY_ONLY", "review": "NEEDS_REVIEW",
+    }
+    if action not in action_map:
+        raise Http404("Unknown staging action")
+    records = { _staging_key(record): record for record in analyze_resource_inventory()["legacy_only"] }
+    record = records.get(staging_key)
+    if record is None:
+        raise Http404("Legacy resource not found")
+    if action == "import" and record["staging_status"] != "READY_FOR_ADMIN_REVIEW":
+        messages.error(request, "Only structurally ready records can be selected for import.")
+    else:
+        decisions = request.session.get("legacy_resource_staging_decisions", {})
+        decisions[staging_key] = action_map[action]
+        request.session["legacy_resource_staging_decisions"] = decisions
+        request.session.modified = True
+        messages.success(request, "Staging decision recorded. No language resource was changed.")
+    return redirect("translator:legacy_resource_staging")
+
+
+@permission_required("translator.manage_language_resources", raise_exception=True)
+@require_POST
+def legacy_resource_staging_import_confirm(request):
+    """Explicit confirmation endpoint. It is never reached by viewing/staging."""
+    decisions = request.session.get("legacy_resource_staging_decisions", {})
+    records = [
+        record for record in analyze_resource_inventory()["legacy_only"]
+        if decisions.get(_staging_key(record)) == "IMPORT_SELECTED"
+        and record["staging_status"] == "READY_FOR_ADMIN_REVIEW"
+    ]
+    if not records:
+        messages.error(request, "No ready staging records are selected for import.")
+        return redirect("translator:legacy_resource_staging")
+    created = 0
+    with transaction.atomic():
+        batch = LanguageResourceImportBatch.objects.create(
+            identifier=f"legacy-corpus-staging-{uuid.uuid4().hex[:12]}",
+            source_filename="cross_lingual_cleaned_v1.csv",
+            source_checksum_sha256=hashlib.sha256(
+                (Path(settings.BASE_DIR) / "datasets" / "cleaned" / "cross_lingual_cleaned_v1.csv").read_bytes()
+            ).hexdigest(),
+            imported_by=request.user, rows_processed=len(records), is_dry_run=False,
+            notes="Explicitly confirmed Legacy Resource Staging import. Existing records were not overwritten.",
+        )
+        for record in records:
+            values = record["values"]
+            candidate = {
+                "tagabawa": values["tagabawa"], "english": values["english"],
+                "filipino": values["filipino"], "cebuano": values["cebuano"],
+                "topic": "Legacy corpus staging", "source": "legacy_corpus_csv",
+                "notes": f"Legacy corpus row(s): {', '.join(map(str, record['original_row_identifiers']))}",
+                "is_active": record["completeness"] >= 2,
+            }
+            if duplicate_report(candidate, PhrasebookEntry.objects.all())["exact"]:
+                batch.rows_skipped += 1
+                batch.rows_duplicated += 1
+                continue
+            PhrasebookEntry.objects.create(import_batch=batch, **candidate)
+            created += 1
+        batch.rows_created = created
+        batch.save(update_fields=["rows_created", "rows_skipped", "rows_duplicated", "updated_at"])
+    if created:
+        reset_translation_dataset()
+    for record in records:
+        decisions.pop(_staging_key(record), None)
+    request.session["legacy_resource_staging_decisions"] = decisions
+    messages.success(request, f"Confirmed non-destructive import: {created} resources created.")
+    return redirect("translator:legacy_resource_staging")
 
 
 def signup(request):
@@ -173,11 +690,10 @@ def translate(request):
     )
 
     # Fetch a few extra cards so the Active Job panel can still find a
-    # queued/processing job that is older than the three newest documents,
-    # but display only the newest three in the Recent Documents sidebar.
-    recent_cards = [_job_card_context(job) for job in recent_query[:5]]
-    recent_jobs = recent_cards[:3]
-    has_more_recent = len(recent_cards) > 3
+    # queued/processing job that is older than the two newest documents,
+    # while the compact Translate workspace never exposes more than two.
+    recent_cards = [_job_card_context(job, request.user) for job in recent_query[:5]]
+    recent_jobs = recent_cards[:TRANSLATE_PAGE_RECENT_JOB_LIMIT]
 
     active_job = next(
         (
@@ -208,7 +724,6 @@ def translate(request):
         {
             "upload_form": DocumentUploadForm(),
             "recent_jobs": recent_jobs,
-            "has_more_recent": has_more_recent,
             "active_job": active_job,
             "can_preview": active_state["can_preview"],
             "can_download": active_state["can_download"],
@@ -226,6 +741,8 @@ def history(request):
     # would otherwise guarantee the cookie exists.
     search_query = request.GET.get("q", "").strip()
     selected_status = request.GET.get("status", "").strip().lower()
+    selected_sort = request.GET.get("sort", "newest").strip().lower()
+    selected_date_range = request.GET.get("date_range", "all").strip().lower()
 
     jobs = (
         _owned_jobs_queryset(request)
@@ -243,7 +760,6 @@ def history(request):
             output_count=Count("generated_outputs", distinct=True),
         )
         .prefetch_related("generated_outputs", "pages", "ocr_results")
-        .order_by("-created_at")
     )
 
     if search_query:
@@ -257,14 +773,37 @@ def history(request):
     if selected_status in valid_statuses:
         jobs = jobs.filter(status=selected_status)
 
+    now = timezone.now()
+    if selected_date_range == "today":
+        jobs = jobs.filter(created_at__date=timezone.localdate())
+    elif selected_date_range == "week":
+        jobs = jobs.filter(created_at__gte=now - timezone.timedelta(days=7))
+    elif selected_date_range == "month":
+        jobs = jobs.filter(created_at__gte=now - timezone.timedelta(days=30))
+
+    valid_sorts = {"newest", "oldest", "name_asc", "name_desc"}
+    if selected_sort not in valid_sorts:
+        selected_sort = "newest"
+
+    if selected_sort == "oldest":
+        jobs = jobs.order_by("created_at")
+    elif selected_sort == "name_asc":
+        jobs = jobs.order_by("original_filename", "-created_at")
+    elif selected_sort == "name_desc":
+        jobs = jobs.order_by("-original_filename", "-created_at")
+    else:
+        jobs = jobs.order_by("-created_at")
+
     return render(
         request,
         "translator/history.html",
         {
-            "jobs": [_job_card_context(job) for job in jobs],
+            "jobs": [_job_card_context(job, request.user) for job in jobs],
             "filters": TranslationJob.Status.choices,
             "search_query": search_query,
             "selected_status": selected_status if selected_status in valid_statuses else "",
+            "selected_sort": selected_sort,
+            "selected_date_range": selected_date_range,
         },
     )
 
@@ -293,7 +832,7 @@ def job_detail(request, job_id):
     if not job:
         raise Http404("Job not found")
 
-    context = _job_card_context(job)
+    context = _job_card_context(job, request.user)
     # Suppress the global active-job banner when we're already viewing this job's detail page
     context["hide_active_job_banner"] = context["is_processing"]
 
@@ -339,7 +878,7 @@ def preview(request, job_id):
     if not job:
         raise Http404("Job not found")
 
-    state = _job_card_context(job)
+    state = _job_card_context(job, request.user)
 
     if not state["can_preview"]:
         if state["has_failed"]:
@@ -359,6 +898,10 @@ def preview(request, job_id):
         .select_related("page")
         .order_by("segment_index")
     )
+    if not can_view_translation_details(request.user):
+        segments_qs = segments_qs.defer(
+            "method", "confidence", "metadata", "source_language", "target_language"
+        )
     paginator = Paginator(segments_qs, PREVIEW_SEGMENTS_PER_PAGE)
     try:
         page_number = int(request.GET.get("page", 1))
@@ -368,6 +911,9 @@ def preview(request, job_id):
     for segment in segments_page.object_list:
         segment.display_source_text = clean_invisible_unicode(segment.source_text)
         segment.display_translated_text = get_display_translation(segment)
+        segment.review_identifier = f"P{segment.page.page_number if segment.page else '?'}-S{segment.segment_index}"
+
+    review_copy = request.GET.get("review") == "1" and can_download_validator_copy(request.user)
 
     return render(
         request,
@@ -382,6 +928,11 @@ def preview(request, job_id):
             "generated_outputs": list(job.generated_outputs.all()),
             "ocr_summary": _ocr_summary(job),
             "image_preview": _image_preview_context(job),
+            "review_copy": review_copy,
+            "translation_data_mode": (
+                getattr(settings, "TRANSLATION_DATA_MODE", "development_unverified")
+                if can_view_translation_details(request.user) else ""
+            ),
             "thumbnail_url": state.get("thumbnail_url", ""),
             "status_label": state.get("status_label", _status_label(job.status)),
             "status_class": state.get("status_class", _status_class(job.status)),
@@ -428,8 +979,8 @@ def api_translate(request):
     uploaded = form.cleaned_data["file"]
     file_type = detect_upload_file_type(uploaded.name)
 
-    if not file_type:
-        return JsonResponse({"detail": "Unsupported file type."}, status=400)
+    if not file_type or file_type not in ("pdf", "docx"):
+        return JsonResponse({"detail": "Please upload a PDF or DOCX document."}, status=400)
 
     job = None
     try:
@@ -489,7 +1040,7 @@ def api_translate(request):
 
         start_translation_job(job)
 
-        payload = _job_payload(job)
+        payload = _job_payload(job, request.user)
         payload["message"] = "Translation started"
 
         return JsonResponse(payload, status=202)
@@ -514,7 +1065,7 @@ def api_job_status(request, job_id):
         job = _get_owned_job(request, job_id)
     except Http404:
         return JsonResponse({"ok": False, "error": "Job not found."}, status=404)
-    return JsonResponse(_job_payload(job))
+    return JsonResponse(_job_payload(job, request.user))
 
 
 @api_login_required
@@ -523,6 +1074,8 @@ def api_structure(request, job_id):
         job = _get_owned_job(request, job_id)
     except Http404:
         return JsonResponse({"ok": False, "error": "Job not found."}, status=404)
+    if not can_view_translation_details(request.user):
+        return JsonResponse({"ok": False, "error": "This review information is not available for your role."}, status=403)
 
     structure_path = _resolve_job_file(
         job,
@@ -567,7 +1120,8 @@ def api_preview(request, job_id):
         )
 
     metadata = job.metadata or {}
-    translation_quality = _translation_quality_context(job)
+    include_details = can_view_translation_details(request.user)
+    translation_quality = _translation_quality_context(job) if include_details else {}
 
     original_pages = [
         _preview_image_url(job, item)
@@ -600,21 +1154,20 @@ def api_preview(request, job_id):
             "page_count": document_page_count,
             "document_page_count": document_page_count,
             "previewed_page_count": max(len(original_pages), len(translated_pages)),
-            **translation_quality,
-            "translation_summary": translation_quality,
             "segments": [
                 {
                     "segment_index": segment.segment_index,
                     "source_text": clean_invisible_unicode(segment.source_text),
                     "translated_text": get_display_translation(segment),
                     "display_translated_text": get_display_translation(segment),
-                    "method": segment.method,
-                    "confidence": segment.confidence,
                     "needs_review": segment.needs_review,
                     "page_number": segment.page.page_number if segment.page else None,
+                    **({"method": segment.method, "confidence": segment.confidence, "metadata": segment.metadata} if include_details else {}),
                 }
                 for segment in job.segments.order_by("segment_index")
             ],
+            **translation_quality,
+            "translation_summary": translation_quality,
         }
     )
 
@@ -648,6 +1201,10 @@ def preview_image(request, job_id, image_name):
 def download_job(request, job_id):
     job = _get_owned_job(request, job_id)
     state = _job_state_context(job)
+    requested_format = request.GET.get("format", "translated")
+
+    if requested_format == "bilingual" and not can_download_teacher_copy(request.user):
+        raise PermissionDenied("Teacher review copies are not available for this role.")
 
     if not state["can_download"]:
         if job.status != TranslationJob.Status.COMPLETED:
@@ -659,8 +1216,6 @@ def download_job(request, job_id):
             messages.error(request, "The translated PDF is not available for this job.")
 
         return redirect("translator:job_detail", job_id=job.id)
-
-    requested_format = request.GET.get("format", "translated")
 
     if requested_format == "bilingual":
         resolved_path = _resolve_job_file(job, job.bilingual_file_path)
@@ -679,6 +1234,17 @@ def download_job(request, job_id):
         filename=f"{filename_prefix}_{job.job_id[:8]}.pdf",
         content_type="application/pdf",
     )
+
+
+@login_required
+def download_original(request, job_id):
+    """Return the owner's original upload without widening cross-user access."""
+    job = _get_owned_job(request, job_id)
+    resolved_path = _resolve_job_file(job, job.upload_file_path or job.input_file_path)
+    if not resolved_path or not resolved_path.exists():
+        messages.error(request, "The original document is missing or no longer available.")
+        return redirect("translator:job_detail", job_id=job.id)
+    return FileResponse(open(resolved_path, "rb"), as_attachment=True, filename=job.original_filename)
 
 
 @require_http_methods(["GET", "POST"])
@@ -706,8 +1272,10 @@ def quick_translate(request):
         return JsonResponse({"error": str(exc)}, status=400)
 
 
-@staff_member_required(login_url="translator:login")
+@login_required
 def health(request):
+    if not can_view_system_diagnostics(request.user):
+        raise PermissionDenied("System diagnostics are restricted to superusers.")
     return render(
         request,
         "translator/health.html",
@@ -716,6 +1284,81 @@ def health(request):
             "job_counts": _health_job_counts(),
         },
     )
+
+
+@permission_required("translator.review_language_entry", raise_exception=True)
+def validator_queue(request):
+    entries = PhrasebookEntry.objects.order_by("validation_status", "updated_at")
+    for field in ("validation_status", "import_batch_id", "access_restriction"):
+        value = request.GET.get(field)
+        if value:
+            entries = entries.filter(**{field: value})
+    if request.GET.get("missing_provenance") == "1":
+        entries = entries.filter(Q(source_title="") | Q(source_owner=""))
+    if request.GET.get("conflict") == "1":
+        entries = entries.filter(has_unresolved_conflict=True)
+    search_query = request.GET.get("q", "").strip()
+    if search_query:
+        entries = entries.filter(
+            Q(english__icontains=search_query)
+            | Q(tagabawa__icontains=search_query)
+            | Q(filipino__icontains=search_query)
+            | Q(cebuano__icontains=search_query)
+        )
+    sort = request.GET.get("sort", "status")
+    entries = entries.order_by("-updated_at" if sort == "recent" else "validation_status", "updated_at")
+    paginator = Paginator(entries, 25)
+    entry_page = paginator.get_page(request.GET.get("page", 1))
+    return render(
+        request,
+        "translator/validator_queue.html",
+        {
+            "entries": entry_page,
+            "queue_counts": {
+                "pending_entries": PhrasebookEntry.objects.filter(validation_status__in=["pending", "under_review"]).count(),
+                "unknown_terms": UnknownTranslationRecord.objects.filter(review_status="pending").count(),
+                "ocr_corrections": OCRCorrection.objects.filter(status="proposed").count(),
+                "correction_suggestions": CorrectionSuggestion.objects.filter(status="pending").count(),
+            },
+            "search_query": search_query,
+            "selected_sort": sort,
+        },
+    )
+
+
+@permission_required("translator.review_language_entry", raise_exception=True)
+def validator_entry(request, entry_id):
+    entry = get_object_or_404(PhrasebookEntry, id=entry_id)
+    if request.method == "POST":
+        decision = request.POST.get("decision", "")
+        notes = request.POST.get("notes", "").strip()
+        if not notes:
+            messages.error(request, "A reviewer note is required for every decision.")
+        else:
+            try:
+                review_entry(entry=entry, reviewer=request.user, decision=decision, notes=notes)
+                messages.success(request, "Review decision recorded.")
+                return redirect("translator:validator_entry", entry_id=entry.id)
+            except (PermissionError, ValueError):
+                messages.error(request, "This review decision could not be recorded.")
+    return render(request, "translator/validator_entry.html", {"entry": entry, "revisions": entry.revisions.all(), "reviews": entry.reviews.all()})
+
+
+@login_required
+@require_POST
+def submit_correction_suggestion(request, job_id):
+    job = _get_owned_job(request, job_id)
+    segment = get_object_or_404(TranslationSegment, id=request.POST.get("segment_id"), job=job)
+    suggestion = (request.POST.get("suggested_correction") or "").strip()
+    if not suggestion:
+        return JsonResponse({"ok": False, "error": "A suggested correction is required."}, status=400)
+    CorrectionSuggestion.objects.create(
+        job=job, segment=segment, source_text=segment.source_text,
+        displayed_translation=get_display_translation(segment),
+        suggested_correction=suggestion,
+        explanation=(request.POST.get("explanation") or "").strip(), submitted_by=request.user,
+    )
+    return JsonResponse({"ok": True, "message": "Suggestion submitted for review."}, status=201)
 
 
 @login_required
@@ -997,35 +1640,29 @@ def _owned_jobs_queryset(request):
     return queryset
 
 
-def _job_payload(job: TranslationJob) -> dict:
+def _job_payload(job: TranslationJob, user=None) -> dict:
     metadata = job.metadata or {}
     state = _job_state_context(job)
-    translation_quality = _translation_quality_context(job)
+    include_details = can_view_translation_details(user)
+    # The pipeline persists checkpoint values when a stage begins. They are
+    # useful operational data, but they are not measured completion and must
+    # never be presented to people as a precise percentage.
+    progress_available = bool(metadata.get("reliable_progress_percent") is not None)
+    reliable_progress = metadata.get("reliable_progress_percent") if progress_available else None
+    is_partial_result = bool(metadata.get("partial_processing") or metadata.get("partial_output"))
 
-    return {
+    payload = {
         "job_id": job.job_id,
         "status": job.status,
-        "message": job.phase_message or _status_message(job.status),
-        "output_file": job.output_file_path or None,
-        "progress": job.progress,
-        "progress_percent": 100
-        if job.status == TranslationJob.Status.COMPLETED
-        else job.progress,
-        "current_phase": job.current_phase,
-        "current_step": job.current_step,
-        "phase_message": job.phase_message or _status_message(job.status),
-        "detection_type": job.detection_type or None,
-        "file_type": job.file_type,
+        "message": _status_message(job.status),
         "error": _failure_message(job) if job.status == TranslationJob.Status.FAILED else None,
-        "detected_language": metadata.get("detected_language"),
-        "detection_confidence": metadata.get("detection_confidence"),
-        "is_mixed_language": metadata.get("is_mixed_language", False),
-        "metadata": metadata,
+        "has_retained_text": _review_segment_count(job) > 0,
+        "can_view_validation_markers": can_view_validation_markers(user),
         "can_preview": state["can_preview"],
         "can_download": state["can_download"],
         "is_processing": state["is_processing"],
         "has_failed": state["has_failed"],
-        **translation_quality,
+        "is_partial_result": is_partial_result,
         "created_at": job.created_at.isoformat(),
         "started_at": job.created_at.isoformat(),
         "updated_at": job.updated_at.isoformat(),
@@ -1033,6 +1670,24 @@ def _job_payload(job: TranslationJob) -> dict:
         "is_retrying": job.status == TranslationJob.Status.RETRYING,
         "is_taking_longer": _job_is_taking_longer(job),
     }
+    if include_details:
+        payload.update({
+            "output_file": job.output_file_path or None,
+            "progress": job.progress,
+            "progress_percent": reliable_progress,
+            "progress_available": progress_available,
+            "current_phase": job.current_phase,
+            "current_step": job.current_step,
+            "phase_message": job.phase_message or _status_message(job.status),
+            "detection_type": job.detection_type or None,
+            "file_type": job.file_type,
+            "detected_language": metadata.get("detected_language"),
+            "detection_confidence": metadata.get("detection_confidence"),
+            "is_mixed_language": metadata.get("is_mixed_language", False),
+            "metadata": metadata,
+            **_translation_quality_context(job),
+        })
+    return payload
 
 
 def _status_message(status: str) -> str:
@@ -1126,11 +1781,34 @@ def _job_state_context(job: TranslationJob) -> dict:
     }
 
 
-def _job_card_context(job: TranslationJob) -> dict:
+def _language_pair_label(job: TranslationJob) -> str:
+    """Return display labels for the compact Translate workspace only.
+
+    Stored language codes remain untouched. When an auto-detected source has
+    already been resolved by the pipeline, surface that familiar label instead
+    of the raw ``auto`` code.
+    """
+    metadata = job.metadata or {}
+    source_language = job.source_language
+    if source_language == "auto":
+        source_language = metadata.get("detected_language") or source_language
+
+    def label(value) -> str:
+        raw_value = str(value or "").strip()
+        return LANGUAGE_DISPLAY_LABELS.get(
+            raw_value,
+            raw_value.replace("_", " ").title() or "Unknown",
+        )
+
+    return f"{label(source_language)} \u2192 {label(job.target_language)}"
+
+
+def _job_card_context(job: TranslationJob, user=None) -> dict:
     context = _job_state_context(job)
     uploaded_document = _uploaded_document_for(job)
     ocr_summary = _ocr_summary(job)
     thumbnail = _thumbnail_context(job)
+    permissions = translation_permissions(user)
     translation_quality = _translation_quality_context(job)
 
     context.update(
@@ -1143,13 +1821,10 @@ def _job_card_context(job: TranslationJob) -> dict:
             "uploaded_at": getattr(uploaded_document, "created_at", None)
             or job.created_at,
             "completed_at": job.completed_at,
-            "ocr_confidence": _annotated_or_summary(
-                job,
-                "ocr_confidence",
-                ocr_summary["confidence"],
-            ),
-            **translation_quality,
-            "workflow_steps": _workflow_steps(job),
+            "has_retained_text": translation_quality["translation_has_review_items"],
+            "can_download_teacher_copy": can_download_teacher_copy(user),
+            "can_download_validator_copy": can_download_validator_copy(user),
+            **permissions,
             "page_count": int(
                 getattr(job, "page_count", 0)
                 or job.pages.count()
@@ -1159,12 +1834,13 @@ def _job_card_context(job: TranslationJob) -> dict:
             "thumbnail_kind": thumbnail["kind"],
             "thumbnail_label": thumbnail["label"],
             "file_icon_class": _file_icon_class(job.file_type),
+            "language_pair_label": _language_pair_label(job),
             "status_label": _status_label(job.status),
             "status_class": _status_class(job.status),
             "failure_message": _failure_message(job),
             "technical_error_detail": (
                 clean_invisible_unicode(job.error)
-                if job.status == TranslationJob.Status.FAILED and job.error
+                if permissions["can_view_system_diagnostics"] and job.status == TranslationJob.Status.FAILED and job.error
                 else ""
             ),
             "progress_percent": 100
@@ -1173,8 +1849,26 @@ def _job_card_context(job: TranslationJob) -> dict:
             "is_retrying": job.status == TranslationJob.Status.RETRYING,
             "is_taking_longer": _job_is_taking_longer(job),
             "status_api_url": reverse("translator:status", args=[job.id]),
+            "result_summary": _translation_result_summary(job),
         }
     )
+
+    if permissions["can_view_translation_details"]:
+        context.update({
+            "ocr_confidence": _annotated_or_summary(job, "ocr_confidence", ocr_summary["confidence"]),
+            **translation_quality,
+            "workflow_steps": _workflow_steps(job),
+        })
+    else:
+        for key in (
+            "extraction_method", "extraction_method_label", "ocr_confidence_pct",
+            "ocr_has_low_quality", "ocr_warnings", "technical_error_detail",
+        ):
+            context.pop(key, None)
+        context.update({
+            "translation_has_review_items": translation_quality["translation_has_review_items"],
+            "result_summary": {"partial": _translation_result_summary(job)["partial"]},
+        })
 
     return context
 
@@ -1207,6 +1901,45 @@ def _translation_quality_context(job: TranslationJob) -> dict:
         "translation_confidence": translation_confidence,
         "translation_confidence_pct": _confidence_pct(translation_confidence),
         "translation_has_review_items": review_segment_count > 0,
+    }
+
+
+def _translation_result_summary(job: TranslationJob) -> dict:
+    """Return plain-language result metrics without leaking pipeline enums."""
+    metadata = job.metadata or {}
+    recorded = metadata.get("translation_summary") or metadata.get("match_counts") or {}
+    methods = {"exact": 0, "normalized": 0, "fuzzy": 0}
+    for raw_key, value in recorded.items():
+        key = str(raw_key).lower().replace("_match", "").replace("match_", "")
+        if key in methods:
+            methods[key] = _positive_int(value)
+
+    # Older jobs have no summary metadata. Derive only the familiar matching
+    # families and leave unknown methods out of the user-facing display.
+    if not any(methods.values()):
+        for method in job.segments.values_list("method", flat=True):
+            normalized = str(method or "").lower()
+            if "exact" in normalized:
+                methods["exact"] += 1
+            elif "normal" in normalized:
+                methods["normalized"] += 1
+            elif "fuzzy" in normalized:
+                methods["fuzzy"] += 1
+
+    unknown_count = getattr(job, "review_segment_count", None)
+    if unknown_count is None:
+        unknown_count = job.segments.filter(needs_review=True).count()
+    ocr_warnings = (metadata.get("ocr_warnings") or [])
+    layout_warnings = (metadata.get("layout_warnings") or metadata.get("reconstruction_warnings") or [])
+    return {
+        **methods,
+        "unknown": int(unknown_count or 0),
+        "pages": _metadata_document_page_count(metadata) or job.pages.count(),
+        "ocr_warnings": len(ocr_warnings),
+        "layout_warnings": len(layout_warnings),
+        "verified_resources": _positive_int(recorded.get("verified_resources")),
+        "unverified_resources": _positive_int(recorded.get("unverified_resources")),
+        "partial": bool(metadata.get("partial_processing") or metadata.get("partial_output")),
     }
 
 
