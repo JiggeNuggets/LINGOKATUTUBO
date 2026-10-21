@@ -89,7 +89,10 @@ class JobStatus:
         self.file_type = None
         self.created_at = datetime.now()
         self.completed_at = None
-        self.metadata = {}
+        self.metadata = {
+            "phase_started_at": self.created_at.isoformat(),
+            "phase_timings": {},
+        }
 
 
 class PipelineService:
@@ -190,7 +193,33 @@ class PipelineService:
             )
         return warnings
 
+    @staticmethod
+    def _record_phase_transition(job: JobStatus, next_phase: str) -> None:
+        previous_phase = str(getattr(job, "current_phase", "") or "")
+        if not previous_phase or previous_phase == next_phase:
+            return
+
+        now = datetime.now()
+        started_at_raw = job.metadata.get("phase_started_at")
+        try:
+            started_at = datetime.fromisoformat(str(started_at_raw))
+        except (TypeError, ValueError):
+            started_at = now
+
+        timings = dict(job.metadata.get("phase_timings") or {})
+        timings[previous_phase] = {
+            "started_at": started_at.isoformat(),
+            "completed_at": now.isoformat(),
+            "duration_seconds": round(
+                max(0.0, (now - started_at).total_seconds()),
+                3,
+            ),
+        }
+        job.metadata["phase_timings"] = timings
+        job.metadata["phase_started_at"] = now.isoformat()
+
     def _set_job_phase(self, job: JobStatus, phase: str) -> None:
+        self._record_phase_transition(job, phase)
         phase_info = PIPELINE_PHASES.get(phase, PIPELINE_PHASES["queued"])
         job.current_phase = phase
         job.current_step = phase_info["step"]
@@ -629,12 +658,18 @@ class PipelineService:
             
             job.status = "completed"
             job.completed_at = datetime.now()
+            job.metadata["pipeline_duration_seconds"] = round(
+                max(0.0, (job.completed_at - job.created_at).total_seconds()),
+                3,
+            )
             self._set_job_phase(job, "completed")
             
             safe_print(f"[Pipeline] Job {job_id} completed successfully")
             return True
         
         except Exception as e:
+            failed_at = datetime.now()
+            self._record_phase_transition(job, "failed")
             job.status = "failed"
             job.error = str(e)
             job.phase_message = str(e)
@@ -644,6 +679,10 @@ class PipelineService:
             job.metadata["current_phase"] = job.current_phase
             job.metadata["current_step"] = job.current_step
             job.metadata["progress_percent"] = job.progress
+            job.metadata["pipeline_duration_seconds"] = round(
+                max(0.0, (failed_at - job.created_at).total_seconds()),
+                3,
+            )
             self._persist_job(job)
             safe_print(f"[Pipeline] Job {job_id} failed: {e}")
             return False
@@ -707,6 +746,10 @@ class PipelineService:
             Dict mapping line/block/source keys to translation records.
         """
         translations = {}
+        # Extractors commonly repeat headers, footers, labels, and identical
+        # lines across pages.  Dataset and fuzzy lookup results are deterministic
+        # for one language pair, so resolve each unique source line once per job.
+        translation_cache: Dict[str, Dict[str, Any]] = {}
         
         for page_index, page_data in enumerate(layout_data):
             blocks = page_data.get("blocks", [])
@@ -722,51 +765,54 @@ class PipelineService:
                     if not original:
                         continue
                     
-                    try:
-                        if hasattr(self.translation_dataset, "translate_phrase_with_metadata"):
-                            translation_meta = self.translation_dataset.translate_phrase_with_metadata(
-                                original,
-                                source_lang=source_lang,
-                                target_lang=target_lang
-                            )
-                        else:
-                            translated = self.translation_dataset.translate_phrase(
-                                original,
-                                source_lang=source_lang,
-                                target_lang=target_lang
-                            )
-                            translation_meta = {
-                                "translated": translated,
-                                "method": "unknown",
-                                "cascade_stage": "unknown",
-                                "confidence": None,
-                            }
+                    translation_meta = translation_cache.get(original)
+                    if translation_meta is None:
+                        try:
+                            if hasattr(self.translation_dataset, "translate_phrase_with_metadata"):
+                                translation_meta = self.translation_dataset.translate_phrase_with_metadata(
+                                    original,
+                                    source_lang=source_lang,
+                                    target_lang=target_lang
+                                )
+                            else:
+                                translated = self.translation_dataset.translate_phrase(
+                                    original,
+                                    source_lang=source_lang,
+                                    target_lang=target_lang
+                                )
+                                translation_meta = {
+                                    "translated": translated,
+                                    "method": "unknown",
+                                    "cascade_stage": "unknown",
+                                    "confidence": None,
+                                }
 
-                        # Experimental ByT5 fallback: only for segments the
-                        # phrasebook could not match, and only Tagabawa->English.
-                        # Disabled by default and fails safe (returns None).
-                        if self._is_unmatched(translation_meta):
-                            neural_meta = self._neural_fallback(
-                                original,
-                                source_lang,
-                                target_lang,
-                                translation_warnings=translation_warnings,
+                            # Experimental ByT5 fallback: only for segments the
+                            # phrasebook could not match, and only Tagabawa->English.
+                            # Disabled by default and fails safe (returns None).
+                            if self._is_unmatched(translation_meta):
+                                neural_meta = self._neural_fallback(
+                                    original,
+                                    source_lang,
+                                    target_lang,
+                                    translation_warnings=translation_warnings,
+                                )
+                                if neural_meta is not None:
+                                    translation_meta = neural_meta
+                        except Exception as exc:
+                            message = (
+                                f"Page {page_index + 1}, block {block_index + 1}, line {line_index + 1}: "
+                                f"translation failed for {source_lang}->{target_lang}: {exc}"
                             )
-                            if neural_meta is not None:
-                                translation_meta = neural_meta
-                    except Exception as exc:
-                        message = (
-                            f"Page {page_index + 1}, block {block_index + 1}, line {line_index + 1}: "
-                            f"translation failed for {source_lang}->{target_lang}: {exc}"
-                        )
-                        if translation_warnings is not None and message not in translation_warnings:
-                            translation_warnings.append(message)
-                        translation_meta = {
-                            "translated": UNKNOWN_FOR_REVIEW,
-                            "method": "unknown_for_review",
-                            "cascade_stage": "unknown_for_review",
-                            "confidence": 0.0,
-                        }
+                            if translation_warnings is not None and message not in translation_warnings:
+                                translation_warnings.append(message)
+                            translation_meta = {
+                                "translated": UNKNOWN_FOR_REVIEW,
+                                "method": "unknown_for_review",
+                                "cascade_stage": "unknown_for_review",
+                                "confidence": 0.0,
+                            }
+                        translation_cache[original] = dict(translation_meta)
 
                     block_id = f"{page_index}_{block_index}"
                     line_id = f"{page_index}_{block_index}_{line_index}"

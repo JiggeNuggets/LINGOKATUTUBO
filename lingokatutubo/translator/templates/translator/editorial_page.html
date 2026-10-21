@@ -122,33 +122,102 @@
   {% endif %}
 
   <section class="editorial-page__continue continue-exploring" data-reveal aria-labelledby="continue-exploring-heading">
+    <!-- Atmospheric Living Mist & Ambient Cultural Lighting -->
+    <div class="continue-exploring__atmosphere" aria-hidden="true">
+      <div class="continue-atmosphere__glow continue-atmosphere__glow--1"></div>
+      <div class="continue-atmosphere__glow continue-atmosphere__glow--2"></div>
+      <div class="continue-atmosphere__glow continue-atmosphere__glow--3"></div>
+      <div class="continue-atmosphere__inabal-grid"></div>
+      <div class="continue-atmosphere__particles">
+        <span class="continue-particle continue-particle--1"></span>
+        <span class="continue-particle continue-particle--2"></span>
+        <span class="continue-particle continue-particle--3"></span>
+        <span class="continue-particle continue-particle--4"></span>
+        <span class="continue-particle continue-particle--5"></span>
+        <span class="continue-particle continue-particle--6"></span>
+      </div>
+    </div>
+
     <div class="continue-exploring__inner">
       <div class="continue-exploring__header">
-        <p class="eyebrow">CONTINUE EXPLORING</p>
+        <div class="continue-exploring__eyebrow-wrap">
+          <span class="continue-exploring__dot" aria-hidden="true"></span>
+          <p class="eyebrow">CONTINUE EXPLORING</p>
+        </div>
         <h2 id="continue-exploring-heading" class="section-title">Continue Exploring</h2>
         <p class="continue-exploring__subtitle">The story continues across culture, landscape, and language. Deepen your understanding of indigenous knowledge, cultural treasures, and ancestral domains.</p>
       </div>
+
       <div class="continue-exploring__grid">
         {% for card in continue_exploring %}
-        <div class="continue-card">
-          <span class="continue-card__tag eyebrow">{% if forloop.counter == 1 %}CULTURE{% elif forloop.counter == 2 %}NATURE{% else %}CHAPTER{% endif %}</span>
-          <h3 class="continue-card__title">{{ card.title }}</h3>
-          <p class="continue-card__desc">{{ card.description }}</p>
-          <a class="continue-card__link continue-block-link" href="{% url card.url_name %}">
-            <span>{{ card.cta_label }}</span>
-            <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
+        <a class="continue-card continue-card--interactive" href="{% url card.url_name %}" aria-label="{{ card.cta_label }}" data-theme="{% if 'bagobo' in card.url_name %}people{% elif 'culture' in card.url_name %}culture{% elif 'nature' in card.url_name %}nature{% else %}chapter{% endif %}">
+          <div class="continue-card__media" aria-hidden="true">
+            {% if "bagobo" in card.url_name %}
+            <img class="continue-card__img" src="{% static 'images/editorial/bagobo-tagabawa-people-640.jpg' %}" alt="Bagobo-Tagabawa people in traditional attire" loading="lazy" decoding="async">
+            {% elif "culture" in card.url_name %}
+            <img class="continue-card__img" src="{% static 'images/editorial/bagobo-tagabawa-inabal-textile-640.jpg' %}" alt="Sacred Inabal handwoven abaca textile" loading="lazy" decoding="async">
+            {% elif "nature" in card.url_name %}
+            <img class="continue-card__img" src="{% static 'images/editorial/mount-apo-landscape-640.jpg' %}" alt="Mount Apo sacred landscape" loading="lazy" decoding="async">
+            {% else %}
+            <img class="continue-card__img" src="{% static 'images/editorial/bagobo-tagabawa-traditional-house-640.jpg' %}" alt="Tagabawa community architecture" loading="lazy" decoding="async">
+            {% endif %}
+            <div class="continue-card__scrim"></div>
+          </div>
+
+          <div class="continue-card__content">
+            <div class="continue-card__top">
+              <span class="continue-card__tag eyebrow">
+                {% if "bagobo" in card.url_name %}
+                  PEOPLE &amp; ELDERS
+                {% elif "nature" in card.url_name %}
+                  SACRED HIGHLANDS
+                {% elif "culture" in card.url_name %}
+                  LIVING TRADITIONS
+                {% else %}
+                  HERITAGE CHAPTER
+                {% endif %}
+              </span>
+              <span class="continue-card__badge-chip" aria-hidden="true">
+                {% if "bagobo" in card.url_name %}Living Heritage{% elif "nature" in card.url_name %}Mount Apo{% else %}Preserved{% endif %}
+              </span>
+            </div>
+
+            <h3 class="continue-card__title">{{ card.title }}</h3>
+            <p class="continue-card__desc">{{ card.description }}</p>
+
+            <span class="continue-card__link continue-block-link">
+              <span>{{ card.cta_label }}</span>
+              <span class="continue-link__arrow" aria-hidden="true">&rarr;</span>
+            </span>
+          </div>
+        </a>
         {% endfor %}
-        <div class="continue-card continue-card--cta">
-          <span class="continue-card__tag eyebrow">TRANSLATION TOOL</span>
-          <h3 class="continue-card__title">Translate a Document</h3>
-          <p class="continue-card__desc">Preserve and access educational resources in Bagobo-Tagabawa with our document translation tool.</p>
-          <a class="continue-card__link continue-block-link continue-block-link--cta" href="{% url 'translator:translate' %}">
-            <span>Translate a Document</span>
-            <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
+
+        <a class="continue-card continue-card--cta continue-card--interactive" href="{% url 'translator:translate' %}" aria-label="Translate a Document" data-theme="translator">
+          <div class="continue-card__media continue-card__media--cta" aria-hidden="true">
+            {% if page_key == "culture" %}
+            <img class="continue-card__img" src="{% static 'images/editorial/bagobo-tagabawa-inabal-textile-640.jpg' %}" alt="Sacred Inabal handwoven abaca textile" loading="lazy" decoding="async">
+            {% else %}
+            <img class="continue-card__img" src="{% static 'images/editorial/bagobo-tagabawa-traditional-house-640.jpg' %}" alt="Traditional Tagabawa ancestral architecture" loading="lazy" decoding="async">
+            {% endif %}
+            <div class="continue-card__scrim"></div>
+          </div>
+
+          <div class="continue-card__content">
+            <div class="continue-card__top">
+              <span class="continue-card__tag eyebrow">TRANSLATION TOOL</span>
+              <span class="continue-card__badge-chip" aria-hidden="true">Language Tool</span>
+            </div>
+
+            <h3 class="continue-card__title">Translate a Document</h3>
+            <p class="continue-card__desc">Preserve and access educational resources in Bagobo-Tagabawa with our document translation tool.</p>
+
+            <span class="continue-card__link continue-block-link continue-block-link--cta">
+              <span>Translate a Document</span>
+              <span class="continue-link__arrow" aria-hidden="true">&rarr;</span>
+            </span>
+          </div>
+        </a>
       </div>
     </div>
   </section>

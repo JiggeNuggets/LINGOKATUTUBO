@@ -230,7 +230,11 @@ class NavigationAndHomepageTests(TestCase):
         self.assertIn("Django Admin", nav)
 
     def test_dropdown_script_supports_outside_click_and_escape(self):
-        with open("static/js/app.js", encoding="utf-8") as script_file:
+        from django.conf import settings
+        script_path = settings.BASE_DIR / "static" / "js" / "app.js"
+        if not script_path.exists():
+            script_path = Path("static/js/app.js")
+        with open(script_path, encoding="utf-8") as script_file:
             script = script_file.read()
         self.assertIn("function initNavigationDropdowns", script)
         self.assertIn('event.key !== "Escape"', script)
@@ -396,8 +400,14 @@ class VerifiedEditorialMediaTests(TestCase):
                 response = self.client.get(reverse(route_name))
                 body = response.content.decode("utf-8")
                 for path in expected_paths:
-                    self.assertIn(f'href="{path}"', body)
-                self.assertIn('href="/translate/"', body)
+                    self.assertIn(
+                        f'<a class="continue-card continue-card--interactive" href="{path}"',
+                        body,
+                    )
+                self.assertIn(
+                    '<a class="continue-card continue-card--cta continue-card--interactive" href="/translate/"',
+                    body,
+                )
 
     def test_home_renders_four_category_explore_panels(self):
         response = self.client.get(reverse("translator:home"))
@@ -468,8 +478,8 @@ class DocumentUploadFormatRestrictionTests(TestCase):
         response = self.client.get(reverse("translator:translate"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'accept=".pdf,.docx"')
-        self.assertContains(response, "Supported: PDF and DOCX, up to 50 MB.")
-        self.assertContains(response, "PDF or DOCX &mdash; up to 50 MB")
+        self.assertContains(response, "Supported: PDF and DOCX, up to 10 MB.")
+        self.assertContains(response, "PDF or DOCX &mdash; up to 10 MB")
         # Ensure file input does not accept non-document types
         self.assertNotContains(response, 'accept=".pdf,.docx,.jpg')
         self.assertNotContains(response, "Supported: PDF, DOCX, JPG")

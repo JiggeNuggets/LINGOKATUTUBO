@@ -953,44 +953,128 @@
   }
 
   function dismissMessage(msg) {
-    msg.style.transition = "opacity 200ms ease, transform 200ms ease";
-    msg.style.opacity = "0";
-    msg.style.transform = "translateY(-4px)";
-    setTimeout(() => msg.remove(), 210);
+    if (!msg || msg.classList.contains("is-dismissing")) return;
+    msg.classList.add("is-dismissing");
+    setTimeout(() => {
+      if (msg.id === "js-error-banner") {
+        msg.hidden = true;
+        msg.classList.remove("is-dismissing");
+        msg.style.transform = "";
+        msg.style.opacity = "";
+      } else if (msg.parentElement) {
+        msg.remove();
+      }
+    }, 220);
   }
 
   function initMessageDismiss() {
-    document.querySelectorAll(".message-dismiss").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const msg = btn.closest(".message");
+    document.querySelectorAll(".message-dismiss, .toast__close, .preview-fidelity-toast__close").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const msg = btn.closest(".message") || btn.closest(".toast") || btn.closest(".preview-fidelity-toast");
         if (msg) dismissMessage(msg);
       });
     });
   }
 
-  // Toasts hide themselves after a few seconds (errors get a little longer);
-  // hovering pauses the countdown so the user can finish reading. Only
-  // messages inside the toast region auto-hide — the reusable #js-error-banner
-  // is shown/hidden by its own flows and must not be removed from the DOM.
-  const TOAST_DISMISS_MS = 3500;
-  const TOAST_ERROR_DISMISS_MS = 4000;
-  const TOAST_HOVER_GRACE_MS = 1500;
+  // Uniform 3-second auto-dismiss with hover pause & swipe gesture
+  const TOAST_DISMISS_MS = 3000;
+  const TOAST_HOVER_GRACE_MS = 1200;
 
   function scheduleToastDismiss(msg) {
-    const delay = msg.classList.contains("error")
-      ? TOAST_ERROR_DISMISS_MS
-      : TOAST_DISMISS_MS;
-    let timer = window.setTimeout(() => dismissMessage(msg), delay);
-    msg.addEventListener("mouseenter", () => window.clearTimeout(timer));
+    if (!msg || msg.dataset.toastScheduled) return;
+    msg.dataset.toastScheduled = "true";
+
+    // Ensure progress bar element exists
+    let bar = msg.querySelector(".toast__progress, .preview-fidelity-toast__progress");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.className = "toast__progress";
+      bar.setAttribute("aria-hidden", "true");
+      msg.appendChild(bar);
+    }
+
+    let timer = window.setTimeout(() => dismissMessage(msg), TOAST_DISMISS_MS);
+    msg.addEventListener("mouseenter", () => {
+      if (timer) window.clearTimeout(timer);
+      const activeBar = msg.querySelector(".toast__progress, .preview-fidelity-toast__progress");
+      if (activeBar) activeBar.style.animationPlayState = "paused";
+    });
     msg.addEventListener("mouseleave", () => {
       timer = window.setTimeout(() => dismissMessage(msg), TOAST_HOVER_GRACE_MS);
+      const activeBar = msg.querySelector(".toast__progress, .preview-fidelity-toast__progress");
+      if (activeBar) activeBar.style.animationPlayState = "running";
     });
+
+    // Swipe to dismiss gesture (touch and drag)
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+
+    function handleStart(e) {
+      if (e.target.closest(".message-dismiss, .toast__close, .preview-fidelity-toast__close")) return;
+      startX = e.touches ? e.touches[0].clientX : e.clientX;
+      currentX = startX;
+      isDragging = true;
+      msg.classList.add("is-swiping");
+      if (timer) window.clearTimeout(timer);
+    }
+
+    function handleMove(e) {
+      if (!isDragging) return;
+      currentX = e.touches ? e.touches[0].clientX : e.clientX;
+      const diffX = currentX - startX;
+      if (diffX > 0) {
+        msg.style.transform = `translateX(${diffX}px)`;
+        msg.style.opacity = String(Math.max(0.1, 1 - diffX / 180));
+      }
+    }
+
+    function handleEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      msg.classList.remove("is-swiping");
+      const diffX = currentX - startX;
+      if (diffX > 40) {
+        dismissMessage(msg);
+      } else {
+        msg.style.transform = "";
+        msg.style.opacity = "";
+        timer = window.setTimeout(() => dismissMessage(msg), 1500);
+      }
+    }
+
+    msg.addEventListener("touchstart", handleStart, { passive: true });
+    msg.addEventListener("touchmove", handleMove, { passive: true });
+    msg.addEventListener("touchend", handleEnd);
+    msg.addEventListener("mousedown", handleStart);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleEnd);
   }
 
   function initToastAutoDismiss() {
     document
-      .querySelectorAll("#messages-region .message")
+      .querySelectorAll("#messages-region .message, .messages .message, .message.toast, #preview-fidelity-toast")
       .forEach(scheduleToastDismiss);
+  }
+
+  function initFidelityToast() {
+    const toast = document.getElementById("preview-fidelity-toast");
+    if (!toast) return;
+    const region = document.getElementById("messages-region") || document.querySelector(".messages");
+    if (region && toast.parentElement !== region) {
+      region.appendChild(toast);
+    }
+    scheduleToastDismiss(toast);
+    const closeBtn = toast.querySelector(".preview-fidelity-toast__close, .toast__close, .message-dismiss");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dismissMessage(toast);
+      });
+      closeBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+      closeBtn.addEventListener("touchstart", (e) => e.stopPropagation());
+    }
   }
 
   function initDocumentRemoveModal() {
@@ -1179,30 +1263,56 @@
       region.className = "messages";
       region.id = "messages-region";
       region.setAttribute("aria-label", "Notifications");
-      const header = document.querySelector(".site-header");
-      if (header) {
-        header.insertAdjacentElement("afterend", region);
-      } else {
-        document.body.prepend(region);
-      }
+      document.body.appendChild(region);
     }
 
+    const t = tone || "info";
     const item = document.createElement("div");
-    item.className = `message ${tone || "info"}`;
+    item.className = `message ${t} toast`;
     item.setAttribute("role", "status");
     item.setAttribute("aria-live", "polite");
 
-    const span = document.createElement("span");
-    span.textContent = messageText;
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "toast__icon";
+    iconWrap.setAttribute("aria-hidden", "true");
+    if (t === "success") {
+      iconWrap.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+    } else if (t === "error" || t === "danger") {
+      iconWrap.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+    } else if (t === "warning") {
+      iconWrap.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    } else {
+      iconWrap.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    }
+
+    const bodyWrap = document.createElement("div");
+    bodyWrap.className = "toast__body";
+
+    const titleEl = document.createElement("strong");
+    titleEl.className = "toast__title";
+    titleEl.textContent = t === "success" ? "Success" : t === "error" || t === "danger" ? "Error" : t === "warning" ? "Notice" : "Information";
+
+    const textEl = document.createElement("span");
+    textEl.className = "toast__text";
+    textEl.textContent = messageText;
+
+    bodyWrap.append(titleEl, textEl);
 
     const dismissButton = document.createElement("button");
     dismissButton.type = "button";
-    dismissButton.className = "message-dismiss";
+    dismissButton.className = "message-dismiss toast__close";
     dismissButton.setAttribute("aria-label", "Dismiss notification");
-    dismissButton.textContent = "✕";
-    dismissButton.addEventListener("click", () => dismissMessage(item));
+    dismissButton.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    dismissButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dismissMessage(item);
+    });
 
-    item.append(span, dismissButton);
+    const progressBar = document.createElement("div");
+    progressBar.className = "toast__progress";
+    progressBar.setAttribute("aria-hidden", "true");
+
+    item.append(iconWrap, bodyWrap, dismissButton, progressBar);
     region.appendChild(item);
     scheduleToastDismiss(item);
   }
@@ -1995,6 +2105,33 @@
     });
   }
 
+  function initContinueExploringSpotlight() {
+    const continueSection = document.querySelector(".continue-exploring");
+    if (!continueSection) return;
+
+    let rafId = null;
+    continueSection.addEventListener("mousemove", (e) => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        const rect = continueSection.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        continueSection.style.setProperty("--mouse-x", `${x}px`);
+        continueSection.style.setProperty("--mouse-y", `${y}px`);
+        rafId = null;
+      });
+    });
+
+    continueSection.addEventListener("mouseleave", () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      continueSection.style.removeProperty("--mouse-x");
+      continueSection.style.removeProperty("--mouse-y");
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     // Ensure any stale transition overlay is dismissed on initial page render
     const overlay = document.getElementById("page-transition-overlay");
@@ -2017,10 +2154,12 @@
     initHeroInteractions();
     initBackToTop();
     initMessageDismiss();
+    initFidelityToast();
     initToastAutoDismiss();
     initDocumentRemoveModal();
     initActiveJobNotification();
     initDashboardFilters();
     initNatureSoundscape();
+    initContinueExploringSpotlight();
   });
 })();

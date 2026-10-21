@@ -1663,6 +1663,14 @@ def _job_payload(job: TranslationJob, user=None) -> dict:
         "is_processing": state["is_processing"],
         "has_failed": state["has_failed"],
         "is_partial_result": is_partial_result,
+        # Owners need safe workflow context so the loading UI can distinguish
+        # extraction/OCR, translation, reconstruction, and preview generation.
+        # Detailed metadata and raw checkpoint percentages remain restricted.
+        "progress_percent": reliable_progress,
+        "progress_available": progress_available,
+        "current_phase": job.current_phase,
+        "current_step": job.current_step,
+        "phase_message": job.phase_message or _status_message(job.status),
         "created_at": job.created_at.isoformat(),
         "started_at": job.created_at.isoformat(),
         "updated_at": job.updated_at.isoformat(),
@@ -1674,11 +1682,6 @@ def _job_payload(job: TranslationJob, user=None) -> dict:
         payload.update({
             "output_file": job.output_file_path or None,
             "progress": job.progress,
-            "progress_percent": reliable_progress,
-            "progress_available": progress_available,
-            "current_phase": job.current_phase,
-            "current_step": job.current_step,
-            "phase_message": job.phase_message or _status_message(job.status),
             "detection_type": job.detection_type or None,
             "file_type": job.file_type,
             "detected_language": metadata.get("detected_language"),

@@ -123,11 +123,20 @@ def sync_pipeline_job(pipeline_job) -> None:
         updates["completed_at"] = timezone.now()
 
     TranslationJob.objects.filter(id=job_id).update(**updates)
+    is_terminal = updates["status"] in {
+        TranslationJob.Status.COMPLETED,
+        TranslationJob.Status.FAILED,
+    }
     if updates["status"] == TranslationJob.Status.FAILED:
         _log_failed_job(job_id, updates["error"] or updates["phase_message"])
-    _sync_generated_outputs(job_id, paths)
-    if paths.get("structure_file_path"):
-        _sync_structure_models(job_id, paths["structure_file_path"])
+    # Page/segment synchronization is intentionally deferred until the job is
+    # terminal.  Checkpoint updates happen many times per job; re-reading the
+    # entire structure and upserting every page and segment at each checkpoint
+    # made processing time grow with both document size and phase count.
+    if is_terminal:
+        _sync_generated_outputs(job_id, paths)
+        if paths.get("structure_file_path"):
+            _sync_structure_models(job_id, paths["structure_file_path"])
 
 
 def register_pipeline_callback() -> None:

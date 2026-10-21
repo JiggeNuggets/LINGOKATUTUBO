@@ -241,6 +241,34 @@ class TranslatorAuthAndJobTests(TestCase):
         second = TranslationSegment.objects.get(job=job, segment_index=2)
         self.assertTrue(second.needs_review)
 
+    @patch("translator.services._sync_structure_models")
+    @patch("translator.services._sync_generated_outputs")
+    def test_processing_checkpoint_defers_expensive_output_sync(
+        self,
+        sync_generated_outputs,
+        sync_structure_models,
+    ):
+        job = self._create_job(self.alice, status=TranslationJob.Status.PROCESSING)
+
+        sync_pipeline_job(
+            SimpleNamespace(
+                job_id=job.job_id,
+                status=TranslationJob.Status.PROCESSING,
+                progress=70,
+                current_phase="reconstructing",
+                current_step="Reconstructing translated PDF",
+                phase_message="Reconstructing translated PDF...",
+                error="",
+                detection_type="digital",
+                file_type=TranslationJob.FileType.PDF,
+                metadata={"structure_file": "unused-structure.json"},
+                completed_at=None,
+            )
+        )
+
+        sync_generated_outputs.assert_not_called()
+        sync_structure_models.assert_not_called()
+
     def test_owner_can_read_job_status(self):
         job = self._create_job(self.alice)
         self.client.force_login(self.alice)
@@ -1121,6 +1149,24 @@ class TranslatorAuthAndJobTests(TestCase):
 
 
 class TranslatorPhase5BPipelineTests(TestCase):
+    def test_phase_transition_records_elapsed_timing(self):
+        from datetime import datetime, timedelta
+
+        from translator.services.pipeline_service import JobStatus, PipelineService
+
+        job = JobStatus("timing-test")
+        job.metadata["phase_started_at"] = (
+            datetime.now() - timedelta(seconds=2)
+        ).isoformat()
+        service = PipelineService.__new__(PipelineService)
+
+        service._set_job_phase(job, "detecting")
+
+        queued_timing = job.metadata["phase_timings"]["queued"]
+        self.assertGreaterEqual(queued_timing["duration_seconds"], 1.5)
+        self.assertEqual(job.current_phase, "detecting")
+        self.assertIn("phase_started_at", job.metadata)
+
     def test_pipeline_marks_ocr_failed_pages_as_incomplete_translation(self):
         from translator.services.pipeline_service import PipelineService
 
@@ -8170,6 +8216,36 @@ class TranslatorNeuralPipelineWiringTests(TestCase):
         record = translations["Hello"]
         self.assertEqual(record["translated"], UNKNOWN_FOR_REVIEW)
         self.assertEqual(record["method"], "unknown_for_review")
+
+    def test_duplicate_lines_share_one_dataset_lookup(self):
+        class _CountingDataset:
+            def __init__(self):
+                self.calls = 0
+
+            def translate_phrase_with_metadata(self, text, source_lang, target_lang):
+                self.calls += 1
+                return {
+                    "translated": "Madigar",
+                    "method": "exact_phrase",
+                    "cascade_stage": "exact_phrase",
+                    "confidence": 1.0,
+                }
+
+        dataset = _CountingDataset()
+        pipeline = self._make_pipeline({})
+        pipeline.translation_dataset = dataset
+        layout = [{
+            "blocks": [{
+                "type": "text",
+                "lines": [{"text": "Hello"}, {"text": "Hello"}],
+            }],
+        }]
+
+        translations = pipeline._translate_layout(layout, "english", "tagabawa")
+
+        self.assertEqual(dataset.calls, 1)
+        self.assertEqual(translations["0_0_0"]["translated"], "Madigar")
+        self.assertEqual(translations["0_0_1"]["translated"], "Madigar")
 
     def test_neural_enabled_uses_mocked_fallback_for_unmatched_segment(self):
         """Enabled neural service is consulted only when phrasebook is unmatched."""
