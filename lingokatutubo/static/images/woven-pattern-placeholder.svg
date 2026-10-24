@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>Seamless abstract weave inspired by the inabal photograph; decorative, not a reproduction of a traditional motif</title>
+  <g fill="none" stroke="#dfc69e" stroke-width="0.8" opacity=".29">
+    <path d="M4 0v128M12 0v128M20 0v128M28 0v128M36 0v128M44 0v128M52 0v128M60 0v128M68 0v128M76 0v128M84 0v128M92 0v128M100 0v128M108 0v128M116 0v128M124 0v128"/>
+  </g>
+  <g fill="none" stroke="#aa6251" stroke-width="5" opacity=".42">
+    <path d="M0 16h128M0 80h128"/>
+  </g>
+  <g fill="none" stroke="#e7c590" stroke-width="1.4" opacity=".7">
+    <path d="M0 10h128M0 22h128M0 74h128M0 86h128"/>
+  </g>
+  <g fill="none" stroke="#d6ad75" stroke-width="2.5" stroke-linejoin="miter" opacity=".82">
+    <path d="M32 12 52 32 32 52 12 32Z M96 12 116 32 96 52 76 32Z M32 76 52 96 32 116 12 96Z M96 76 116 96 96 116 76 96Z"/>
+  </g>
+  <g fill="none" stroke="#b97658" stroke-width="1.8" stroke-linejoin="miter" opacity=".8">
+    <path d="M32 22 42 32 32 42 22 32Z M96 22 106 32 96 42 86 32Z M32 86 42 96 32 106 22 96Z M96 86 106 96 96 106 86 96Z"/>
+  </g>
+</svg>

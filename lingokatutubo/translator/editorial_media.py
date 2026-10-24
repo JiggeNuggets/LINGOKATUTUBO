@@ -124,6 +124,42 @@ BAGOBO_TAGABAWA_PEOPLE = {
 }
 
 
+USEP_OBRERO_GATE = {
+    "image_640": "images/editorial/usep-obrero-gate-640.jpg",
+    "image_960": "images/editorial/usep-obrero-gate-960.jpg",
+    "image_1440": "images/editorial/usep-obrero-gate-1440.jpg",
+    "width": 1440,
+    "height": 960,
+    "alt": "University eagle sculpture at the University of Southeastern Philippines Obrero Campus entrance in Davao City; campus context, not a PANGANDOY activity.",
+    "caption": "USeP Obrero Campus entrance, Davao City. Campus context; this does not depict the PANGANDOY program.",
+    "photographer": "Funbeta",
+    "source": "Wikimedia Commons",
+    "source_title": "USeP Obrero Eagle Gate 1 Angle.jpg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:USeP_Obrero_Eagle_Gate_1_Angle.jpg",
+    "license": "CC BY-SA 4.0",
+    "license_url": CC_BY_SA_4_URL,
+    "adaptation": "Resized for responsive web delivery; presentation uses a responsive CSS crop.",
+}
+
+
+USEP_OBRERO_ENTRANCE = {
+    "image_640": "images/editorial/usep-obrero-entrance-640.jpg",
+    "image_960": "images/editorial/usep-obrero-entrance-960.jpg",
+    "image_1440": "images/editorial/usep-obrero-entrance-1440.jpg",
+    "width": 1440,
+    "height": 1080,
+    "alt": "University eagle sculpture at the University of Southeastern Philippines Obrero Campus entrance in Davao City; campus context, not a learning-materials workshop.",
+    "caption": "USeP Obrero Campus entrance, Davao City. Campus context; this does not depict a PANGANDOY writeshop.",
+    "photographer": "Choy4311",
+    "source": "Wikimedia Commons",
+    "source_title": "USeP University Eagle.jpg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:USeP_University_Eagle.jpg",
+    "license": "CC BY-SA 4.0",
+    "license_url": CC_BY_SA_4_URL,
+    "adaptation": "Resized for responsive web delivery; presentation uses a responsive CSS crop.",
+}
+
+
 MOUNT_APO_ECOLOGY = {
     "image_640": "images/editorial/mount-apo-ecology-640.jpg",
     "image_960": "images/editorial/mount-apo-ecology-960.jpg",
@@ -253,3 +289,16 @@ PUBLIC_EDITORIAL_MEDIA = {
         "gallery_items": (),
     },
 }
+
+
+APPROVED_EDITORIAL_IMAGE_PATHS = frozenset(
+    media["image_960"]
+    for media in (
+        BAGOBO_TAGABAWA_PEOPLE,
+        BAGOBO_TAGABAWA_HOUSE,
+        BAGOBO_TAGABAWA_INABAL,
+        MOUNT_APO,
+        USEP_OBRERO_GATE,
+        USEP_OBRERO_ENTRANCE,
+    )
+)

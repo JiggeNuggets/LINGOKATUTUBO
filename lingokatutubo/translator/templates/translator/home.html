@@ -1,162 +1,113 @@
 {% extends "translator/base.html" %}
 {% load static %}
 
-{% block title %}Language, Culture, and Document Translation{% endblock %}
-{% block meta_description %}Explore source-conscious learning spaces and translate supported documents with LingoKatutubo.{% endblock %}
+{% block title %}Bagobo Tagabawa stories{% endblock %}
+{% block meta_description %}Meet Datu Dalmacio Agton and explore Bagobo Tagabawa stories, living heritage, language, and document translation.{% endblock %}
+{% block body_class %}landing-body{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/landing-page.css' %}">{% endblock %}
+{% block extra_js %}<script src="{% static 'js/landing-page.js' %}" defer></script>{% endblock %}
 
 {% block content %}
-<main class="home-page home-page--minimal">
-  <!-- =========================================================================
-       SECTION 1: FOUR MAIN EXPLORE PANELS
-       ========================================================================= -->
-  <section class="home-explore-hero" aria-labelledby="explore-hero-heading">
-    <div class="section-heading text-center">
-      <h1 id="explore-hero-heading" class="explore-hero-title">What do you want to explore?</h1>
+<main class="landing-page">
+  <section class="landing-hero" aria-labelledby="datu-heading">
+    <div class="landing-shell landing-hero-grid">
+      <div class="landing-hero-copy">
+        <h1 id="datu-heading">Datu Dalmacio Agton</h1>
+        <p class="landing-lead">A Tagabawa datu and Indigenous leader remembered in local histories of Toril and southern Davao.</p>
+        <p class="landing-context">His story connects traditional leadership, ancestral land, farming communities, and a time of growing settlement in the area.</p>
+        <div class="landing-hero-actions">
+          <a class="landing-button landing-button-primary" href="#his-story">Explore his story <span aria-hidden="true">&nearr;</span></a>
+          <a class="landing-text-link" href="{% url 'translator:translate' %}">Translate a document</a>
+        </div>
+        <p class="landing-source">Based on barangay-provided educational material. Historical statements here follow the supplied poster transcription.</p>
+      </div>
+      <figure class="landing-portrait-frame">
+        <div class="landing-archive-photo">
+          <span class="landing-archive-flag">Archival image &middot; not Datu Agton</span>
+          <img src="{% static 'images/editorial/bagobo-chief-archive.jpg' %}" alt="Archival portrait of a Bagobo chief in traditional dress, photographed at the 1904 St. Louis exposition; the person is not identified as Datu Dalmacio Agton" width="653" height="929" fetchpriority="high">
+        </div>
+        <figcaption><strong>Illustrative archival photograph &mdash; not Datu Dalmacio Agton.</strong> Bagobo chief photographed at the 1904 St. Louis exposition by the Gerhard Sisters. <a href="https://commons.wikimedia.org/wiki/File:Bagobo_chief_LCCN2004666301.jpg">View the full archival scan via Wikimedia Commons</a>; the Library of Congress lists no known publication restrictions.</figcaption>
+      </figure>
     </div>
-
-    <div class="explore-panel-grid">
-      <!-- 1. Bagobo-Tagabawa -->
-      <article class="explore-panel-card explore-panel-card--bagobo">
-        <a class="explore-panel-card__media" href="{% url 'translator:bagobo_tagabawa' %}" aria-label="Explore Bagobo-Tagabawa">
-          <img class="explore-panel-card__img" src="{% static explore_cards.bagobo.image_640 %}" srcset="{% static explore_cards.bagobo.image_640 %} 640w, {% static explore_cards.bagobo.image_960 %} 960w" sizes="(max-width: 600px) calc(100vw - 32px), (max-width: 1100px) calc(50vw - 36px), 25vw" alt="{{ explore_cards.bagobo.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.bagobo.width }}" height="{{ explore_cards.bagobo.height }}">
-          <div class="explore-panel-card__overlay" aria-hidden="true"></div>
-          <span class="image-credit explore-panel-card__credit" aria-hidden="true">Photo: {{ explore_cards.bagobo.author }}</span>
-        </a>
-        <div class="explore-panel-card__content">
-          <div class="explore-panel-card__header">
-            <h2 class="explore-panel-card__title">Bagobo-Tagabawa</h2>
-          </div>
-          <p class="explore-panel-card__subtitle">People, language, and living heritage.</p>
-          <a class="explore-panel-card__btn button primary" href="{% url 'translator:bagobo_tagabawa' %}">
-            <span>Explore</span> <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
-      </article>
-
-      <!-- 2. Culture -->
-      <article class="explore-panel-card explore-panel-card--culture">
-        <a class="explore-panel-card__media" href="{% url 'translator:culture' %}" aria-label="Explore Culture">
-          <img class="explore-panel-card__img" src="{% static explore_cards.culture.image_640 %}" srcset="{% static explore_cards.culture.image_640 %} 640w, {% static explore_cards.culture.image_960 %} 960w" sizes="(max-width: 600px) calc(100vw - 32px), (max-width: 1100px) calc(50vw - 36px), 25vw" alt="{{ explore_cards.culture.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.culture.width }}" height="{{ explore_cards.culture.height }}">
-          <div class="explore-panel-card__overlay" aria-hidden="true"></div>
-          <span class="image-credit explore-panel-card__credit" aria-hidden="true">Photo: {{ explore_cards.culture.author }}</span>
-        </a>
-        <div class="explore-panel-card__content">
-          <div class="explore-panel-card__header">
-            <h2 class="explore-panel-card__title">Culture</h2>
-          </div>
-          <p class="explore-panel-card__subtitle">Material culture, language, and traditions.</p>
-          <a class="explore-panel-card__btn button primary" href="{% url 'translator:culture' %}">
-            <span>Explore</span> <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
-      </article>
-
-      <!-- 3. Nature -->
-      <article class="explore-panel-card explore-panel-card--nature">
-        <a class="explore-panel-card__media" href="{% url 'translator:nature' %}" aria-label="Explore Nature">
-          <img class="explore-panel-card__img" src="{% static explore_cards.nature.image_640 %}" srcset="{% static explore_cards.nature.image_640 %} 640w, {% static explore_cards.nature.image_960 %} 960w" sizes="(max-width: 600px) calc(100vw - 32px), (max-width: 1100px) calc(50vw - 36px), 25vw" alt="{{ explore_cards.nature.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.nature.width }}" height="{{ explore_cards.nature.height }}">
-          <div class="explore-panel-card__overlay" aria-hidden="true"></div>
-          <span class="image-credit explore-panel-card__credit" aria-hidden="true">Photo: {{ explore_cards.nature.author }}</span>
-        </a>
-        <div class="explore-panel-card__content">
-          <div class="explore-panel-card__header">
-            <h2 class="explore-panel-card__title">Nature</h2>
-          </div>
-          <p class="explore-panel-card__subtitle">Mount Apo, land, and environment.</p>
-          <a class="explore-panel-card__btn button primary" href="{% url 'translator:nature' %}">
-            <span>Explore</span> <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
-      </article>
-
-      <!-- 4. Community -->
-      <article class="explore-panel-card explore-panel-card--community">
-        <a class="explore-panel-card__media" href="{% url 'translator:community' %}" aria-label="Explore Community">
-          <img class="explore-panel-card__img" src="{% static explore_cards.community.image_640 %}" srcset="{% static explore_cards.community.image_640 %} 640w, {% static explore_cards.community.image_960 %} 960w" sizes="(max-width: 600px) calc(100vw - 32px), (max-width: 1100px) calc(50vw - 36px), 25vw" alt="{{ explore_cards.community.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.community.width }}" height="{{ explore_cards.community.height }}">
-          <div class="explore-panel-card__overlay" aria-hidden="true"></div>
-          <span class="image-credit explore-panel-card__credit" aria-hidden="true">Photo: {{ explore_cards.community.author }}</span>
-        </a>
-        <div class="explore-panel-card__content">
-          <div class="explore-panel-card__header">
-            <h2 class="explore-panel-card__title">Community</h2>
-          </div>
-          <p class="explore-panel-card__subtitle">People, stories, and contemporary community life.</p>
-          <a class="explore-panel-card__btn button primary" href="{% url 'translator:community' %}">
-            <span>Explore</span> <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
-      </article>
-    </div>
-
-    <!-- Centered Animated Circular Down Arrow -->
-    <div class="scroll-down-container">
-      <a href="#main-feature" class="scroll-down-btn" aria-label="Scroll to the main translation feature">
-        <svg class="scroll-down-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 4v14m0 0l-5-5m5 5l5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
+    <div class="landing-shell landing-hero-bottom" aria-label="Story context">
+      <span><strong>A story of place and people</strong></span><span>Bagobo Tagabawa</span><span>Toril &middot; Southern Davao</span>
     </div>
   </section>
 
-  <!-- =========================================================================
-       SECTION 2: CAPSTONE PROJECT + TRANSLATE A DOCUMENT
-       ========================================================================= -->
-  <section id="main-feature" class="capstone-main-feature" aria-labelledby="main-feature-heading">
-    <div class="capstone-main-feature__inner">
-      <div class="capstone-main-feature__copy">
-        <div class="capstone-attribution">
-          <span class="capstone-attribution__eyebrow">A CAPSTONE PROJECT OF</span>
-          <div class="capstone-attribution__names">
-            <span class="capstone-attribution__name">JOHN KIAN B. CAYAPOS</span>
-            <span class="capstone-attribution__name">JIGGEN FLORES</span>
-            <span class="capstone-attribution__name">CARL ABEDEJOS</span>
-            <span class="capstone-attribution__name">VINCE CABAÑOG</span>
-          </div>
-        </div>
-        <h2 id="main-feature-heading" class="capstone-main-feature__title">Translate a Document</h2>
-        <p class="capstone-main-feature__description">
-          Upload a document, choose a language direction, then review the original and translated pages side by side.
-        </p>
-        <ul class="translate-showcase__format-list capstone-format-list" aria-label="Supported document formats">
-          <li>PDF</li>
-          <li>DOCX</li>
-        </ul>
-        <div class="capstone-main-feature__actions">
-          <a class="button primary capstone-cta-btn" href="{% url 'translator:translate' %}">
-            <span>Translate a Document</span>
-            <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
+  <section class="landing-discovery" id="discover" aria-labelledby="discover-heading">
+    <div class="landing-shell">
+      <div class="landing-discovery-heading">
+        <h2 class="landing-section-title" id="discover-heading">People, place, and living culture.</h2>
+        <p>Follow the people, their cultural work, the Mount Apo landscape, and documented community learning. Each path opens a current LingoKatutubo story.</p>
       </div>
+      <div class="landing-discovery-grid">
+        <article class="landing-discovery-card landing-discovery-card--people">
+          <a class="landing-discovery-card__link" href="{% url 'translator:bagobo_tagabawa' %}">
+            <span class="landing-discovery-card__media"><img src="{% static explore_cards.bagobo.image_960 %}" srcset="{% static explore_cards.bagobo.image_640 %} 640w, {% static explore_cards.bagobo.image_960 %} 960w" sizes="(max-width: 650px) calc(100vw - 36px), (max-width: 800px) 50vw, 58vw" alt="{{ explore_cards.bagobo.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.bagobo.width }}" height="{{ explore_cards.bagobo.height }}"></span>
+            <div class="landing-discovery-card__body"><h3>Bagobo Tagabawa</h3><p>Explore the people and histories connected with Apo Sandawa and southern Davao.</p><span class="landing-discovery-card__action">Explore the story &nearr;</span></div>
+          </a>
+          <p class="landing-discovery-card__credit">Dr. Joseph Montano (reproduced by Molt&eacute;ni), <a href="https://commons.wikimedia.org/wiki/File:Malaisie._Mindanao,_filles_de_chef_Tagabawa,_golfe_de_Davao_-_(photogr._reprod._par_Molt%C3%A9ni_pour_la_conf%C3%A9rence_donn%C3%A9e_par)_J._Montano_-_btv1b53136534d.jpg">&ldquo;Malaisie. Mindanao, filles de chef Tagabawa, golfe de Davao&rdquo;</a>, Biblioth&egrave;que nationale de France via Wikimedia Commons, public domain (resized). Not Datu Agton.</p>
+        </article>
+        <article class="landing-discovery-card landing-discovery-card--culture">
+          <a class="landing-discovery-card__link" href="{% url 'translator:culture' %}">
+            <span class="landing-discovery-card__media"><img src="{% static explore_cards.culture.image_960 %}" srcset="{% static explore_cards.culture.image_640 %} 640w, {% static explore_cards.culture.image_960 %} 960w" sizes="(max-width: 650px) calc(100vw - 36px), (max-width: 800px) 50vw, 40vw" alt="{{ explore_cards.culture.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.culture.width }}" height="{{ explore_cards.culture.height }}"></span>
+            <div class="landing-discovery-card__body"><h3>Culture</h3><p>Discover Inabal weaving and the legacy of master weaver Salinta Monon.</p><span class="landing-discovery-card__action">Explore the story &nearr;</span></div>
+          </a>
+          <p class="landing-discovery-card__credit">Valenzuela400, <a href="https://commons.wikimedia.org/wiki/File:Inabal_abaca_Salinta_Monon_BansalanA.jpg">&ldquo;Inabal abaca Salinta Monon BansalanA&rdquo;</a>, Wikimedia Commons, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> (detail crop and resized).</p>
+        </article>
+        <article class="landing-discovery-card landing-discovery-card--nature">
+          <a class="landing-discovery-card__link" href="{% url 'translator:nature' %}">
+            <span class="landing-discovery-card__media"><img src="{% static explore_cards.nature.image_960 %}" srcset="{% static explore_cards.nature.image_640 %} 640w, {% static explore_cards.nature.image_960 %} 960w" sizes="(max-width: 650px) calc(100vw - 36px), (max-width: 800px) 50vw, 40vw" alt="{{ explore_cards.nature.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.nature.width }}" height="{{ explore_cards.nature.height }}"></span>
+            <div class="landing-discovery-card__body"><h3>Nature</h3><p>See Apo Sandawa through the mountain landscape and its living context.</p><span class="landing-discovery-card__action">Explore the story &nearr;</span></div>
+          </a>
+          <p class="landing-discovery-card__credit">Robert Anton Pimentel Aparente, <a href="https://commons.wikimedia.org/wiki/File:Mount_apo.jpg">&ldquo;Mount apo.jpg&rdquo;</a>, Wikimedia Commons, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> (resized).</p>
+        </article>
+        <article class="landing-discovery-card landing-discovery-card--community">
+          <a class="landing-discovery-card__link" href="{% url 'translator:community' %}">
+            <span class="landing-discovery-card__media"><img src="{% static explore_cards.community.image_960 %}" srcset="{% static explore_cards.community.image_640 %} 640w, {% static explore_cards.community.image_960 %} 960w" sizes="(max-width: 650px) calc(100vw - 36px), (max-width: 800px) 50vw, 58vw" alt="{{ explore_cards.community.alt }}" loading="lazy" decoding="async" width="{{ explore_cards.community.width }}" height="{{ explore_cards.community.height }}"></span>
+            <div class="landing-discovery-card__body"><h3>Community</h3><p>Read about community education and documented proverbs and riddles.</p><span class="landing-discovery-card__action">Explore the story &nearr;</span></div>
+          </a>
+          <p class="landing-discovery-card__credit">MadayawDavao, <a href="https://commons.wikimedia.org/wiki/File:Traditional_House_by_the_Bagobo_Tagabawa_Tribe.jpg">&ldquo;Traditional House by the Bagobo Tagabawa Tribe&rdquo;</a>, Wikimedia Commons, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> (resized display photograph).</p>
+        </article>
+      </div>
+      <a class="landing-discovery-next" href="#his-story">Continue below with Datu Agton's story <span aria-hidden="true">&darr;</span></a>
+    </div>
+  </section>
 
-      <div class="capstone-main-feature__workflow" aria-label="Document translation workflow">
-        <div class="capstone-workflow-card">
-          <div class="capstone-workflow-step">
-            <div class="capstone-workflow-icon">
-              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <span class="capstone-workflow-title">Document</span>
-            <small class="capstone-workflow-sub">Upload file</small>
-          </div>
-          <span class="capstone-workflow-connector" aria-hidden="true">&rarr;</span>
-          <div class="capstone-workflow-step">
-            <div class="capstone-workflow-icon capstone-workflow-icon--active">
-              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <span class="capstone-workflow-title">Translation</span>
-            <small class="capstone-workflow-sub">Direction &amp; OCR</small>
-          </div>
-          <span class="capstone-workflow-connector" aria-hidden="true">&rarr;</span>
-          <div class="capstone-workflow-step">
-            <div class="capstone-workflow-icon">
-              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <span class="capstone-workflow-title">Bilingual Preview</span>
-            <small class="capstone-workflow-sub">Side-by-side review</small>
-          </div>
-        </div>
+  <section class="landing-story landing-shell" id="his-story" aria-labelledby="story-heading">
+    <div class="landing-story-grid">
+      <div class="landing-story-intro"><h2 class="landing-section-title" id="story-heading">A legacy rooted in Toril.</h2><p>The supplied community account remembers Agton through the places he lived, the land he farmed, and the relationships he held as southern Davao changed.</p></div>
+      <div class="landing-story-content">
+        <article class="landing-story-row"><h3>Where he lived and farmed</h3><p>The account places his residence and farming activities in Bago Gallera, Balyok, Daliao, and eventually Toril Proper.</p><p class="landing-place-list">Places named in the account: Bago Gallera, Balyok, Daliao, and Toril Proper.</p></article>
+        <article class="landing-story-row"><h3>Leadership during change</h3><p>Local histories describe him as a kind, accommodating leader who negotiated and shared land with newcomers and other communities as settlement expanded.</p></article>
+        <article class="landing-story-row"><h3>Remembered today</h3><p>His story helps connect the Indigenous history of Toril with the ancestral presence of the Bagobo Tagabawa in southern Davao.</p></article>
+        <p class="landing-source">Summary of the supplied poster transcription; this is not an independently verified historical account.</p>
       </div>
     </div>
   </section>
+
+  <section class="landing-community" aria-labelledby="community-heading"><div class="landing-shell">
+    <div class="landing-community-heading"><h2 class="landing-section-title" id="community-heading">Meet the Bagobo Tagabawa.</h2><p>The community material describes the Bagobo Tagabawa as a living Indigenous people whose culture, knowledge, and traditions continue across generations.</p></div>
+    <figure class="landing-apo-feature">
+      <div class="landing-apo-image"><img src="{% static 'images/editorial/mount-apo-landscape-1440.jpg' %}" alt="Wide view of Mount Apo beneath a blue and gold sky" loading="lazy" decoding="async"></div>
+      <div class="landing-apo-copy"><h3>People of Apo Sandawa</h3><p>Apo Sandawa (Mount Apo) is important to the community's ancestral homeland, history, culture, and spiritual life. The supplied material explains Tagabawa as &ldquo;people living in the south.&rdquo;</p></div>
+      <figcaption>Mount Apo photograph by Robert Anton Pimentel Aparente, <a href="https://commons.wikimedia.org/wiki/File:Mount_apo.jpg">Wikimedia Commons</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>. Display cropped for this layout.</figcaption>
+    </figure>
+  </div></section>
+
+  <section class="landing-heritage" aria-labelledby="heritage-heading"><div class="landing-shell">
+    <div class="landing-heritage-heading"><h2 class="landing-section-title" id="heritage-heading">Culture carried forward.</h2><p>Weaving, beadwork, embroidery, music, dance, stories, and traditional knowledge remain part of Bagobo Tagabawa living heritage.</p></div>
+    <div class="landing-heritage-grid">
+      <figure class="landing-heritage-card"><div class="landing-heritage-image"><img src="{% static 'images/editorial/bagobo-tagabawa-inabal-textile-1440.jpg' %}" alt="Long Inabal textile displayed vertically at a 2024 arts and crafts fair" loading="lazy" decoding="async"></div><figcaption><h3>Inabal weaving</h3><p>A displayed textile connects this section to the weaving tradition described in the community material.</p><p class="landing-source">Photo by Valenzuela400, <a href="https://commons.wikimedia.org/wiki/File:Inabal_abaca_Salinta_Monon_BansalanA.jpg">Wikimedia Commons</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p></figcaption></figure>
+      <figure class="landing-heritage-card"><div class="landing-heritage-image"><img src="{% static 'images/editorial/bagobo-tagabawa-traditional-house-1440.jpg' %}" alt="Bagobo Tagabawa traditional house on display in Davao City" loading="lazy" decoding="async"></div><figcaption><h3>A house on display</h3><p>A photographed cultural display offers another view of Bagobo Tagabawa material heritage.</p><p class="landing-source">Photo by MadayawDavao, <a href="https://commons.wikimedia.org/wiki/File:Traditional_House_by_the_Bagobo_Tagabawa_Tribe.jpg">Wikimedia Commons</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>. Display cropped for this layout.</p></figcaption></figure>
+    </div>
+  </div></section>
+
+  <section class="landing-language" aria-labelledby="language-heading"><div class="landing-shell landing-language-grid">
+    <div class="landing-language-copy"><h2 class="landing-section-title" id="language-heading">Language carries the story.</h2><p>A curated original-language excerpt and its approved translation can appear here once the exact wording, language labels, and attribution are supplied. This preview shows the intended reveal interaction.</p></div>
+    <div class="landing-quote-card"><p class="landing-quote-placeholder">[Approved excerpt pending.]</p><p class="landing-source">Exact wording, language, speaker, and source to be supplied. This is not a quotation from Datu Dalmacio Agton.</p><details class="landing-quote-disclosure"><summary><span class="landing-show">Preview translation space</span><span class="landing-hide">Hide translation space</span></summary><div class="landing-translation"><p class="landing-translation-label">Approved translation &middot; content pending</p><p>[Approved translation will appear here. Translator and source credit to be supplied.]</p></div></details></div>
+  </div></section>
+
+  <section class="landing-translate-cta" aria-labelledby="translate-heading"><div class="landing-shell landing-cta-inner"><div><h2 id="translate-heading">Translate a document.</h2><p>Upload a document, follow its progress, then review and download the result.</p></div><a class="landing-button landing-button-primary" href="{% url 'translator:translate' %}">Try now <span aria-hidden="true">&nearr;</span></a></div></section>
 </main>
 {% endblock %}

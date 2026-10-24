@@ -10,9 +10,10 @@
 <main class="auth-page">
   <form class="auth-panel" method="post">
     {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     {% if next_is_translate %}
       <h1>Log in to continue</h1>
-      <p class="page-subtitle">Sign in to access document translation.</p>
+      <p class="page-subtitle">Sign in to access document translation. You’ll return to Translate after logging in.</p>
     {% else %}
       <h1>Log In</h1>
     {% endif %}

@@ -10,7 +10,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from translator.forms import DocumentUploadForm
-from translator.editorial_media import PUBLIC_EDITORIAL_MEDIA
+from translator.editorial_media import APPROVED_EDITORIAL_IMAGE_PATHS, PUBLIC_EDITORIAL_MEDIA
 
 
 class NavigationAndHomepageTests(TestCase):
@@ -32,9 +32,9 @@ class NavigationAndHomepageTests(TestCase):
                 self.assertNotContains(response, "Content is being prepared")
                 self.assertNotContains(response, "editorial-page__notice")
                 self.assertContains(response, expected_text)
-                self.assertContains(response, 'id="interactive-experience"', html=False)
-                self.assertContains(response, "story-rail-container")
-                self.assertContains(response, "Continue Exploring")
+                self.assertContains(response, 'id="chapters"', html=False)
+                self.assertContains(response, 'class="chapter-index shell"', html=False)
+                self.assertContains(response, "Continue exploring")
 
     def test_salinta_monon_has_correct_dates_and_tagabawa_identity(self):
         response = self.client.get(reverse("translator:culture"))
@@ -60,14 +60,14 @@ class NavigationAndHomepageTests(TestCase):
         self.assertNotIn("NEEDS_RESEARCH", statuses)
         self.assertNotIn("REMOVE", statuses)
 
-    def test_bagobo_tagabawa_renders_interactive_experience(self):
+    def test_bagobo_tagabawa_renders_editorial_chapters(self):
         response = self.client.get(reverse("translator:bagobo_tagabawa"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Bagobo-Tagabawa")
         self.assertNotContains(response, "Content is being prepared")
-        self.assertContains(response, 'id="interactive-experience"', html=False)
-        self.assertContains(response, "Explore Their Story")
-        self.assertContains(response, "story-rail-container")
+        self.assertContains(response, 'id="chapters"', html=False)
+        self.assertContains(response, 'href="#who-are-they"', html=False)
+        self.assertContains(response, 'id="who-are-they"', html=False)
 
     def test_public_editorial_pages_share_versioned_assets_and_continue_exploring(self):
         for route_name in ("translator:bagobo_tagabawa", "translator:culture", "translator:nature"):
@@ -75,31 +75,21 @@ class NavigationAndHomepageTests(TestCase):
                 response = self.client.get(reverse(route_name))
                 body = response.content.decode("utf-8")
 
-                self.assertContains(response, "Continue Exploring")
+                self.assertContains(response, "Continue exploring")
                 self.assertIn("/static/css/styles.css?v=20260828-homepage-polish", body)
                 self.assertIn("/static/js/app.js?v=20260826-appjs-init-recovery", body)
+                self.assertIn("/static/css/editorial-pages.css", body)
 
-    def test_bagobo_story_uses_one_active_in_flow_slide(self):
+    def test_bagobo_story_exposes_each_chapter_in_document_order(self):
         response = self.client.get(reverse("translator:bagobo_tagabawa"))
         body = response.content.decode("utf-8")
-        stylesheet = (Path(__file__).resolve().parents[1] / "static" / "css" / "styles.css").read_text(
-            encoding="utf-8"
-        )
-        script = (Path(__file__).resolve().parents[1] / "static" / "js" / "app.js").read_text(
-            encoding="utf-8"
-        )
-
-        self.assertEqual(body.count('<article id="section-'), 6)
-        self.assertIn('class="story-slide is-active"', body)
-        self.assertEqual(body.count('aria-hidden="true" hidden'), 5)
-        self.assertIn('.story-slide[aria-hidden="true"]', stylesheet)
-        self.assertIn('scroll-margin-top: 9.5rem', stylesheet)
-        track_rules = stylesheet.split('.story-rail__track {', 1)[1].split('}', 1)[0]
-        self.assertIn('display: block', track_rules)
-        self.assertIn('overflow: clip', track_rules)
-        self.assertIn('touch-action: pan-y pinch-zoom', track_rules)
-        self.assertIn('activeSlide.hidden = false', script)
-        self.assertIn('function goToChapter(index, source)', script)
+        chapter_ids = re.findall(r'<section class="chapter(?:\s[^"]*)?" id="([^"]+)"', body)
+        self.assertEqual(chapter_ids, [
+            "who-are-they", "homeland", "community", "land", "textiles", "living-culture"
+        ])
+        for chapter_id in chapter_ids:
+            self.assertIn(f'href="#{chapter_id}"', body)
+        self.assertNotIn('data-story-rail', body)
 
     def test_dom_content_loaded_initializers_are_defined(self):
         script = (Path(__file__).resolve().parents[1] / "static" / "js" / "app.js").read_text(
@@ -117,47 +107,21 @@ class NavigationAndHomepageTests(TestCase):
         self.assertTrue(calls)
         self.assertEqual([], sorted(set(calls) - definitions))
 
-    def test_home_uses_minimal_two_section_structure_and_capstone(self):
+    def test_home_leads_with_datu_and_keeps_unapproved_content_labeled(self):
         response = self.client.get(reverse("translator:home"))
         body = response.content.decode("utf-8")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'class="home-page home-page--minimal"', html=False)
-        self.assertContains(response, 'class="home-explore-hero"', html=False)
-        self.assertContains(response, 'class="explore-panel-grid"', html=False)
-        self.assertContains(response, 'href="#main-feature"', html=False)
-        self.assertContains(response, 'class="scroll-down-btn"', html=False)
-        self.assertContains(response, 'id="main-feature"', html=False)
-        self.assertContains(response, "What do you want to explore?")
-        self.assertContains(response, "A CAPSTONE PROJECT OF")
-        self.assertContains(response, "JOHN KIAN B. CAYAPOS")
-        self.assertContains(response, "JIGGEN FLORES")
-        self.assertContains(response, "CARL ABEDEJOS")
-        self.assertContains(response, "VINCE CABAÑOG")
-        self.assertContains(response, "Translate a Document")
-        self.assertContains(response, "Upload a document, choose a language direction")
-        self.assertContains(response, "Bilingual Preview")
-
-        # Confirm EXPLORE and MAIN FEATURE labels are removed
-        self.assertNotIn('<p class="eyebrow">EXPLORE</p>', body)
-        self.assertNotIn("MAIN FEATURE", body)
-
-        # Confirm format tags show only PDF and DOCX
-        self.assertContains(response, "<li>PDF</li>")
-        self.assertContains(response, "<li>DOCX</li>")
-        self.assertNotContains(response, "<li>JPG</li>")
-        self.assertNotContains(response, "<li>PNG</li>")
-        self.assertNotContains(response, "<li>TXT</li>")
-
-        # Confirm old removed sections are absent
-        self.assertNotIn("editorial-hero--home", body)
-        self.assertNotIn("home-featured", body)
-        self.assertNotIn("culture-preview", body)
-        self.assertNotIn("nature-feature", body)
-        self.assertNotIn("workflow-section", body)
-        self.assertNotIn("Stories deserve context", body)
-        self.assertNotIn("A magazine-like space for careful learning", body)
-        self.assertNotIn("Landscape, environment, and place", body)
+        self.assertIn('<main class="landing-page">', body)
+        self.assertIn('<h1 id="datu-heading">Datu Dalmacio Agton</h1>', body)
+        self.assertIn("Archival image &middot; not Datu Agton", body)
+        self.assertIn("Illustrative archival photograph &mdash; not Datu Dalmacio Agton.", body)
+        self.assertIn('href="#his-story"', body)
+        self.assertIn('class="landing-quote-disclosure"', body)
+        self.assertIn("[Approved excerpt pending.]", body)
+        self.assertIn("[Approved translation will appear here.", body)
+        self.assertIn("Preview translation space", body)
+        self.assertIn('href="/translate/">Try now', body)
 
     def test_footer_exposes_explore_and_translation_destinations_without_about(self):
         response = self.client.get(reverse("translator:home"))
@@ -252,12 +216,13 @@ class NavigationAndHomepageTests(TestCase):
 
 
 class PublicEditorialHeroSystemTests(TestCase):
-    """Guard the shared, responsive public-facing editorial hero contract."""
+    """Guard the approved shared editorial opening and responsive layout."""
 
     public_pages = (
         ("translator:bagobo_tagabawa", "Bagobo-Tagabawa"),
         ("translator:culture", "Culture"),
         ("translator:nature", "Nature"),
+        ("translator:community", "Community"),
     )
 
     def test_all_public_pages_render_the_shared_editorial_hero_anatomy(self):
@@ -267,48 +232,28 @@ class PublicEditorialHeroSystemTests(TestCase):
                 body = response.content.decode("utf-8")
 
                 self.assertEqual(response.status_code, 200)
-                self.assertIn("editorial-hero", body)
-                self.assertIn("editorial-hero__content", body)
-                self.assertIn("editorial-hero__eyebrow", body)
-                self.assertIn("editorial-hero__title", body)
-                self.assertIn("editorial-hero__description", body)
-                self.assertIn("editorial-hero__media", body)
+                self.assertIn('class="masthead"', body)
+                self.assertIn('class="masthead__image"', body)
+                self.assertIn('class="masthead__intro"', body)
+                self.assertIn('class="story-figure story-figure--hero"', body)
+                self.assertIn('class="page-picker shell"', body)
                 self.assertIn(expected_title, body)
 
     def test_shared_hero_css_includes_responsive_media_and_short_height_rules(self):
-        stylesheet = (Path(__file__).resolve().parents[1] / "static" / "css" / "styles.css").read_text(
+        stylesheet = (Path(__file__).resolve().parents[1] / "static" / "css" / "editorial-pages.css").read_text(
             encoding="utf-8"
         )
-
-        for selector in (
-            ".editorial-hero {",
-            ".editorial-hero__content {",
-            ".editorial-hero__eyebrow {",
-            ".editorial-hero__title {",
-            ".editorial-hero__description {",
-            ".editorial-hero__actions {",
-            ".editorial-hero__media {",
-        ):
-            with self.subTest(selector=selector):
-                self.assertIn(selector, stylesheet)
-
-        self.assertRegex(
-            stylesheet,
-            r"@media\s*\(min-width:\s*1024px\)\s*and\s*\(max-height:\s*820px\)",
-        )
-        self.assertIn("--editorial-hero-media-height: clamp(360px, 50vh, 540px)", stylesheet)
-        self.assertIn(".editorial-hero__media", stylesheet)
-        self.assertIn(".editorial-hero {", stylesheet)
-        self.assertIn("grid-template-columns", stylesheet)
+        self.assertIn(".masthead__image", stylesheet)
+        self.assertIn(".masthead__body", stylesheet)
+        self.assertIn(".story-figure--hero", stylesheet)
+        self.assertIn("woven-pattern-placeholder.svg", stylesheet)
 
     def test_shared_hero_stacks_at_the_public_tablet_breakpoint(self):
-        stylesheet = (Path(__file__).resolve().parents[1] / "static" / "css" / "styles.css").read_text(
+        stylesheet = (Path(__file__).resolve().parents[1] / "static" / "css" / "editorial-pages.css").read_text(
             encoding="utf-8"
         )
-        tablet_section = stylesheet.rsplit("@media (max-width: 900px)", 1)[-1]
-
-        self.assertIn(".editorial-hero", tablet_section)
-        self.assertIn("grid-template-columns: 1fr", tablet_section)
+        self.assertIn("@media(max-width:800px)", stylesheet)
+        self.assertIn(".masthead__body,.chapter-index,.chapter__grid{grid-template-columns:1fr}", stylesheet)
 
 
 class VerifiedEditorialMediaTests(TestCase):
@@ -318,6 +263,7 @@ class VerifiedEditorialMediaTests(TestCase):
         ("translator:bagobo_tagabawa", "bagobo_tagabawa"),
         ("translator:culture", "culture"),
         ("translator:nature", "nature"),
+        ("translator:community", "community"),
     )
 
     def test_approved_editorial_variants_are_collectable_static_files(self):
@@ -339,7 +285,8 @@ class VerifiedEditorialMediaTests(TestCase):
 
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(media["image_960"], body)
-                self.assertIn(media["short_credit"], body)
+                self.assertIn(media["photographer"], body)
+                self.assertIn(media["source_title"], body)
                 self.assertIn(media["license"], body)
                 self.assertIn(media["source_url"], body)
                 self.assertIn('fetchpriority="high"', body)
@@ -361,7 +308,8 @@ class VerifiedEditorialMediaTests(TestCase):
         response = self.client.get(reverse("translator:culture"))
         body = response.content.decode("utf-8")
 
-        self.assertContains(response, 'class="gallery"', html=False)
+        self.assertContains(response, 'id="photographs"', html=False)
+        self.assertContains(response, 'data-count="2"', html=False)
         for record in PUBLIC_EDITORIAL_MEDIA["culture"]["gallery_items"]:
             self.assertIn(record["photographer"], body)
             self.assertIn(record["source_title"], body)
@@ -372,9 +320,9 @@ class VerifiedEditorialMediaTests(TestCase):
         response = self.client.get(reverse("translator:bagobo_tagabawa"))
         body = response.content.decode("utf-8")
 
-        self.assertContains(response, 'id="section-gallery"', html=False)
-        self.assertContains(response, 'data-gallery', html=False)
-        self.assertIn('href="#section-gallery"', body)
+        self.assertContains(response, 'id="photographs"', html=False)
+        self.assertContains(response, 'data-count="4"', html=False)
+        self.assertIn('href="#photographs"', body)
         for record in PUBLIC_EDITORIAL_MEDIA["bagobo_tagabawa"]["gallery_items"]:
             self.assertIn(record["image_960"], body)
             self.assertIn(record["source_url"], body)
@@ -383,8 +331,12 @@ class VerifiedEditorialMediaTests(TestCase):
         response = self.client.get(reverse("translator:nature"))
         body = response.content.decode("utf-8")
 
-        self.assertContains(response, 'class="gallery"', html=False)
+        self.assertContains(response, 'id="photographs"', html=False)
+        self.assertContains(response, 'data-count="2"', html=False)
         for record in PUBLIC_EDITORIAL_MEDIA["nature"]["gallery_items"]:
+            if record["image_960"] not in APPROVED_EDITORIAL_IMAGE_PATHS:
+                self.assertNotIn(record["image_960"], body)
+                continue
             self.assertIn(record["photographer"], body)
             self.assertIn(record["source_title"], body)
             self.assertIn(record["source_url"], body)
@@ -400,44 +352,30 @@ class VerifiedEditorialMediaTests(TestCase):
                 response = self.client.get(reverse(route_name))
                 body = response.content.decode("utf-8")
                 for path in expected_paths:
-                    self.assertIn(
-                        f'<a class="continue-card continue-card--interactive" href="{path}"',
-                        body,
-                    )
-                self.assertIn(
-                    '<a class="continue-card continue-card--cta continue-card--interactive" href="/translate/"',
-                    body,
-                )
+                    self.assertIn(f'href="{path}"', body)
+                self.assertIn('href="/translate/"', body)
 
-    def test_home_renders_four_category_explore_panels(self):
+    def test_home_renders_four_credited_discovery_paths(self):
         response = self.client.get(reverse("translator:home"))
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
 
-        self.assertIn('class="explore-panel-grid', body)
-        self.assertIn("Bagobo-Tagabawa", body)
-        self.assertIn("People, language, and living heritage.", body)
-        self.assertIn('href="/bagobo-tagabawa/"', body)
-
-        self.assertIn("Culture", body)
-        self.assertIn("Material culture, language, and traditions.", body)
-        self.assertIn('href="/culture/"', body)
-
-        self.assertIn("Nature", body)
-        self.assertIn("Mount Apo, land, and environment.", body)
-        self.assertIn('href="/nature/"', body)
-
-        self.assertIn("Community", body)
-        self.assertIn("People, stories, and contemporary community life.", body)
-        self.assertIn('href="/community/"', body)
+        self.assertIn('class="landing-discovery-grid"', body)
+        for route_name in ("bagobo_tagabawa", "culture", "nature", "community"):
+            self.assertIn(f'href="{reverse("translator:" + route_name)}"', body)
+        self.assertEqual(body.count('class="landing-discovery-card__credit"'), 4)
+        self.assertIn("Not Datu Agton.", body)
 
     def test_community_route_renders_verified_interactive_experience(self):
         response = self.client.get(reverse("translator:community"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Community Life, Learning &amp; Continuity")
-        self.assertContains(response, "Explore Their Story")
-        self.assertContains(response, 'id="interactive-experience"', html=False)
+        self.assertContains(response, 'id="chapters"', html=False)
         self.assertContains(response, "Community-Based Education in Astorga")
+        self.assertContains(response, "Campus context; this does not depict the PANGANDOY program.")
+        self.assertContains(response, "Campus context; this does not depict a PANGANDOY writeshop.")
+        self.assertContains(response, "usep-obrero-gate-960.jpg")
+        self.assertContains(response, "usep-obrero-entrance-960.jpg")
 
 
 class DocumentUploadFormatRestrictionTests(TestCase):
@@ -455,31 +393,13 @@ class DocumentUploadFormatRestrictionTests(TestCase):
             z.writestr("word/document.xml", "<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'></w:document>")
         return buf.getvalue()
 
-    def test_homepage_renders_all_four_capstone_owners_and_cabanog_unicode(self):
-        response = self.client.get(reverse("translator:home"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "A CAPSTONE PROJECT OF")
-        self.assertContains(response, "JOHN KIAN B. CAYAPOS")
-        self.assertContains(response, "JIGGEN FLORES")
-        self.assertContains(response, "CARL ABEDEJOS")
-        self.assertContains(response, "VINCE CABAÑOG")
-
-    def test_homepage_shows_pdf_and_docx_and_does_not_advertise_jpg_png_txt(self):
-        response = self.client.get(reverse("translator:home"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "<li>PDF</li>")
-        self.assertContains(response, "<li>DOCX</li>")
-        self.assertNotContains(response, "<li>JPG</li>")
-        self.assertNotContains(response, "<li>PNG</li>")
-        self.assertNotContains(response, "<li>TXT</li>")
-
     def test_translate_page_restricts_accept_attribute_and_helper_text(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("translator:translate"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'accept=".pdf,.docx"')
-        self.assertContains(response, "Supported: PDF and DOCX, up to 10 MB.")
-        self.assertContains(response, "PDF or DOCX &mdash; up to 10 MB")
+        self.assertContains(response, "PDF or DOCX · up to 50 MB")
+        self.assertContains(response, 'data-max-file-bytes="52428800"')
         # Ensure file input does not accept non-document types
         self.assertNotContains(response, 'accept=".pdf,.docx,.jpg')
         self.assertNotContains(response, "Supported: PDF, DOCX, JPG")

@@ -1,97 +1,88 @@
 {% extends "translator/base.html" %}
+{% load static %}
 
 {% block title %}Translate a Document{% endblock %}
 {% block meta_description %}Upload a PDF or DOCX document for Bagobo-Tagabawa translation.{% endblock %}
+{% block body_class %}translate-flow-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/translate-flow.css' %}?v=1">{% endblock %}
+{% block extra_js %}<script src="{% static 'js/translate-flow.js' %}?v=1" defer></script>{% endblock %}
 
 {% block content %}
-<main class="translator-page translate-page">
-  <header class="page-heading compact">
-    <h1>Translate a Document</h1>
-  </header>
-
-  <section class="document-dashboard document-workspace">
-    <aside class="recent-sidebar document-section document-section--recent" aria-label="Recent documents">
-      <div class="section-title-row">
-        <h2>Recent Documents</h2>
-        <a href="{% url 'translator:history' %}" class="button-link">View all &rarr;</a>
+<main class="translate-flow" id="translate-main">
+  <div class="translate-flow__shell">
+    <div class="translate-flow__title-row">
+      <div>
+        <h1>Translate a document</h1>
+        <p>Upload a PDF or DOCX, choose the language direction, and follow its progress.</p>
       </div>
+      <a href="{% url 'translator:history' %}">View history <span aria-hidden="true">↗</span></a>
+    </div>
+
+    <form id="translate-flow-form" class="translate-flow__grid" method="post" enctype="multipart/form-data" data-upload-url="{% url 'translator:upload' %}" data-job-url="{% url 'translator:job_detail' '00000000-0000-0000-0000-000000000000' %}" data-max-file-bytes="52428800">
+      {% csrf_token %}
+      <section class="translate-flow__card translate-flow__upload" aria-labelledby="translate-upload-title">
+        <div class="translate-flow__card-heading">
+          <div><span class="translate-flow__step" aria-hidden="true">01</span><h2 id="translate-upload-title">Add your document</h2></div>
+          <span class="translate-flow__accepted">PDF · DOCX</span>
+        </div>
+        <div id="translate-upload-stage">
+          <label class="translate-flow__drop" id="translate-drop-zone" for="translate-file">
+            <input id="translate-file" name="file" type="file" accept=".pdf,.docx" aria-describedby="translate-file-help translate-file-feedback">
+            <svg class="translate-flow__file-icon" viewBox="0 0 48 56" fill="none" aria-hidden="true"><path d="M7 2h22l12 12v36a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4Z" stroke="currentColor" stroke-width="2"/><path d="M29 2v12h12M14 29h17M14 36h17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <span class="translate-flow__drop-copy"><strong>Choose a document</strong><small id="translate-file-help">PDF or DOCX · up to 50 MB</small></span>
+            <span class="translate-flow__browse">Browse files</span>
+          </label>
+          <div class="translate-flow__selected" id="translate-selected" hidden>
+            <span class="translate-flow__file-type" id="translate-file-type" aria-hidden="true">PDF</span>
+            <span class="translate-flow__selected-copy"><strong id="translate-file-name"></strong><small id="translate-file-size"></small></span>
+            <button type="button" id="translate-remove-file">Remove</button>
+          </div>
+        </div>
+        <div class="translate-flow__status" id="translate-uploading" hidden role="status" aria-live="polite">
+          <span class="translate-flow__status-line" aria-hidden="true"></span>
+          <h3>Uploading your document</h3>
+          <p id="translate-uploading-file">Your document is being sent. Keep this page open until the upload finishes.</p>
+          <small>Translation begins after the upload is accepted.</small>
+        </div>
+        <div class="translate-flow__status translate-flow__status--error" id="translate-error-stage" hidden role="alert">
+          <span class="translate-flow__status-line" aria-hidden="true"></span>
+          <h3>We couldn’t upload this document</h3>
+          <p id="translate-error-description"></p>
+          <button type="button" id="translate-try-again" class="translate-flow__outline">Choose a document to try again</button>
+        </div>
+        <p id="translate-file-feedback" class="translate-flow__feedback" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="translate-flow__card translate-flow__settings" aria-labelledby="translate-settings-title">
+        <div class="translate-flow__card-heading"><div><span class="translate-flow__step" aria-hidden="true">02</span><h2 id="translate-settings-title">Language direction</h2></div></div>
+        <div class="translate-flow__fields">
+          <label for="translate-source">From</label>
+          <select id="translate-source" name="source_language"><option value="auto">Auto-detect</option><option value="english">English</option><option value="filipino">Filipino / Tagalog</option><option value="cebuano">Cebuano</option><option value="tagabawa">Bagobo-Tagabawa</option></select>
+          <button type="button" id="translate-swap" aria-label="Swap source and target languages" title="Choose a source language to swap" disabled>⇅ <span>Swap languages</span></button>
+          <label for="translate-target">To</label>
+          <select id="translate-target" name="target_language"><option value="tagabawa">Bagobo-Tagabawa</option><option value="english">English</option><option value="filipino">Filipino / Tagalog</option><option value="cebuano">Cebuano</option></select>
+        </div>
+        <div class="translate-flow__action"><button id="translate-start" type="submit" disabled>Start translation <span aria-hidden="true">→</span></button><p id="translate-action-help">Choose a document to continue.</p></div>
+      </section>
+    </form>
+
+    <p class="translate-flow__support"><strong>Keep track of your document.</strong> View its status and available downloads from your account history.</p>
+    <section class="translate-flow__recent" aria-labelledby="translate-recent-title">
+      <div class="translate-flow__recent-head"><div><h2 id="translate-recent-title">Recent documents</h2><p>Pick up where you left off.</p></div><a href="{% url 'translator:history' %}">View all history <span aria-hidden="true">↗</span></a></div>
       {% if recent_jobs %}
-        <div class="document-card-list compact">
-          {% for state in recent_jobs %}
-            {% include "translator/partials/_document_card.html" with state=state card_compact=True show_remove=True card_variant="recent" %}
-          {% endfor %}
-        </div>
+      <div class="translate-flow__recent-list">
+        {% for state in recent_jobs %}
+        <a class="translate-flow__recent-item" href="{% url 'translator:job_detail' state.job.id %}" aria-label="Open {{ state.document_title }}, {{ state.status_label }}">
+          <span class="translate-flow__file-type" aria-hidden="true">{{ state.job.file_type|upper }}</span>
+          <span class="translate-flow__recent-file"><strong>{{ state.document_title }}</strong><small>{{ state.language_pair_label }}</small></span>
+          <span class="translate-flow__recent-status" data-status="{{ state.job.status }}">{{ state.status_label }}</span><span aria-hidden="true">↗</span>
+        </a>
+        {% endfor %}
+      </div>
       {% else %}
-        <div class="sidebar-empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="sidebar-empty-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <p>No documents yet.</p><p class="text-muted small">Upload your first document to get started.</p>
-        </div>
+      <div class="translate-flow__recent-empty"><span aria-hidden="true"></span><p>No documents yet. Your first upload will appear here.</p></div>
       {% endif %}
-    </aside>
-
-    <section class="upload-workspace document-section document-section--upload">
-      <form id="upload-form" class="upload-panel" method="post" enctype="multipart/form-data" data-upload-url="{% url 'translator:upload' %}" data-job-base="{% url 'translator:job_detail' '00000000-0000-0000-0000-000000000000' %}" data-status-base="/translate/status/" data-preview-base="/translate/job/" data-download-base="/translate/job/">
-        {% csrf_token %}
-        <label id="drop-zone" class="drop-zone" for="id_file">
-          <input id="id_file" name="file" type="file" accept=".pdf,.docx" aria-describedby="file-help">
-          <span class="drop-icon drop-icon--animated" aria-hidden="true">
-            <span class="drop-icon__glow" aria-hidden="true"></span>
-            <svg class="drop-icon__svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect class="drop-doc-shadow" x="14" y="16" width="36" height="42" rx="5" fill="rgba(0,0,0,0.08)" />
-              <path class="drop-doc-base" d="M16 12C16 9.79086 17.7909 8 20 8H38L48 18V50C48 52.2091 46.2091 54 44 54H20C17.7909 54 16 52.2091 16 50V12Z" fill="#FFFFFF" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round"/>
-              <path class="drop-doc-fold" d="M38 8V16C38 17.1046 38.8954 18 40 18H48" fill="#FEF3C7" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <line class="drop-doc-line" x1="22" y1="24" x2="34" y2="24" stroke="var(--color-accent-500)" stroke-width="2" stroke-linecap="round"/>
-              <line class="drop-doc-line" x1="22" y1="30" x2="30" y2="30" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/>
-              <circle class="drop-arrow-bg" cx="36" cy="38" r="14" fill="var(--primary)"/>
-              <circle class="drop-arrow-ring" cx="36" cy="38" r="14" fill="none" stroke="var(--color-accent-400)" stroke-width="1.5" stroke-dasharray="3 3"/>
-              <g class="drop-arrow-group">
-                <path d="M36 44V32" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
-                <path d="M31 36L36 31L41 36" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </g>
-            </svg>
-          </span>
-          <strong id="selected-file-name">Drop your document here</strong>
-          <small id="selected-file-meta">PDF or DOCX &mdash; up to 10 MB</small>
-        </label>
-        <p id="file-help" class="form-help">Supported: PDF and DOCX, up to 10 MB.</p>
-        <div id="file-required-message" class="alert warning" role="status">Please select a file to start translation.</div>
-        <div id="upload-error" class="alert error" hidden role="alert"></div>
-        <div id="ready-message" class="alert success" hidden role="status">File ready. Click Start Translation when ready.</div>
-        <div class="privacy-retention-badge" aria-label="Privacy policy notice">
-          <div class="privacy-badge__icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          </div>
-          <div class="privacy-badge__content">
-            <strong class="privacy-badge__title">Zero Permanent Storage Policy</strong>
-            <p class="privacy-badge__desc">Uploaded documents and outputs are automatically purged from servers within <strong>2 hours</strong> for user privacy and data sovereignty.</p>
-          </div>
-        </div>
-        <p class="form-help">Your upload is stored with your account so you can monitor, preview, and download its result.</p>
-      </form>
     </section>
-
-    <aside class="settings-panel workflow-panel translation-settings document-section document-section--settings">
-      <h2 class="sidebar-section-title">Translation Settings</h2>
-      <div class="language-pair-controls translation-settings__fields">
-        <label class="translation-settings__field" for="source-language"><span class="translation-settings__label">From</span><select class="translation-settings__select" form="upload-form" name="source_language" id="source-language"><option value="auto">Auto-Detect</option><option value="english">English</option><option value="filipino">Filipino / Tagalog</option><option value="cebuano">Cebuano</option><option value="tagabawa">Bagobo-Tagabawa</option></select></label>
-        <button class="language-swap-button translation-settings__swap" type="button" data-swap-languages aria-label="Swap source and target languages" title="Choose a source language to swap">⇅<span class="sr-only">Swap languages</span></button>
-        <label class="translation-settings__field" for="target-language"><span class="translation-settings__label">To</span><select class="translation-settings__select" form="upload-form" name="target_language" id="target-language"><option value="tagabawa">Bagobo-Tagabawa</option><option value="english">English</option><option value="filipino">Filipino / Tagalog</option><option value="cebuano">Cebuano</option></select></label>
-      </div>
-      <button id="translate-button" class="button primary full translation-settings__submit" form="upload-form" type="submit" disabled>Start Translation</button>
-      {# Kept hidden for the shared preview-link enhancement; accepted jobs now redirect to their compact status card. #}
-      <div id="complete-actions" class="complete-actions" hidden>
-        <a id="preview-link" class="button secondary full js-preview-link" data-loading-text="Preparing document preview…" href="#" hidden>Preview Document</a>
-        <a id="download-link" class="button primary full" href="#" hidden>Download Translated Document</a>
-      </div>
-      {% if active_job %}<section class="workflow-status"><h2 class="sidebar-section-title">Active document</h2><p class="active-job-name"><strong>{{ active_job.document_title }}</strong></p><a class="button-link" href="{% url 'translator:job_detail' active_job.job.id %}">Open translation</a></section>{% endif %}
-    </aside>
-  </section>
+  </div>
 </main>
-
-<div id="translation-submission-overlay" class="translation-processing-overlay" hidden aria-hidden="true">
-  {% include "translator/partials/_translating_state.html" with icon_id="submission-state-icon" state_word_id="submission-state-word" state_description_id="submission-state-description" progress_wrap_id="submission-progress-wrap" progress_id="translation-submission-progress" loading_description="Your document is being uploaded and prepared for translation." %}
-</div>
 {% endblock %}

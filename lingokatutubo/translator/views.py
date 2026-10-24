@@ -36,7 +36,7 @@ from .forms import (
     TranslationResourceForm,
     TranslationResourceImportForm,
 )
-from .editorial_media import PUBLIC_EDITORIAL_MEDIA
+from .editorial_media import APPROVED_EDITORIAL_IMAGE_PATHS, PUBLIC_EDITORIAL_MEDIA
 from .editorial_content import get_public_content
 from .models import (
     GeneratedOutput,
@@ -159,85 +159,50 @@ def home(request):
     return render(request, "translator/home.html", PUBLIC_EDITORIAL_MEDIA["home"])
 
 
-def bagobo_tagabawa(request):
-    content = get_public_content("bagobo_tagabawa")
-    return render(
-        request,
-        "translator/editorial_page.html",
+def _public_editorial_page(request, page_key):
+    content = get_public_content(page_key)
+    media = PUBLIC_EDITORIAL_MEDIA[page_key]
+    sections = [
         {
-            **PUBLIC_EDITORIAL_MEDIA["bagobo_tagabawa"],
-            "page_key": "bagobo_tagabawa",
-            "eyebrow": content["hero"]["eyebrow"],
-            "title": content["hero"]["title"],
-            "intro": content["hero"]["description"],
-            "action_label": content["hero"].get("action_label", "Explore"),
-            "story_navigation": content.get("story_navigation", []),
-            "sections": content["sections"],
-            "sources": content.get("sources", []),
-            "continue_exploring": content.get("continue_exploring", []),
-        },
-    )
+            **section,
+            "media": section.get("media")
+            if section.get("media") and section["media"]["image_960"] in APPROVED_EDITORIAL_IMAGE_PATHS
+            else None,
+        }
+        for section in content["sections"]
+    ]
+    gallery_items = [
+        item for item in media.get("gallery_items", ())
+        if item["image_960"] in APPROVED_EDITORIAL_IMAGE_PATHS
+    ]
+    return render(request, "translator/editorial_page.html", {
+        **media,
+        "page_key": page_key,
+        "title": content["hero"]["title"],
+        "display_title": "Community" if page_key == "community" else content["hero"]["title"],
+        "intro": content["hero"]["description"],
+        "sections": sections,
+        "sources": content.get("sources", []),
+        "gallery_items": gallery_items,
+        "gallery_count": len(gallery_items),
+        "video_feature": content.get("video_feature"),
+    })
+
+
+def bagobo_tagabawa(request):
+    return _public_editorial_page(request, "bagobo_tagabawa")
 
 
 def culture(request):
-    content = get_public_content("culture")
-    return render(
-        request,
-        "translator/editorial_page.html",
-        {
-            **PUBLIC_EDITORIAL_MEDIA["culture"],
-            "page_key": "culture",
-            "eyebrow": content["hero"]["eyebrow"],
-            "title": content["hero"]["title"],
-            "intro": content["hero"]["description"],
-            "action_label": content["hero"].get("action_label", "Explore"),
-            "story_navigation": content.get("story_navigation", []),
-            "sections": content["sections"],
-            "sources": content.get("sources", []),
-            "continue_exploring": content.get("continue_exploring", []),
-        },
-    )
+    return _public_editorial_page(request, "culture")
 
 
 def nature(request):
-    content = get_public_content("nature")
-    return render(
-        request,
-        "translator/editorial_page.html",
-        {
-            **PUBLIC_EDITORIAL_MEDIA["nature"],
-            "page_key": "nature",
-            "eyebrow": content["hero"]["eyebrow"],
-            "title": content["hero"]["title"],
-            "intro": content["hero"]["description"],
-            "action_label": content["hero"].get("action_label", "Explore"),
-            "story_navigation": content.get("story_navigation", []),
-            "sections": content["sections"],
-            "video_feature": content.get("video_feature"),
-            "sources": content.get("sources", []),
-            "continue_exploring": content.get("continue_exploring", []),
-        },
-    )
+    return _public_editorial_page(request, "nature")
 
 
 def community(request):
-    content = get_public_content("community")
-    return render(
-        request,
-        "translator/editorial_page.html",
-        {
-            **PUBLIC_EDITORIAL_MEDIA["community"],
-            "page_key": "community",
-            "eyebrow": content["hero"]["eyebrow"],
-            "title": content["hero"]["title"],
-            "intro": content["hero"]["description"],
-            "action_label": content["hero"].get("action_label", "Explore"),
-            "story_navigation": content.get("story_navigation", []),
-            "sections": content["sections"],
-            "sources": content.get("sources", []),
-            "continue_exploring": content.get("continue_exploring", []),
-        },
-    )
+    return _public_editorial_page(request, "community")
 
 
 @login_required

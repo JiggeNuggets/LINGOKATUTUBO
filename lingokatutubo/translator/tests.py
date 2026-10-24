@@ -287,16 +287,16 @@ class TranslatorAuthAndJobTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn("Translation Settings", body)
+        self.assertIn("Language direction", body)
         self.assertNotIn("OCR Language Coverage", body)
         self.assertNotIn("Used automatically for scanned PDFs and images.", body)
         self.assertNotIn("ocr_languages_list", body)
         self.assertNotIn("Custom OCR Codes", body)
         self.assertNotIn("ocr_languages_custom", body)
         self.assertNotIn("Orientation and Script Detection", body)
-        self.assertRegex(body, r'id="complete-actions"[^>]*hidden')
-        self.assertRegex(body, r'id="preview-link"[^>]*hidden')
-        self.assertRegex(body, r'id="download-link"[^>]*hidden')
+        self.assertRegex(body, r'id="translate-uploading"[^>]*hidden')
+        self.assertNotIn('id="preview-link"', body)
+        self.assertNotIn('id="download-link"', body)
 
     def test_hidden_upload_actions_are_not_overridden_by_css(self):
         styles_path = Path(__file__).resolve().parents[1] / "static" / "css" / "styles.css"
@@ -2402,24 +2402,23 @@ class TranslatorUIRefreshTests(TestCase):
         self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', body)
         self.assertIn("Preview available once processing completes.", body)
 
-    def test_translate_page_shows_file_required_message_with_disabled_button(self):
+    def test_translate_page_requires_file_before_starting(self):
         self.client.force_login(self.alice)
 
         response = self.client.get(reverse("translator:translate"))
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn('id="file-required-message"', body)
-        self.assertIn("Please select a file to start translation.", body)
-        button_start = body.index('id="translate-button"')
+        self.assertIn('id="translate-file"', body)
+        self.assertIn("Choose a document to continue.", body)
+        button_start = body.index('id="translate-start"')
         button_html = body[button_start:body.index("</button>", button_start)]
         self.assertIn("disabled", button_html)
 
-        app_js = Path(settings.BASE_DIR) / "static" / "js" / "app.js"
+        app_js = Path(settings.BASE_DIR) / "static" / "js" / "translate-flow.js"
         script = app_js.read_text(encoding="utf-8")
-        self.assertIn("fileRequiredMessage", script)
-        self.assertIn("setHidden(fileRequiredMessage, false)", script)
-        self.assertIn("setHidden(fileRequiredMessage, true)", script)
+        self.assertIn("function validateFile(file)", script)
+        self.assertIn("submit.disabled = false", script)
 
     def test_failed_job_history_card_shows_failed_indicator_not_preview(self):
         job = self._create_job(TranslationJob.Status.FAILED)
@@ -2436,20 +2435,19 @@ class TranslatorUIRefreshTests(TestCase):
         self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', body)
         self.assertIn("Translation failed safely.", body)
 
-    def test_completed_job_recent_sidebar_card_shows_preview_and_remove(self):
-        self._create_job(TranslationJob.Status.COMPLETED)
+    def test_completed_job_recent_row_opens_saved_job(self):
+        job = self._create_job(TranslationJob.Status.COMPLETED)
         self.client.force_login(self.alice)
 
         response = self.client.get(reverse("translator:translate"))
 
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn(">Preview<", body)
-        self.assertNotIn(">Download<", body)
-        self.assertIn(">Remove<", body)
-        self.assertIn("data-remove-document", body)
+        self.assertIn(f'href="{reverse("translator:job_detail", args=[job.id])}"', body)
+        self.assertIn('data-status="completed"', body)
+        self.assertNotIn('data-remove-document', body)
 
-    def test_translate_recent_documents_remain_limited_to_three_with_remove_controls(self):
+    def test_translate_recent_documents_remain_limited_to_two(self):
         for _index in range(4):
             self._create_job(TranslationJob.Status.COMPLETED)
         self.client.force_login(self.alice)
@@ -2457,9 +2455,8 @@ class TranslatorUIRefreshTests(TestCase):
         response = self.client.get(reverse("translator:translate"))
 
         body = response.content.decode("utf-8")
-        self.assertEqual(len(response.context["recent_jobs"]), 3)
-        self.assertEqual(body.count("data-document-card"), 3)
-        self.assertEqual(body.count("data-remove-document"), 3)
+        self.assertEqual(len(response.context["recent_jobs"]), 2)
+        self.assertEqual(body.count('class="translate-flow__recent-item"'), 2)
 
     def test_app_js_contains_remove_modal_fetch_flow(self):
         app_js = Path(settings.BASE_DIR) / "static" / "js" / "app.js"
@@ -2653,7 +2650,7 @@ class TranslatorUIRefreshTests(TestCase):
 
         self.assertNotIn("view-all-link", css)
         self.assertNotIn("view-all-link", translate_html)
-        self.assertIn('class="button-link"', translate_html)
+        self.assertIn('class="translate-flow__recent-head"', translate_html)
 
     # ---- Phase 6: preview page-row alignment ----
 
@@ -9001,8 +8998,7 @@ class AppendixKBilingualPreviewUXTests(TestCase):
     # ------------------------------------------------------------------
 
     def test_preview_bilingual_links_carry_loading_hooks(self):
-        """Every Preview Bilingual entry point ships the JS loading hooks
-        (class + data attribute) and the shared page-transition overlay."""
+        """Preview links keep loading hooks; Translate opens the saved job."""
         job = TranslationJob.objects.create(
             owner=self.alice,
             original_filename="ready.pdf",
@@ -9021,8 +9017,8 @@ class AppendixKBilingualPreviewUXTests(TestCase):
             self.assertIn("js-preview-link", body)
             self.assertIn("data-loading-text", body)
 
-        self.assertIn('id="preview-link"', translate_body)
-        self.assertIn("js-preview-link", translate_body)
+        self.assertIn(f'href="{reverse("translator:job_detail", args=[job.id])}"', translate_body)
+        self.assertNotIn('id="preview-link"', translate_body)
         self.assertIn('id="page-transition-overlay"', detail_body)
         self.assertIn('id="js-error-banner"', detail_body)
 

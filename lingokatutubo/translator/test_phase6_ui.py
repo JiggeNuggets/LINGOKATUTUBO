@@ -22,16 +22,14 @@ class Phase6InterfaceTests(TestCase):
             status=TranslationJob.Status.QUEUED,
         )
 
-    def test_upload_has_loading_overlay_and_compact_disclosure(self):
+    def test_upload_has_accessible_progress_and_error_states(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("translator:translate"))
-        self.assertContains(response, 'for="source-language"')
-        self.assertContains(response, 'aria-describedby="file-help"')
-        self.assertContains(response, 'id="translation-submission-overlay"')
-        partial = Path(settings.BASE_DIR) / "translator" / "templates" / "translator" / "partials" / "_translating_state.html"
-        self.assertTrue(partial.exists())
-        self.assertContains(response, "Your document is being uploaded and prepared for translation.")
-        self.assertNotContains(response, "<summary>Details</summary>", html=False)
+        self.assertContains(response, 'id="translate-flow-form"')
+        self.assertContains(response, 'aria-describedby="translate-file-help translate-file-feedback"')
+        self.assertContains(response, 'id="translate-uploading" hidden role="status"')
+        self.assertContains(response, 'id="translate-error-stage" hidden role="alert"')
+        self.assertContains(response, 'data-max-file-bytes="52428800"')
 
     def test_dashboard_and_result_include_actionable_phase6_components(self):
         self.client.force_login(self.user)
@@ -44,12 +42,12 @@ class Phase6InterfaceTests(TestCase):
         self.assertContains(detail, 'id="translation-progress" class="translation-loading-progress"', html=False)
         self.assertNotContains(detail, ">CHECK</a>")
 
-    def test_upload_script_validates_before_overlay_and_recovers_from_failure(self):
-        script = (Path(settings.BASE_DIR) / "static" / "js" / "app.js").read_text(encoding="utf-8")
-        self.assertIn("form.reportValidity()", script)
-        self.assertIn("if (!file || isSubmitting) return", script)
-        self.assertIn("setSubmissionState(true)", script)
-        self.assertIn("setSubmissionState(false)", script)
+    def test_upload_script_validates_before_post_and_recovers_from_failure(self):
+        script = (Path(settings.BASE_DIR) / "static" / "js" / "translate-flow.js").read_text(encoding="utf-8")
+        self.assertIn('if (busy || !validateFile(fileInput.files[0])) return;', script)
+        self.assertIn('if (file.size > maxBytes)', script)
+        self.assertIn('if (!contentType.includes("application/json"))', script)
+        self.assertIn('showError(error.message', script)
         self.assertIn("window.location.assign", script)
 
     def test_processing_card_hides_raw_step_and_uses_indeterminate_progress(self):
@@ -82,21 +80,13 @@ class Phase6InterfaceTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("translator:translate"))
         body = response.content.decode("utf-8")
-        self.assertIn('class="settings-panel workflow-panel translation-settings document-section document-section--settings"', body)
-        self.assertIn('class="translation-settings__label">From</span>', body)
-        self.assertIn('class="translation-settings__label">To</span>', body)
-        self.assertIn("translation-settings__select", body)
-        self.assertIn("translation-settings__submit", body)
-        self.assertIn("data-swap-languages", body)
-
-        script = (Path(settings.BASE_DIR) / "static" / "js" / "app.js").read_text(encoding="utf-8")
-        self.assertIn("syncLanguageSwap", script)
-        self.assertIn('sourceLanguage.value === "auto"', script)
-
-        css = (Path(settings.BASE_DIR) / "static" / "css" / "styles.css").read_text(encoding="utf-8")
-        self.assertIn(".translation-settings__fields", css)
-        self.assertIn("min-height: 56px", css)
-        self.assertIn(".translation-settings__swap", css)
+        self.assertIn('for="translate-source">From</label>', body)
+        self.assertIn('for="translate-target">To</label>', body)
+        self.assertIn('id="translate-swap"', body)
+        script = (Path(settings.BASE_DIR) / "static" / "js" / "translate-flow.js").read_text(encoding="utf-8")
+        self.assertIn('swap.disabled = busy || source.value === "auto"', script)
+        self.assertIn('source.value = target.value', script)
+        self.assertIn('target.value = oldSource', script)
 
     def test_completed_failed_and_partial_states_have_safe_actions(self):
         self.client.force_login(self.user)
@@ -134,7 +124,8 @@ class Phase6InterfaceTests(TestCase):
         self.assertIn("position: fixed", css)
         self.client.force_login(self.user)
         payload = self.client.get(reverse("translator:status", args=[self.job.id])).json()
-        self.assertNotIn("progress_available", payload)
+        self.assertIs(payload["progress_available"], False)
+        self.assertIsNone(payload["progress_percent"])
 
     def test_downloads_remain_owner_scoped(self):
         self.client.force_login(self.other_user)

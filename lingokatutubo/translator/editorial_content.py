@@ -11,6 +11,8 @@ from .editorial_media import (
     MOUNT_APO_ECOLOGY,
     MOUNT_APO_AGROFORESTRY,
     MOUNT_APO_STEWARDSHIP,
+    USEP_OBRERO_GATE,
+    USEP_OBRERO_ENTRANCE,
 )
 
 BAGOBO_TAGABAWA_CONTENT = {
@@ -509,7 +511,7 @@ COMMUNITY_CONTENT = {
                 "USeP identifies Astorga, Santa Cruz, Davao del Sur as the partner-community setting.",
                 "The MOA account names Matanem Renante D. Talabon among the Tagabawa Christian School representatives.",
             ],
-            "media": None,
+            "media": USEP_OBRERO_GATE,
             "classification": "TAGABAWA-SPECIFIC",
             "source_type": "University / community-partner documentation",
             "source": "University of Southeastern Philippines, 2023 PANGANDOY MOA announcement",
@@ -525,7 +527,7 @@ COMMUNITY_CONTENT = {
                 "The 2024 USeP report documents a writeshop for learning materials tailored to the community.",
                 "USeP lists Tagabawa Christian School and NCIP Region XI among the PANGANDOY partners.",
             ],
-            "media": None,
+            "media": USEP_OBRERO_ENTRANCE,
             "classification": "TAGABAWA-SPECIFIC",
             "source_type": "University / community-partner documentation",
             "source": "University of Southeastern Philippines, PANGANDOY program documentation",

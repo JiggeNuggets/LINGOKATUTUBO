@@ -1,0 +1,17 @@
+{% load static %}
+<figure class="story-figure{% if hero %} story-figure--hero{% endif %}">
+  <img
+    src="{% static media.image_960 %}"
+    srcset="{% static media.image_640 %} 640w, {% static media.image_960 %} 960w, {% static media.image_1440 %} 1440w"
+    sizes="{% if hero %}(max-width: 600px) calc(100vw - 32px), min(calc(100vw - 72px), 1240px){% else %}(max-width: 800px) calc(100vw - 40px), min(40vw, 600px){% endif %}"
+    width="{{ media.width }}" height="{{ media.height }}"
+    alt="{{ media.alt }}" decoding="async"
+    {% if hero %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+  <figcaption>
+    {% if hero and page_key == "bagobo_tagabawa" %}Historical photograph; not Datu Dalmacio Agton. {% endif %}
+    {{ media.caption }}
+    <a href="{{ media.source_url }}" target="_blank" rel="noopener noreferrer">{{ media.photographer }} / {{ media.source }} &middot; {{ media.source_title }}</a>
+    &middot; <a href="{{ media.license_url }}" target="_blank" rel="noopener noreferrer">{{ media.license }}</a>.
+    {{ media.adaptation }}
+  </figcaption>
+</figure>
