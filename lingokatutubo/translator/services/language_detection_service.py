@@ -272,7 +272,7 @@ def get_language_detection_service(
     global _service
     if _service is None:
         _service = LanguageDetectionService(translation_dataset)
-    elif translation_dataset is not None and not _service.tagabawa_words:
+    elif translation_dataset is not None and _service.dataset is not translation_dataset:
         _service.dataset = translation_dataset
         _service.reload_dictionary()
     return _service

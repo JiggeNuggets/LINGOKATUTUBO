@@ -14,13 +14,12 @@ import fitz  # PyMuPDF
 from PIL import Image
 from pathlib import Path
 from typing import Optional, Tuple
-from .display_utils import safe_print
+from .display_utils import clean_invisible_unicode, safe_print
 from .models import DetectionType, FileType
 
 
-# Minimum average characters per page to classify a PDF as DIGITAL.
-# Below this threshold the document is sent through the OCR path.
-# 50 chars ≈ roughly one short sentence — enough to confirm real text.
+# Character-count shortcut for substantial native text. Pages below this
+# threshold still use native extraction when readable text spans are present.
 MIN_CHARS_PER_PAGE: int = 50
 
 
@@ -51,8 +50,35 @@ class DetectionService:
             return 0, 1
 
     @staticmethod
-    def _has_visible_pdf_text(pdf_path: str) -> bool:
-        """Return True when a low-text PDF still has visible text spans."""
+    def page_has_native_text(page: fitz.Page) -> bool:
+        """Use the same native-text eligibility rule for detection and extraction.
+
+        A short heading or sentence is sufficient when its text spans have
+        readable geometry. Image blocks are ignored; their pixels are never
+        inspected by this check.
+        """
+        text = clean_invisible_unicode(page.get_text())
+        if len("".join(text.split())) >= MIN_CHARS_PER_PAGE:
+            return True
+        for block in page.get_text("dict").get("blocks", []):
+            if block.get("type") != 0:
+                continue
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    if not clean_invisible_unicode(span.get("text") or "").strip():
+                        continue
+                    bbox = span.get("bbox") or []
+                    if len(bbox) != 4:
+                        continue
+                    width = float(bbox[2]) - float(bbox[0])
+                    height = float(bbox[3]) - float(bbox[1])
+                    if width > 1 and height > 1 and float(span.get("size") or 0) >= 3:
+                        return True
+        return False
+
+    @classmethod
+    def _has_visible_pdf_text(cls, pdf_path: str) -> bool:
+        """Return True when a low-text PDF still has readable native spans."""
         if not Path(pdf_path).exists():
             return False
 
@@ -60,25 +86,8 @@ class DetectionService:
             doc = fitz.open(pdf_path)
             try:
                 for page in doc:
-                    data = page.get_text("dict")
-                    for block in data.get("blocks", []):
-                        if block.get("type") != 0:
-                            continue
-                        for line in block.get("lines", []):
-                            for span in line.get("spans", []):
-                                text = str(span.get("text") or "").strip()
-                                if not text:
-                                    continue
-                                bbox = span.get("bbox") or []
-                                if len(bbox) != 4:
-                                    continue
-                                width = float(bbox[2]) - float(bbox[0])
-                                height = float(bbox[3]) - float(bbox[1])
-                                if width <= 1 or height <= 1:
-                                    continue
-                                if float(span.get("size") or 0) < 3:
-                                    continue
-                                return True
+                    if cls.page_has_native_text(page):
+                        return True
             finally:
                 doc.close()
         except Exception as e:
@@ -96,8 +105,8 @@ class DetectionService:
             pdf_path: Path to PDF file
 
         Returns:
-            DetectionType.DIGITAL if avg chars/page >= MIN_CHARS_PER_PAGE,
-            DetectionType.SCANNED otherwise.
+            DetectionType.DIGITAL for substantial native text or readable
+            native spans, including pages below MIN_CHARS_PER_PAGE.
         """
         try:
             total_chars, page_count = cls._count_pdf_text_chars(pdf_path)

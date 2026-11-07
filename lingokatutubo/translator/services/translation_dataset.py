@@ -18,6 +18,7 @@ import csv as _csv
 import difflib
 import glob as _glob
 import json
+import logging
 import os
 import re
 import unicodedata
@@ -25,6 +26,19 @@ from typing import Dict, List, Optional
 
 from .display_utils import clean_invisible_unicode, safe_print
 from .translation_result import make_result
+
+logger = logging.getLogger(__name__)
+RESOURCE_METADATA_FIELDS = {
+    "id", "record_id", "topic", "source", "notes", "dataset_role",
+    "validation_status", "runtime_approval_status", "revision_number",
+    "source_title", "source_page", "source_owner", "license_status",
+    "validation_date", "is_sme_verified", "needs_review", "access_restriction",
+    "cultural_sensitivity_status", "has_unresolved_conflict",
+}
+
+
+class LanguageResourceUnavailable(RuntimeError):
+    """Required resources are unavailable; this is not an unmatched phrase."""
 
 SUPPORTED_LANGS = ["english", "tagabawa", "filipino", "cebuano"]
 UNKNOWN_FOR_REVIEW = "[UNKNOWN_FOR_REVIEW]"
@@ -288,8 +302,10 @@ class TranslationDataset:
         default_runtime_dataset = dataset_path is None
         # Runtime data policy is deliberately fail-closed.  In verified_only
         # mode there is no fallback to the legacy phrasebook/corpus.
-        configured_mode = data_mode or os.environ.get(
-            "TRANSLATION_DATA_MODE", "development_unverified"
+        from django.conf import settings
+        configured_mode = data_mode or os.environ.get("TRANSLATION_DATA_MODE") or (
+            settings.TRANSLATION_DATA_MODE if settings.configured
+            else os.environ.get("TRANSLATION_DATA_MODE", "development_unverified")
         )
         self.data_mode = configured_mode.strip().lower()
         if self.data_mode not in {"development_unverified", "development_resources", "verified_only"}:
@@ -340,6 +356,9 @@ class TranslationDataset:
     # ------------------------------------------------------------------
 
     def load(self):
+        # Reloading an unavailable source must not keep a previous success.
+        self.data, self.metadata, self._phrase_indices = [], {}, {}
+        self.is_loaded = False
         if self.data_mode == "verified_only":
             self.data = self._load_runtime_approved_entries()
             if self.data:
@@ -479,9 +498,11 @@ class TranslationDataset:
                     "validation_status": "verified", "runtime_approval_status": "approved",
                     "revision_number": entry.revision_number,
                     "access_restriction": entry.access_restriction,
+                    **_entry_metadata(entry),
                 })
             return rows
         except Exception as exc:
+            logger.warning("Verified language resources unavailable", exc_info=True)
             safe_print(f"[Translation] verified_only governed dataset unavailable: {exc}")
             return []
 
@@ -507,10 +528,12 @@ class TranslationDataset:
                     "runtime_approval_status": "not_approved",
                     "revision_number": entry.revision_number,
                     "access_restriction": entry.access_restriction,
+                    **_entry_metadata(entry),
                 }
                 for entry in PhrasebookEntry.objects.filter(is_active=True)
             ]
         except Exception as exc:
+            logger.warning("Development language resources unavailable", exc_info=True)
             safe_print(f"[Translation] development_resources database unavailable: {exc}")
             return []
 
@@ -646,7 +669,7 @@ class TranslationDataset:
                             row[canonical_key] = val
                             continue
                         meta_key = _normalize_alias_key(csv_col).replace(" ", "_")
-                        if meta_key in {"id", "record_id", "topic", "source", "notes"}:
+                        if meta_key in RESOURCE_METADATA_FIELDS:
                             row[meta_key] = val
                     if any(row.values()):
                         rows.append(row)
@@ -674,12 +697,19 @@ class TranslationDataset:
                 continue
 
             row = dict(raw_row)
+            for key in ("revision_number",):
+                if row.get(key) not in (None, ""):
+                    try:
+                        row[key] = int(row[key])
+                    except (TypeError, ValueError):
+                        row[key] = None
             for header, value in raw_row.items():
                 canonical_key = _normalize_column(str(header))
                 if not canonical_key:
                     continue
                 current_value = str(row.get(canonical_key, "") or "").strip()
                 if current_value:
+                    row[canonical_key] = current_value
                     continue
                 row[canonical_key] = str(value or "").strip()
 
@@ -707,10 +737,14 @@ class TranslationDataset:
             ]
 
             col_map = {}  # column index -> canonical_key
+            metadata_map = {}
             for idx, h in enumerate(raw_headers):
                 canonical = _normalize_column(h)
                 if canonical:
                     col_map[idx] = canonical
+                meta_key = _normalize_alias_key(h).replace(" ", "_")
+                if meta_key in RESOURCE_METADATA_FIELDS:
+                    metadata_map[idx] = meta_key
 
             if not col_map:
                 safe_print(f"[Translation] ERROR: No recognized language columns in Excel: {path}")
@@ -724,6 +758,8 @@ class TranslationDataset:
                 for idx, canonical_key in col_map.items():
                     val = str(raw_row[idx] or "").strip() if idx < len(raw_row) else ""
                     row[canonical_key] = val
+                for idx, key in metadata_map.items():
+                    row[key] = str(raw_row[idx] or "").strip() if idx < len(raw_row) else ""
                 if any(row.values()):
                     rows.append(row)
 
@@ -802,12 +838,16 @@ class TranslationDataset:
         source_lang = _normalize_lang(source_lang)
         target_lang = _normalize_lang(target_lang)
 
+        if source_lang not in SUPPORTED_LANGS or target_lang not in SUPPORTED_LANGS:
+            raise ValueError("Unsupported translation language")
+
         if source_lang == target_lang:
             self._log_lookup("identity", source_lang, target_lang, True)
-            return _translation_result(text, "source_retained", 1.0, source_text=text,
-                                       source_lang=source_lang, target_lang=target_lang,
-                                       validation_status="not_applicable",
-                                       runtime_approval_status="not_applicable")
+            return make_result(source_text=text, displayed_text=text,
+                               source_language=source_lang, target_language=target_lang,
+                               match_method="source_retained", confidence=1.0,
+                               validation_status="not_applicable",
+                               runtime_approval_status="not_applicable")
 
         target_key = f"{target_lang}_source"
         src_index = self._phrase_indices.get(source_lang, {})
@@ -825,7 +865,10 @@ class TranslationDataset:
         # 1. Exact/normalized dataset match. The first variant is the cleaned
         # raw text; later variants are punctuation/case/diacritic tolerant.
         for variant_index, norm in enumerate(_lookup_variants(original)):
-            match = _first_result(src_index.get(norm, []), target_key)
+            rows = src_index.get(norm, [])
+            if _has_conflict(rows, target_key):
+                return _conflict_result(original, source_lang, target_lang)
+            match = _first_result(rows, target_key)
             if match:
                 result, row = match
                 method = "exact_phrase" if variant_index == 0 else "normalized_phrase"
@@ -873,24 +916,31 @@ class TranslationDataset:
         if re.fullmatch(r"[\d\W_]+", original, re.UNICODE):
             return None
         threshold = self.fuzzy_short_threshold if len(key) < 5 else self.fuzzy_threshold
-        candidate_key = None
+        candidate_keys = []
         score = 0.0
         # get_close_matches does not disclose the score, so calculate it and
         # retain both the matched term and score as review evidence.
         for indexed_key in src_index:
+            if not any(row.get(target_key) for row in src_index[indexed_key]):
+                continue
             if not indexed_key or abs(len(indexed_key) - len(key)) > max(3, len(key) // 3):
                 continue
             candidate_score = difflib.SequenceMatcher(None, key, indexed_key).ratio()
             if candidate_score > score:
-                candidate_key, score = indexed_key, candidate_score
-        if candidate_key is None or score < threshold:
+                candidate_keys, score = [indexed_key], candidate_score
+            elif candidate_score == score:
+                candidate_keys.append(indexed_key)
+        if not candidate_keys or score < threshold:
             return None
-        match = _first_result(src_index.get(candidate_key, []), target_key)
+        rows = [row for key in candidate_keys for row in src_index[key]]
+        if _has_conflict(rows, target_key):
+            return _conflict_result(original, source_lang, target_lang)
+        candidate_key = sorted(candidate_keys)[0]
+        match = _first_result(rows, target_key)
         if not match:
             return None
         translated, row = match
         self._log_lookup("fuzzy_match", source_lang, target_lang, True, key=candidate_key)
-        verified = str(row.get("validation_status", "")).lower() == "verified"
         return _translation_result(
             _preserve_case(original, translated), "fuzzy_match", score,
             # Fuzzy suggestions remain review-required unless a later policy
@@ -945,6 +995,7 @@ class TranslationDataset:
             return None
 
         translated_parts: List[str] = []
+        results = []
         for part in parts:
             result = self.translate_phrase_with_metadata(
                 part,
@@ -955,6 +1006,7 @@ class TranslationDataset:
             if result["method"] not in {"exact_phrase", "normalized_phrase"}:
                 return None
             translated_parts.append(result["translated"])
+            results.append(result)
 
         self._log_lookup(
             "segmented_phrase",
@@ -964,15 +1016,24 @@ class TranslationDataset:
             key=" / ".join(parts)[:80],
         )
         sep = ", " if "," in original else "; " if ";" in original else " "
-        return _translation_result(
+        output = _translation_result(
             sep.join(translated_parts),
             "segmented_phrase",
             1.0,
-            False,
+            any(result["review_required"] for result in results),
             source_text=original,
             source_lang=source_lang,
             target_lang=target_lang,
+            row={"validation_status": "verified" if all(r["validation_status"] == "verified" for r in results) else "unverified",
+                 "runtime_approval_status": "approved" if all(r["runtime_approval_status"] == "approved" for r in results) else "not_approved",
+                 "source": "segmented_resources"},
         )
+        output["components"] = results
+        output["validation_status"] = (
+            "verified" if all(r["validation_status"] == "verified" for r in results) else "unverified"
+        )
+        output["warnings"] = list(dict.fromkeys(w for r in results for w in r.get("warnings", [])))
+        return output
 
     @staticmethod
     def _log_lookup(
@@ -1027,11 +1088,49 @@ def _normalize_lang(lang: str) -> str:
 
 
 def _first_result(rows: List[Dict], key: str) -> Optional[tuple[str, Dict]]:
-    for row in rows:
+    if _has_conflict(rows, key):
+        return None
+    # Equivalent duplicates have a stable representative, independent of load order.
+    for row in sorted(rows, key=lambda r: (
+        r.get("source") != "governed_runtime", _requires_review(r),
+        json.dumps(r, sort_keys=True, ensure_ascii=False, default=str),
+    )):
         val = row.get(key, "").strip()
         if val:
             return val, row
     return None
+
+
+def _truthy(value) -> bool:
+    return str(value).strip().lower() in {"true", "1", "yes"}
+
+
+def _requires_review(row: Dict) -> bool:
+    return (str(row.get("validation_status", "")).lower() != "verified"
+            or _truthy(row.get("needs_review"))
+            or _truthy(row.get("has_unresolved_conflict")))
+
+
+def _has_conflict(rows: List[Dict], key: str) -> bool:
+    return (any(_truthy(row.get("has_unresolved_conflict")) for row in rows if row.get(key))
+            or len({row[key].strip().casefold() for row in rows if row.get(key, "").strip()}) > 1)
+
+
+def _conflict_result(original: str, source: str, target: str) -> Dict:
+    return _translation_result(original, "unknown_for_review", 0.0, True,
+                               source_text=original, source_lang=source, target_lang=target,
+                               unknown_tokens=_unknown_tokens(original),
+                               extra_warnings=["Conflicting resource entries require language-expert review."])
+
+
+def _entry_metadata(entry) -> Dict:
+    return {"attribution": entry.source, "source_title": entry.source_title,
+            "source_page": entry.source_page, "source_owner": entry.source_owner,
+            "license_status": entry.license_status,
+            "validation_date": str(entry.validation_date or ""),
+            "is_sme_verified": entry.is_sme_verified, "needs_review": entry.needs_review,
+            "has_unresolved_conflict": entry.has_unresolved_conflict,
+            "cultural_sensitivity_status": entry.cultural_sensitivity_status}
 
 
 def _translation_result(
@@ -1049,16 +1148,16 @@ def _translation_result(
     match_score: Optional[float] = None,
     extra_warnings: Optional[List[str]] = None,
 ) -> Dict:
-    if needs_review is None:
-        needs_review = method in {"unknown_for_review", "untranslated_needs_review"}
     row = row or {}
+    needs_review = (bool(needs_review) or _requires_review(row)
+                    or method in {"unknown_for_review", "untranslated_needs_review", "fuzzy_match"})
     provenance = str(row.get("source") or "legacy_development")
     validation_status = str(row.get("validation_status") or "unverified")
     approval = str(row.get("runtime_approval_status") or "not_approved")
     warnings = list(extra_warnings or [])
-    if provenance != "governed_runtime":
+    if validation_status != "verified":
         warnings.append("Development resource is unverified; linguistic validation is still required.")
-    return make_result(
+    result = make_result(
         source_text=source_text if source_text is not None else translated,
         displayed_text=translated, source_language=source_lang, target_language=target_lang,
         match_method=method, confidence=confidence, review_required=bool(needs_review),
@@ -1069,6 +1168,9 @@ def _translation_result(
         restriction_status=str(row.get("access_restriction") or "unrestricted"),
         matched_term=matched_term, match_score=match_score,
     )
+    result["resource_metadata"] = {k: row[k] for k in RESOURCE_METADATA_FIELDS | {"attribution"}
+                                   if k in row}
+    return result
 
 
 def _unknown_tokens(text: str) -> List[str]:

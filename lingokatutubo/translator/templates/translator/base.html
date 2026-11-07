@@ -11,9 +11,9 @@
   <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/branding/favicon-32x32.png' %}">
   <link rel="icon" type="image/png" sizes="48x48" href="{% static 'images/branding/favicon-48x48.png' %}">
   <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/branding/apple-touch-icon.png' %}">
-  <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=20260828-homepage-polish">
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=t05-accessibility">
   {% block extra_css %}{% endblock %}
-  <script src="{% static 'js/app.js' %}?v=20260826-appjs-init-recovery" defer></script>
+  <script src="{% static 'js/app.js' %}?v=t05-accessibility" defer></script>
   {% block extra_js %}{% endblock %}
 </head>
 
@@ -145,12 +145,13 @@
     {% block content %}{% endblock %}
   </div>
 
-  <div id="page-transition-overlay" class="page-transition-overlay" aria-hidden="true">
-    <div class="page-transition-spinner" role="status" aria-live="polite">
+  <dialog id="page-transition-overlay" class="page-transition-overlay" data-translation-dialog aria-modal="true" aria-labelledby="page-transition-text" aria-hidden="true">
+    <div class="page-transition-spinner">
       <span class="spinner" aria-hidden="true"></span>
-      <p id="page-transition-text">Preparing document preview&hellip;</p>
+      <p id="page-transition-text" role="status" aria-live="polite">Preparing document preview&hellip;</p>
+      <button type="button" class="button secondary" id="cancel-preview-opening">Cancel opening preview</button>
     </div>
-  </div>
+  </dialog>
 
   <footer class="site-footer">
     <div class="footer-inner footer-grid">

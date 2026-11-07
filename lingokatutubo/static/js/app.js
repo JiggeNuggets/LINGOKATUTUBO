@@ -100,8 +100,27 @@
   }
 
   function setText(element, value) {
-    if (element) element.textContent = value;
+    if (element && element.textContent !== value) element.textContent = value;
   }
+
+  function syncTranslationDialogScroll() {
+    document.body.classList.toggle("translation-overlay-active", Boolean(document.querySelector("dialog[data-translation-dialog][open]")));
+  }
+
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) return;
+    const dialog = document.activeElement?.closest("dialog[data-translation-dialog][open]");
+    if (!dialog) return;
+    const controls = Array.from(dialog.querySelectorAll("a[href], button:not([disabled]), [tabindex='0']"))
+      .filter(element => !element.hidden && element.getClientRects().length);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (!first) return;
+    if (event.shiftKey && (document.activeElement === first || !controls.includes(document.activeElement))) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !controls.includes(document.activeElement))) {
+      event.preventDefault(); first.focus();
+    }
+  });
 
   function setError(errorBox, message) {
     if (!errorBox) return;
@@ -166,7 +185,7 @@
 
     handleVisibilityChange() {
       if (this.stopped) return;
-      if (!document.hidden && this.lastData && activeStatuses.has(normalizeStatus(this.lastData.status))) {
+      if (!document.hidden && (!this.lastData || activeStatuses.has(normalizeStatus(this.lastData.status)))) {
         this.schedule(0);
       }
     }
@@ -191,18 +210,22 @@
       }
       this.inFlight = true;
       fetch(this.statusUrl, {
+        cache: "no-store",
         credentials: "same-origin",
         headers: { Accept: "application/json" },
       })
         .then(parseJsonResponse)
         .then(({ response, data }) => {
           if (!response.ok) throw new Error(data.error || `Status check failed (${response.status}).`);
+          const status = normalizeStatus(data.status);
+          if (data.status_uncertain || (!activeStatuses.has(status) && !terminalStatuses.has(status))) {
+            throw new Error("Translation status could not be confirmed. Check this job again before submitting another document.");
+          }
           this.failureCount = 0;
           this.lastData = data;
           if (this.handlers.onUpdate) this.handlers.onUpdate(data);
           if (this.handlers.onNetworkState) this.handlers.onNetworkState("", data);
-          const status = normalizeStatus(data.status);
-          if (terminalStatuses.has(status) || !activeStatuses.has(status)) {
+          if (terminalStatuses.has(status)) {
             if (this.handlers.onTerminal) this.handlers.onTerminal(data);
             this.stop();
             return;
@@ -213,7 +236,7 @@
           this.failureCount += 1;
           if (this.handlers.onNetworkState) {
             this.handlers.onNetworkState(
-              `${error.message || "Could not reach the server."} Retrying status check...`,
+              "Could not check translation status. Your last confirmed state is unchanged. Retrying the status check…",
               this.lastData
             );
           }
@@ -571,181 +594,73 @@
   function initStatusPage() {
     const root = document.querySelector("[data-status-poller]");
     if (!root) return;
-
-    const progressFill = document.getElementById("status-monitor-fill");
-    const progressElements = {
-      progressCard: root,
-      title: document.getElementById("status-monitor-title"),
-      message: document.getElementById("status-monitor-message"),
-      percent: document.getElementById("status-monitor-percent"),
-      fill: progressFill,
-      progressbar: progressFill ? progressFill.parentElement : null,
-      step: document.getElementById("job-current-step"),
-    };
     const network = document.getElementById("status-monitor-network");
-    const lastCheck = document.getElementById("status-monitor-last-check");
-    const phase = document.getElementById("status-monitor-phase");
-    const updated = document.getElementById("status-monitor-updated");
-    const phaseValue = document.getElementById("job-current-phase");
-    const messageValue = document.getElementById("job-phase-message");
-    const progressText = document.getElementById("job-progress-text");
-    const retryingState = document.getElementById("job-retrying-state");
-    const longMessage = document.getElementById("status-monitor-long");
-    const failedGuidance = document.getElementById("failed-guidance");
-    const statusPill = document.getElementById("job-status-pill");
-    const previewAction = document.getElementById("job-preview-action");
-    const downloadAction = document.getElementById("job-download-action");
+    const reloadButton = document.getElementById("reload-status-button");
+    const description = document.getElementById("translation-state-description");
+    const stateWord = document.getElementById("translation-state-word");
     const processingOverlay = document.getElementById("translation-job-processing-overlay");
     const terminalOverlay = document.getElementById("translation-terminal-overlay");
-    const reloadButton = document.getElementById("reload-status-button");
-
-    function setProcessingOverlayState(isActive) {
-      document.body.classList.toggle("translation-overlay-active", isActive);
-      if (processingOverlay) {
-        processingOverlay.hidden = !isActive;
-        processingOverlay.setAttribute("aria-hidden", String(!isActive));
-      }
-    }
-
-    function applyStatus(data) {
-      const status = normalizeStatus(data.status);
-      const percent = progressFor(data);
-      const isProcessing = activeStatuses.has(status);
-      root.setAttribute("aria-busy", String(isProcessing));
-      setProcessingOverlayState(isProcessing);
-
-      updateProgressDom(progressElements, data);
-      setText(phase, data.current_phase || status);
-      setText(updated, formatDateTime(data.updated_at));
-      setText(lastCheck, nowLabel());
-      setText(phaseValue, data.current_phase || status);
-      setText(messageValue, data.phase_message || data.message || "");
-      setText(progressText, `${percent}%`);
-      setText(retryingState, status === "retrying" ? "Yes" : "No");
-      setHidden(longMessage, !data.is_taking_longer);
-      if (statusPill) {
-        statusPill.textContent = statusLabel(status);
-        statusPill.className = `status-pill ${status === "queued" ? "pending" : status}`;
-      }
-      setHidden(previewAction, !data.can_preview);
-      setHidden(downloadAction, !data.can_download);
-      if (previewAction && data.can_preview && !previewAction.textContent.trim()) {
-        previewAction.textContent = "Preview Bilingual";
-      }
-      if (downloadAction && data.can_download && !downloadAction.textContent.trim()) {
-        downloadAction.textContent = "Download";
-      }
-      if (status === "failed") {
-        failedGuidance.hidden = false;
-        failedGuidance.textContent = `${data.error || data.message || "Translation failed."} Check the document quality or try uploading again. If this repeats, contact an administrator with this job ID.`;
-      }
-    }
+    const summary = document.getElementById("translation-status-summary");
+    const toggle = document.getElementById("translation-status-toggle");
+    const dialog = processingOverlay || terminalOverlay;
+    let controller = null;
 
     function networkState(message) {
-      if (!network) return;
-      network.hidden = !message;
-      network.textContent = message || "";
+      setHidden(network, !message);
+      setText(network, message);
+      if (message) setText(summary, message);
+      if (processingOverlay) {
+        setText(description, message
+          ? "Status is temporarily unavailable. Close this message to check status or view document history."
+          : "Please wait while your document is processed.");
+      }
     }
 
-    let controller = null;
     const handlers = {
-      onUpdate: applyStatus,
-      onTerminal: (data) => {
-        applyStatus(data);
-        const status = normalizeStatus(data.status);
-        const isCompleted = status === "completed";
-        const previewUrl = root.getAttribute("data-preview-url") || (data.preview_url) || (window.location.pathname.replace(/\/$/, '') + "/preview/");
-        const downloadUrl = (data.download_url) || (window.location.pathname.replace(/\/$/, '') + "/download/");
-
-        if (terminalOverlay) {
-          setProcessingOverlayState(false);
-          terminalOverlay.hidden = false;
-          terminalOverlay.setAttribute("aria-hidden", "false");
-          document.body.classList.add("translation-overlay-active");
-          const terminalAction = terminalOverlay.querySelector("[data-terminal-action]");
-          if (terminalAction) terminalAction.focus();
-        } else if (processingOverlay) {
-          const stateWord = document.getElementById("translation-state-word");
-          const progressWrap = document.getElementById("translation-progress-wrap");
-          const stateIcon = document.getElementById("translation-state-icon");
-          const card = processingOverlay.querySelector(".translating-state");
-
-          if (isCompleted) {
-            if (card) {
-              card.classList.remove("is-processing");
-              card.classList.add("is-complete");
-            }
-            if (stateWord) {
-              stateWord.textContent = "Translation Complete";
-              stateWord.style.color = "var(--color-primary-700)";
-            }
-            if (stateIcon) {
-              stateIcon.outerHTML = `
-                <svg class="translation-terminal-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false" style="width: 72px; height: 72px; fill: none; stroke: var(--color-primary-700); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; margin: 0 auto;">
-                  <circle cx="32" cy="32" r="23" stroke="#D6E2DA"/>
-                  <path d="m20 33 8 8 17-19" stroke="var(--color-primary-700)"/>
-                </svg>
-              `;
-            }
-            if (progressWrap) {
-              progressWrap.outerHTML = `
-                <div class="translation-terminal-actions" style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
-                  <a id="job-preview-action" class="button primary js-preview-link" data-terminal-action href="${previewUrl}" style="width: 100%; text-align: center; justify-content: center;">Preview Document</a>
-                  <a class="button secondary" href="${downloadUrl}" style="width: 100%; text-align: center; justify-content: center;">Download Translated File</a>
-                  <a href="/translate/" class="button-link" style="text-align: center; margin-top: 0.25rem; font-size: 0.875rem;">Translate another document &rarr;</a>
-                </div>
-              `;
-            }
-            const previewBtn = processingOverlay.querySelector("#job-preview-action");
-            if (previewBtn) previewBtn.focus();
-          } else {
-            if (stateWord) stateWord.textContent = "Translation Failed";
-            if (progressWrap) {
-              progressWrap.outerHTML = `
-                <div class="translation-terminal-actions" style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
-                  <p class="alert error" style="margin: 0; font-size: 0.875rem;">${data.error || data.message || "Translation could not be completed."}</p>
-                  <a class="button primary" href="/translate/" style="width: 100%; text-align: center; justify-content: center;">Try Again</a>
-                </div>
-              `;
-            }
-          }
-        }
-        controller = null;
+      onUpdate: (data) => {
+        // The server renders terminal actions from persisted state and files.
+        // Keep the existing loading card until that terminal page is loaded.
+        if (terminalStatuses.has(normalizeStatus(data.status))) return;
+        setText(summary, data.phase_message || data.message || "Translation is continuing in the background.");
       },
+      onTerminal: () => window.location.reload(),
       onNetworkState: networkState,
     };
-    if (terminalOverlay) {
-      document.body.classList.add("translation-overlay-active");
-      window.requestAnimationFrame(() => {
-        const terminalAction = terminalOverlay.querySelector("[data-terminal-action]");
-        if (terminalAction) terminalAction.focus();
+    if (dialog) {
+      // Server-rendered `open` also leaves the status available without JS.
+      // Promote it to a modal so the browser contains focus and inerts the background.
+      if (dialog.open) dialog.close();
+      const openStatus = () => {
+        if (!dialog.open) dialog.showModal();
+        dialog.setAttribute("aria-hidden", "false");
+        if (toggle) toggle.setAttribute("aria-expanded", "true");
+        syncTranslationDialogScroll();
+        const first = processingOverlay
+          ? dialog.querySelector("[data-close-translation-status]")
+          : terminalOverlay && terminalOverlay.querySelector(".is-complete")
+            ? dialog.querySelector("[data-terminal-action]") || dialog.querySelector("[data-close-translation-status]")
+            : dialog.querySelector("[data-terminal-action], h2");
+        if (first) first.focus();
+      };
+      dialog.addEventListener("close", () => {
+        if (dialog.open) return;
+        dialog.setAttribute("aria-hidden", "true");
+        if (toggle) toggle.setAttribute("aria-expanded", "false");
+        syncTranslationDialogScroll();
+        if (toggle) toggle.focus();
       });
+      dialog.querySelectorAll("[data-close-translation-status]").forEach(button => {
+        button.addEventListener("click", () => dialog.close());
+      });
+      if (toggle) toggle.addEventListener("click", openStatus);
+      openStatus();
     }
-    const initialStatus = normalizeStatus(root.dataset.initialStatus);
-    if (activeStatuses.has(initialStatus)) {
-      setProcessingOverlayState(true);
+    if (activeStatuses.has(normalizeStatus(root.dataset.initialStatus))) {
       controller = PollingController.start(`detail:${root.dataset.jobId}`, root.dataset.statusUrl, handlers);
-    } else {
-      setProcessingOverlayState(false);
     }
-
     if (reloadButton) {
       reloadButton.addEventListener("click", () => {
-        networkState("");
-        if (controller) {
-          controller.poll();
-          return;
-        }
-        fetch(root.dataset.statusUrl, {
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-        })
-          .then(parseJsonResponse)
-          .then(({ response, data }) => {
-            if (!response.ok) throw new Error(data.error || `Status check failed (${response.status}).`);
-            applyStatus(data);
-          })
-          .catch((error) => networkState(`${error.message || "Could not reach the server."} Retrying status check...`));
+        if (controller) controller.poll();
       });
     }
   }
@@ -809,100 +724,102 @@
   function initPreviewLinks() {
     const links = document.querySelectorAll(".js-preview-link");
     if (!links.length) return;
-
     const overlay = document.getElementById("page-transition-overlay");
     const overlayText = document.getElementById("page-transition-text");
     const errorBanner = document.getElementById("js-error-banner");
     const errorBannerText = document.getElementById("js-error-banner-text");
-    // Minimum time the loading state stays visible before navigating, so the
-    // transition reads as intentional instead of a sudden visual jump.
-    const MIN_LOADING_MS = 2500;
+    const cancel = document.getElementById("cancel-preview-opening");
     const FAILSAFE_TIMEOUT_MS = 12000;
+    let timer = null;
+    let activeLink = null;
 
-    function showOverlay(message) {
-      if (!overlay) return;
-      if (overlayText && message) overlayText.textContent = message;
-      overlay.classList.add("is-visible");
-      overlay.setAttribute("aria-hidden", "false");
-    }
-
-    function hideOverlay() {
-      if (!overlay) return;
-      overlay.classList.remove("is-visible");
-      overlay.setAttribute("aria-hidden", "true");
-    }
-
-    function resetPreviewLinksState() {
-      hideOverlay();
-      links.forEach((link) => {
+    function resetPreviewLinksState(restoreFocus = false) {
+      if (timer) window.clearTimeout(timer);
+      timer = null;
+      const previous = activeLink;
+      activeLink = null;
+      if (overlay) {
+        if (overlay.open) overlay.close();
+        overlay.classList.remove("is-visible");
+        overlay.setAttribute("aria-hidden", "true");
+      }
+      links.forEach(link => {
         link.classList.remove("is-loading");
         link.removeAttribute("aria-disabled");
-        if (link.dataset.originalText) {
-          const keepLabel = link.classList.contains("recent-document-card__check") ||
-                            link.classList.contains("document-card-action") ||
-                            Boolean(link.closest(".document-card"));
-          if (!keepLabel) {
-            link.textContent = link.dataset.originalText;
-          }
+        if (link.dataset.originalText && link.dataset.keepLabel !== "true") {
+          link.textContent = link.dataset.originalText;
         }
       });
+      syncTranslationDialogScroll();
+      if (restoreFocus && previous && previous.isConnected) previous.focus();
     }
 
-    // Reset overlay and loading indicators if restored from BFCache or history navigation
-    window.addEventListener("pageshow", resetPreviewLinksState);
-    window.addEventListener("popstate", resetPreviewLinksState);
-
-    function showOpenFailure() {
-      if (!errorBanner || !errorBannerText) return;
-      errorBannerText.textContent = "Could not open the bilingual preview. Please try again.";
-      errorBanner.hidden = false;
+    function stopOpening(failed = false) {
+      if (!activeLink) return;
+      const localError = activeLink.closest("dialog")?.querySelector("[data-preview-error]");
+      // Stop this preview navigation only; no translation job is retried or cancelled.
+      window.stop();
+      resetPreviewLinksState(true);
+      if (failed) {
+        const message = "Could not open the document preview. Your translation is unchanged. You can try opening the preview again.";
+        if (localError) {
+          localError.textContent = message;
+          localError.hidden = false;
+        } else if (errorBanner && errorBannerText) {
+          errorBannerText.textContent = message;
+          errorBanner.hidden = false;
+        }
+      }
     }
+    if (cancel) cancel.addEventListener("click", () => stopOpening());
+    if (overlay) overlay.addEventListener("cancel", event => {
+      event.preventDefault();
+      stopOpening();
+    });
+    if (overlay) overlay.addEventListener("keydown", event => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      stopOpening();
+    });
+    window.addEventListener("pageshow", event => {
+      if (event.persisted) resetPreviewLinksState();
+    });
+    window.addEventListener("popstate", () => resetPreviewLinksState());
 
-    links.forEach((link) => {
-      link.addEventListener("click", (event) => {
-        // Never intercept a hidden link, a link already loading, or a
-        // modified/non-primary click (new tab, new window, etc.) — those
-        // must keep their normal browser behavior.
-        if (link.hidden || link.classList.contains("is-loading")) {
+    links.forEach(link => {
+      link.addEventListener("click", event => {
+        if (link.hidden || link.classList.contains("is-loading") || activeLink) {
           event.preventDefault();
           return;
         }
-        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-          return;
-        }
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         const href = link.getAttribute("href");
         if (!href || href === "#") return;
-
         event.preventDefault();
-        const loadingText = link.dataset.loadingText || "Preparing bilingual preview…";
+        activeLink = link;
         link.dataset.originalText = link.textContent;
+        const keepLabel = link.classList.contains("recent-document-card__check") ||
+          link.classList.contains("document-card-action") || Boolean(link.closest(".document-card"));
+        link.dataset.keepLabel = String(keepLabel);
+        const loadingText = link.dataset.loadingText || "Preparing document preview?";
+        if (!keepLabel) link.textContent = loadingText;
         link.classList.add("is-loading");
         link.setAttribute("aria-disabled", "true");
-        const keepLabel = link.classList.contains("recent-document-card__check") ||
-                          link.classList.contains("document-card-action") ||
-                          Boolean(link.closest(".document-card"));
-        if (!keepLabel) {
-          link.textContent = loadingText;
+        setHidden(errorBanner, true);
+        setHidden(link.closest("dialog")?.querySelector("[data-preview-error]"), true);
+        if (overlay) {
+          setText(overlayText, loadingText);
+          overlay.setAttribute("aria-hidden", "false");
+          overlay.classList.add("is-visible");
+          if (!overlay.open) overlay.showModal();
+          if (cancel) cancel.focus();
+          syncTranslationDialogScroll();
         }
-        showOverlay(loadingText);
-
-        const failsafeTimer = window.setTimeout(() => {
-          link.classList.remove("is-loading");
-          link.removeAttribute("aria-disabled");
-          if (!keepLabel) {
-            link.textContent = link.dataset.originalText || loadingText;
-          }
-          hideOverlay();
-          showOpenFailure();
-        }, FAILSAFE_TIMEOUT_MS);
-
-        // Hold the loading state for a fixed minimum duration, then navigate.
-        // Reduced-motion users still get this same wait — only the spinner
-        // animation is suppressed (see the prefers-reduced-motion CSS rule).
-        window.setTimeout(() => {
-          window.clearTimeout(failsafeTimer);
-          window.location.href = href;
-        }, MIN_LOADING_MS);
+        timer = window.setTimeout(() => stopOpening(true), FAILSAFE_TIMEOUT_MS);
+        // Begin the actual navigation immediately. The recovery timer remains
+        // active until this document unloads, the user cancels, or it expires.
+        try { window.location.assign(href); } catch (_) { stopOpening(true); }
       });
     });
   }
@@ -917,11 +834,6 @@
         if (overlay) {
           overlay.classList.remove("is-visible");
           overlay.setAttribute("aria-hidden", "true");
-        }
-        // If there is prior history in this window/tab, react as a back button
-        if (window.history.length > 1) {
-          event.preventDefault();
-          window.history.back();
         }
       });
     });
@@ -983,6 +895,8 @@
 
   function scheduleToastDismiss(msg) {
     if (!msg || msg.dataset.toastScheduled) return;
+    // Keep reserved/failed-operation feedback available until explicit dismissal.
+    if (msg.hidden || msg.classList.contains("error") || msg.getAttribute("role") === "alert") return;
     msg.dataset.toastScheduled = "true";
 
     // Ensure progress bar element exists
@@ -995,6 +909,14 @@
     }
 
     let timer = window.setTimeout(() => dismissMessage(msg), TOAST_DISMISS_MS);
+    msg.addEventListener("focusin", () => {
+      if (timer) window.clearTimeout(timer);
+    });
+    msg.addEventListener("focusout", event => {
+      if (!msg.contains(event.relatedTarget)) {
+        timer = window.setTimeout(() => dismissMessage(msg), TOAST_DISMISS_MS);
+      }
+    });
     msg.addEventListener("mouseenter", () => {
       if (timer) window.clearTimeout(timer);
       const activeBar = msg.querySelector(".toast__progress, .preview-fidelity-toast__progress");

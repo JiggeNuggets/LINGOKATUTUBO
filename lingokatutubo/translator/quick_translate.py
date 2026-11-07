@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from .models import UserActivityLog
 from .services import quick_translate_text
 from .services.translation_review import public_translation_status
+from .services.translation_dataset import LanguageResourceUnavailable
 
 def quick_translate(request):
     """Handle an authenticated, CSRF-protected JSON translation request."""
@@ -119,6 +120,11 @@ def quick_translate(request):
             "review_required": public_status["review_required"],
             "reason": public_status["reason"],
         })
+    except LanguageResourceUnavailable:
+        return JsonResponse(
+            {"ok": False, "error": "Language resources are temporarily unavailable. Please try again later."},
+            status=503,
+        )
     except Exception:
         return JsonResponse(
             {

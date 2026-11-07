@@ -1,32 +1,57 @@
 # LingoKatutubo – Local Running Guide (Windows)
 
-> **Status:** the backend runs end-to-end for digital PDFs and DOCX. Scanned-PDF/image OCR is **partially implemented** through Tesseract/pytesseract in `backend/ocr_stage/ocr_service.py`. If Tesseract or a needed language pack is unavailable, scanned jobs fail with warnings in `structure.json` instead of silently producing placeholder text.
+> **Current PDF scope:** translate readable native text in text-based PDFs. Preserve embedded images, graphics, and pages without native text. Wholly scanned/textless PDFs are rejected without OCR. The separate legacy direct-image OCR services remain available; they are not part of the native PDF workflow. DOCX processing remains available with its existing layout limitations.
 
-## Unified Django App (Current Migration Target)
+## Unified Django App (Current Runtime)
 
 The Django app replaces the split Next.js + FastAPI runtime with one authenticated
 server. The document pipeline services live under `translator/services/`, while
 `backend/` contains thin compatibility wrappers for the former FastAPI layout.
 Job state and ownership live in the database through `translator.TranslationJob`.
 
+### Start this existing checkout
+
+Use the application-local Python 3.11 environment explicitly. Activation is
+optional; these commands also work when another virtual environment is active.
+Keep the existing PostgreSQL configuration (`DATABASE_URL` or `POSTGRES_*`);
+do not enable `DJANGO_USE_SQLITE` for this application launch.
+
 ```powershell
-cd "C:\Users\Carl\Desktop\LINGOKATUTUBO\lingokatutubo"
+Set-Location "C:\Users\wapak\Downloads\YAWA\lingokatutubo"
 
-py -3.11 -m venv .venv
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
-pip install -r backend\requirements.txt
+# Local development only. Production requires its existing DJANGO_SECRET_KEY
+# and production settings, with DJANGO_DEBUG disabled.
+$env:DJANGO_DEBUG = "1"
 
-$env:POSTGRES_DB="lingokatutubo"
-$env:POSTGRES_USER="postgres"
-$env:POSTGRES_PASSWORD="postgres"
-$env:POSTGRES_HOST="localhost"
-$env:POSTGRES_PORT="5432"
-
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver 8000
+.\.venv\Scripts\python.exe -B -m pip check
+.\.venv\Scripts\python.exe -B manage.py check
+.\.venv\Scripts\python.exe -B manage.py runserver 127.0.0.1:8000 --noreload
 ```
+
+Do not use `..\.venv\Scripts\python.exe` for this checkout. On November 4,
+2026, that parent environment used Python 3.14 with incompatible CPython 3.11
+NumPy binaries. The application-local environment used Python 3.11.9 and passed
+imports for Django, psycopg2, NumPy, PyMuPDF, Pillow, lxml, python-docx, ReportLab,
+and the other declared dependencies. `pip check` reported no broken requirements.
+
+Starting an existing application does not require creating a virtual environment,
+installing packages, running migrations, or creating another superuser. Those
+are separate setup operations and are not part of these launch commands.
+
+Native PDF extraction accepts readable short text as well as full text pages.
+Embedded images and graphics on these pages remain document content; their text
+is not sent to OCR. Native-only PDF extraction does not initialize OCR.
+Wholly scanned/textless PDFs are rejected. Image-only or blank pages inside an
+otherwise text-based PDF are retained unchanged, with no OCR translation.
+
+Run the focused native PDF regressions with the same interpreter:
+
+```powershell
+.\.venv\Scripts\python.exe -B manage.py test translator.test_native_pdf_extraction --noinput
+```
+
+These tests use temporary files and `SimpleTestCase`; they do not create a test
+database or modify historical jobs or language resources.
 
 Django URLs:
 - App: http://localhost:8000/

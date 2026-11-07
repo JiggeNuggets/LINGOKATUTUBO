@@ -8,6 +8,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from lxml import html as lxml_html
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -743,7 +745,10 @@ class TranslatorAuthAndJobTests(TestCase):
         response = self.client.get(reverse("translator:job_detail", args=[job.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Download</a>", response.content.decode("utf-8"))
+        document = lxml_html.fromstring(response.content)
+        self.assertTrue(response.context["can_download"])
+        self.assertTrue(document.xpath("//a[@href=$url and not(@hidden) and normalize-space(.)='Download translated document']",
+                                       url=reverse("translator:job_download", args=[job.id])))
 
     def test_failed_job_hides_preview_and_download_buttons(self):
         job = self._create_job(self.alice, status=TranslationJob.Status.FAILED)
@@ -1364,8 +1369,10 @@ class TranslatorPhase4SystemTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Warning text 123", response.content.decode("utf-8"))
 
+    @patch("translator.services.close_old_connections")
     @patch("translator.services._get_pipeline_service")
-    def test_ocr_failure_fails_safely(self, mock_pipeline):
+    def test_ocr_failure_fails_safely(self, mock_pipeline, _close_connections):
+        # Keep worker cleanup from closing TestCase's wrapping transaction.
         from translator.services import _run_translation_job
         mock_pipeline.side_effect = Exception("Tesseract failed catastrophically")
         job = self._create_job(self.alice, status="queued")
@@ -1381,8 +1388,9 @@ class TranslatorPhase4SystemTests(TestCase):
         self.assertEqual(job.status, TranslationJob.Status.FAILED)
         self.assertIn("Tesseract failed catastrophically", job.error)
 
+    @patch("translator.services.close_old_connections")
     @patch("translator.services._get_pipeline_service")
-    def test_ocr_timeout_sets_failed_status(self, mock_pipeline):
+    def test_ocr_timeout_sets_failed_status(self, mock_pipeline, _close_connections):
         from translator.services import _run_translation_job
 
         mock_pipeline.side_effect = TimeoutError("Tesseract OCR timed out")
@@ -1419,7 +1427,7 @@ class TranslatorPhase4SystemTests(TestCase):
         self.assertIn("fail:", dry_output.getvalue())
 
         output = StringIO()
-        call_command("recover_stale_jobs", minutes=15, stdout=output)
+        call_command("recover_stale_jobs", minutes=15, apply=True, stdout=output)
         job.refresh_from_db()
         self.assertEqual(job.status, TranslationJob.Status.FAILED)
         self.assertIn("abandoned", job.error)
@@ -1442,7 +1450,7 @@ class TranslatorPhase4SystemTests(TestCase):
         )
 
         output = StringIO()
-        call_command("recover_stale_jobs", minutes=15, stdout=output)
+        call_command("recover_stale_jobs", minutes=15, apply=True, stdout=output)
 
         completed.refresh_from_db()
         deleted.refresh_from_db()
@@ -2488,11 +2496,11 @@ class TranslatorUIRefreshTests(TestCase):
         response = self.client.get(reverse("translator:job_detail", args=[job.id]))
 
         body = response.content.decode("utf-8")
-        message_start = body.index("Translated file is ready.")
-        message_region = body[max(0, message_start - 200):message_start]
-        self.assertIn('role="status"', message_region)
-        self.assertIn('aria-live="polite"', message_region)
-        self.assertIn("message-dismiss", body)
+        document = lxml_html.fromstring(body)
+        banners = document.xpath("//div[@role='status' and @aria-live='polite' and contains(concat(' ', normalize-space(@class), ' '), ' message ')]")
+        ready = [banner for banner in banners if "Translated file is ready." in banner.text_content()]
+        self.assertEqual(len(ready), 1)
+        self.assertTrue(ready[0].xpath(".//button[@aria-label='Dismiss notification']"))
 
     def test_failed_job_detail_never_shows_ready_message(self):
         job = self._create_job(TranslationJob.Status.FAILED)
@@ -2512,7 +2520,7 @@ class TranslatorUIRefreshTests(TestCase):
 
     # ---- Phase 4: top action bar ----
 
-    def test_job_detail_has_top_action_bar_before_layout_section(self):
+    def test_job_detail_has_top_action_bar_before_status_section(self):
         job = self._create_job(TranslationJob.Status.COMPLETED)
         self.client.force_login(self.alice)
 
@@ -2520,24 +2528,27 @@ class TranslatorUIRefreshTests(TestCase):
 
         body = response.content.decode("utf-8")
         self.assertIn('class="top-action-bar"', body)
-        self.assertIn('class="job-detail-layout"', body)
-        self.assertLess(body.index("top-action-bar"), body.index("job-detail-layout"))
+        document = lxml_html.fromstring(body)
+        bar = document.xpath("//*[@class='top-action-bar']")[0]
+        status = document.xpath("//*[@class='translation-job-status']")[0]
+        self.assertLess(list(document.iter()).index(bar), list(document.iter()).index(status))
 
-    def test_job_detail_top_action_bar_has_history_preview_and_remove(self):
+    def test_job_detail_actions_have_history_preview_and_remove(self):
         job = self._create_job(TranslationJob.Status.COMPLETED)
         self.client.force_login(self.alice)
 
         response = self.client.get(reverse("translator:job_detail", args=[job.id]))
 
         body = response.content.decode("utf-8")
-        bar_html = body[body.index('class="top-action-bar"'):body.index('class="job-detail-layout"')]
-        self.assertIn("History", bar_html)
-        self.assertIn("Preview Bilingual", bar_html)
-        self.assertIn("data-remove-document", bar_html)
-        self.assertIn(f'data-delete-url="{reverse("translator:job_delete", args=[job.id])}"', bar_html)
-        self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', bar_html)
+        document = lxml_html.fromstring(body)
+        bar = document.xpath("//*[@class='top-action-bar']")[0]
+        self.assertTrue(bar.xpath(".//a[@href=$url]", url=reverse("translator:history")))
+        self.assertTrue(bar.xpath(".//button[@data-remove-document and @data-delete-url=$url]",
+                                  url=reverse("translator:job_delete", args=[job.id])))
+        self.assertTrue(document.xpath("//dialog[@id='translation-terminal-overlay']//a[@href=$url and normalize-space(.)='Preview Document']",
+                                       url=reverse("translator:job_preview", args=[job.id])))
 
-    def test_top_action_bar_shows_download_only_when_output_exists(self):
+    def test_completed_job_actions_show_download_only_when_output_exists(self):
         job_no_output = self._create_job(TranslationJob.Status.COMPLETED)
         job_with_output = self._create_job(TranslationJob.Status.COMPLETED)
         out = self.media_root / "jobs" / job_with_output.job_id / "translated.pdf"
@@ -2554,14 +2565,13 @@ class TranslatorUIRefreshTests(TestCase):
             reverse("translator:job_detail", args=[job_with_output.id])
         ).content.decode("utf-8")
 
-        no_output_bar = no_output_body[
-            no_output_body.index('class="top-action-bar"'):no_output_body.index('class="job-detail-layout"')
-        ]
-        with_output_bar = with_output_body[
-            with_output_body.index('class="top-action-bar"'):with_output_body.index('class="job-detail-layout"')
-        ]
-        self.assertNotIn(">Download<", no_output_bar)
-        self.assertIn(">Download<", with_output_bar)
+        for body, job, expected in [(no_output_body, job_no_output, False),
+                                    (with_output_body, job_with_output, True)]:
+            document = lxml_html.fromstring(body)
+            actions = document.xpath("//dialog[@id='translation-terminal-overlay']//a[normalize-space(.)='Download PDF']")
+            self.assertEqual(len(actions), int(expected))
+            if expected:
+                self.assertEqual(actions[0].get("href"), reverse("translator:job_download", args=[job.id]))
 
     def test_top_action_bar_failed_job_has_no_preview_bilingual_or_download(self):
         job = self._create_job(TranslationJob.Status.FAILED)
@@ -2570,13 +2580,13 @@ class TranslatorUIRefreshTests(TestCase):
         response = self.client.get(reverse("translator:job_detail", args=[job.id]))
 
         body = response.content.decode("utf-8")
-        bar_html = body[body.index('class="top-action-bar"'):body.index('class="job-detail-layout"')]
-        self.assertNotIn("Preview Bilingual", bar_html)
-        self.assertNotIn(">Download<", bar_html)
-        # The danger action stays available regardless of job status.
-        self.assertIn("data-remove-document", bar_html)
-        self.assertIn(f'data-delete-url="{reverse("translator:job_delete", args=[job.id])}"', bar_html)
-        self.assertNotIn(f'href="{reverse("translator:job_delete_confirm", args=[job.id])}"', bar_html)
+        document = lxml_html.fromstring(body)
+        bar = document.xpath("//*[@class='top-action-bar']")[0]
+        for endpoint in ("job_preview", "job_download"):
+            self.assertFalse(document.xpath("//a[@href=$url and not(@hidden)]",
+                                            url=reverse("translator:" + endpoint, args=[job.id])))
+        self.assertTrue(bar.xpath(".//button[@data-remove-document and @data-delete-url=$url]",
+                                  url=reverse("translator:job_delete", args=[job.id])))
 
     # ---- Phase 3: preview loading-state hook ----
 
@@ -2588,15 +2598,21 @@ class TranslatorUIRefreshTests(TestCase):
 
         body = response.content.decode("utf-8")
         self.assertIn("js-preview-link", body)
-        self.assertIn("Preparing bilingual preview", body)
+        document = lxml_html.fromstring(body)
+        links = document.xpath("//a[@id='job-terminal-preview-action' and @data-loading-text]")
+        self.assertEqual(len(links), 1)
+        self.assertTrue(links[0].get("data-loading-text").startswith("Preparing document preview"))
 
-    def test_app_js_holds_loading_state_minimum_duration_and_has_no_dead_preview_code(self):
-        js_path = Path(__file__).resolve().parent.parent / "static" / "js" / "app.js"
-        js = js_path.read_text(encoding="utf-8")
-
-        self.assertIn("MIN_LOADING_MS = 2500", js)
-        self.assertNotIn("function initPreview()", js)
-        self.assertIn('classList.contains("is-loading")', js)
+    def test_preview_navigation_has_recovery_controls(self):
+        self.client.force_login(self.alice)
+        job = self._create_job(TranslationJob.Status.COMPLETED)
+        response = self.client.get(reverse("translator:job_detail", args=[job.id]))
+        document = lxml_html.fromstring(response.content)
+        dialog = document.xpath("//dialog[@id='page-transition-overlay']")[0]
+        self.assertEqual(dialog.get("aria-labelledby"), "page-transition-text")
+        self.assertTrue(dialog.xpath(".//button[@id='cancel-preview-opening']"))
+        self.assertTrue(document.xpath("//a[@id='job-terminal-preview-action' and @href=$url]",
+                                       url=reverse("translator:job_preview", args=[job.id])))
 
     def test_page_transition_overlay_has_correct_default_text_and_reduced_motion_css(self):
         base_html = (
@@ -2608,7 +2624,10 @@ class TranslatorUIRefreshTests(TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn('id="page-transition-overlay"', base_html)
-        self.assertIn("Preparing bilingual preview", base_html)
+        document = lxml_html.fromstring(base_html)
+        text = document.xpath("//*[@id='page-transition-text']")[0]
+        self.assertTrue(text.text_content().startswith("Preparing document preview"))
+        self.assertEqual(text.get("role"), "status")
         self.assertNotIn("Opening Bilingual Preview", base_html)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
         self.assertIn(".page-transition-spinner .spinner", css)
@@ -2710,8 +2729,11 @@ class TranslatorUIRefreshTests(TestCase):
                           f"{role}: History back button must be present")
             self.assertIn("ui_refresh.pdf", body,
                           f"{role}: filename must be shown")
-            self.assertIn("Download Translated PDF", body,
-                          f"{role}: download action must be available")
+            document = lxml_html.fromstring(body)
+            downloads = document.xpath("//a[@id='preview-download' and @href=$url]",
+                                        url=reverse("translator:job_download", args=[job.id]))
+            self.assertEqual(len(downloads), 1, f"{role}: persisted download action must be available")
+            self.assertIn("Download Translated Document", downloads[0].text_content())
             self.assertIn("Original Document", body,
                           f"{role}: original panel must be present")
             self.assertIn("Translated Document", body,
@@ -3167,8 +3189,8 @@ class TranslatorPhase4FidelityTests(TestCase):
         self.assertGreater(len(layout_data), 0)
         self.assertEqual(job.metadata["page_extraction_methods"]["0"], "digital")
 
-    def test_hybrid_pdf_low_text_page_is_marked_scanned(self):
-        """A nearly-blank PDF page is classified as scanned in page_extraction_methods."""
+    def test_hybrid_pdf_blank_page_is_preserved_without_ocr(self):
+        """T01–T02 preserve blank pages and never route PDF pages through OCR."""
         import fitz
         from translator.services.pipeline_service import PipelineService, JobStatus
         from translator.services.models import FileType, DetectionType
@@ -3185,9 +3207,11 @@ class TranslatorPhase4FidelityTests(TestCase):
         job.metadata = {}
 
         pipeline = PipelineService()
-        layout_data, _ = pipeline._extract_hybrid_pdf(pdf_path, None, job)
-
-        self.assertEqual(job.metadata["page_extraction_methods"]["0"], "ocr")
+        with patch.object(pipeline.ocr_service, "extract_pdf_text_and_layout") as ocr:
+            layout_data, _ = pipeline._extract_hybrid_pdf(pdf_path, None, job)
+        self.assertEqual(job.metadata["page_extraction_methods"]["0"], "preserved")
+        self.assertFalse(any(block.get("type") == "text" for page in layout_data for block in page.get("blocks", [])))
+        ocr.assert_not_called()
 
     # ------------------------------------------------------------------
     # 5. Generated output gating
@@ -3557,8 +3581,8 @@ class TranslatorPhase5ReadingOrderReconstructionTests(TestCase):
         self.assertAlmostEqual(page.rect.height, 792.0, delta=1.0)
         doc.close()
 
-    def test_text_block_completely_outside_page_bounds_is_skipped(self):
-        """A block whose bbox is outside the page rect does not crash reconstruction."""
+    def test_text_block_completely_outside_page_bounds_prevents_partial_success(self):
+        """Invalid geometry must not publish an output with missing content."""
         import fitz
         from translator.services.pipeline_service import PipelineService
 
@@ -3586,8 +3610,8 @@ class TranslatorPhase5ReadingOrderReconstructionTests(TestCase):
         }
         output_path = str(self.root / "oob.pdf")
         ok = PipelineService()._create_output_pdf(layout, translations, output_path)
-        self.assertTrue(ok, "_create_output_pdf should not crash on out-of-bounds block")
-        self.assertTrue(Path(output_path).exists())
+        self.assertFalse(ok, "Out-of-bounds content cannot be reported as complete")
+        self.assertFalse(Path(output_path).exists())
 
 
 class TranslatorPhase5HybridPDFOrderTests(TestCase):
@@ -5646,7 +5670,7 @@ class RuntimeTranslationDatasetCorpusTests(TestCase):
         self.assertGreater(len(dataset.data), 1028)
         self.assertEqual(result["translated"], self.CORPUS_TAGABAWA)
         self.assertEqual(result["method"], "exact_phrase")
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_unknown_sentence_with_known_words_is_not_word_by_word(self):
         from translator.services.pipeline_service import PipelineService
@@ -5675,7 +5699,7 @@ class RuntimeTranslationDatasetCorpusTests(TestCase):
         from translator.services.translation_dataset import TranslationDataset
 
         with tempfile.NamedTemporaryFile("w", suffix=".txt", encoding="utf-8", delete=False) as handle:
-            handle.write(f"Hello\nHello unknownword999\n{self.CORPUS_ENGLISH}\n")
+            handle.write(f"alert\nHello unknownword999\n{self.CORPUS_ENGLISH}\n")
             txt_path = handle.name
         self.addCleanup(lambda: Path(txt_path).unlink(missing_ok=True))
 
@@ -5685,13 +5709,13 @@ class RuntimeTranslationDatasetCorpusTests(TestCase):
             for block in layout[0]["blocks"]
             for line in block["lines"]
         ]
-        self.assertEqual(text_lines, ["Hello", "Hello unknownword999", self.CORPUS_ENGLISH])
+        self.assertEqual(text_lines, ["alert", "Hello unknownword999", self.CORPUS_ENGLISH])
 
         service = PipelineService.__new__(PipelineService)
         service.translation_dataset = TranslationDataset()
         translations = service._translate_layout(layout, "english", "tagabawa")
 
-        self.assertEqual(translations["0_0_0"]["translated"], "Madig\u00e1r")
+        self.assertEqual(translations["0_0_0"]["translated"], "matasik")
         self.assertEqual(translations["0_0_1"]["translated"], "Hello unknownword999")
         self.assertTrue(translations["0_0_1"]["needs_review"])
         self.assertEqual(translations["0_0_2"]["translated"], self.CORPUS_TAGABAWA)
@@ -5755,7 +5779,7 @@ class AppendixETranslationTests(TestCase):
             "blocks": [{
                 "type": "text",
                 "bbox": [0, 0, 400, 50],
-                "lines": [{"text": "Hello", "bbox": [0, 0, 400, 20]}],
+                "lines": [{"text": "alert", "bbox": [0, 0, 400, 20]}],
             }]
         }]
         results = svc._translate_layout(layout, "english", "tagabawa")
@@ -5764,7 +5788,9 @@ class AppendixETranslationTests(TestCase):
         self.assertIsNotNone(line_result,
                              "_translate_layout must return a result keyed by '0_0_0' for the first line")
         self.assertNotEqual(line_result["translated"], UNKNOWN_FOR_REVIEW,
-                            "A known phrase ('Hello') must be translated, not returned as UNKNOWN_FOR_REVIEW")
+                            "The existing 'alert' resource must reach the pipeline")
+        self.assertEqual(line_result["translated"], "matasik")
+        self.assertTrue(line_result["needs_review"])
         self.assertIn(line_result["method"], ("exact_phrase", "normalized_phrase"),
                       "Translation method must be one of the valid cascade stages")
         self.assertIn("source_language", line_result,
@@ -5809,16 +5835,16 @@ class AppendixETranslationTests(TestCase):
         """A known word in the dataset returns its exact stored Tagabawa value via exact_phrase at confidence=1.0."""
         from translator.services.translation_dataset import UNKNOWN_FOR_REVIEW
 
-        result = self.dataset.translate_phrase_with_metadata("Hello", "english", "tagabawa")
+        result = self.dataset.translate_phrase_with_metadata("alert", "english", "tagabawa")
 
         self.assertNotEqual(result["translated"], UNKNOWN_FOR_REVIEW,
-                            "'Hello' must have a stored Tagabawa translation in the dataset")
+                            "'alert' has an existing stored Tagabawa resource")
         self.assertEqual(result["method"], "exact_phrase",
-                         "'Hello' must match via exact_phrase, not fall through to fallback handling")
+                         "'alert' must match via exact_phrase, not fall through to fallback handling")
         self.assertEqual(result["confidence"], 1.0,
                          "An exact_phrase match must report confidence=1.0")
-        self.assertEqual(result["translated"], "Madigár",
-                         "Translation of 'Hello' must match the stored dataset entry exactly")
+        self.assertEqual(result["translated"], "matasik")
+        self.assertTrue(result["review_required"])
 
     # ------------------------------------------------------------------ TC-E04
     def test_tc_e04_phrasebook_phrase_returns_stored_translation(self):
@@ -5854,19 +5880,14 @@ class AppendixETranslationTests(TestCase):
                          "source_text must be stored verbatim; normalization must not overwrite the original")
 
     # ------------------------------------------------------------------ TC-E05
-    def test_tc_e05_phrase_match_has_priority_over_word_matches(self):
-        """An exact phrase match is returned first; the result is not fragmented by word-by-word processing."""
-        from translator.services.translation_dataset import UNKNOWN_FOR_REVIEW
-
+    def test_tc_e05_conflicting_phrase_is_retained_without_word_by_word_output(self):
+        """Conflicting resources must not select an arbitrary phrase or compose words."""
         phrase_result = self.dataset.translate_phrase_with_metadata("Sit down", "english", "tagabawa")
-
-        self.assertEqual(phrase_result["method"], "exact_phrase",
-                         "'Sit down' must be matched as a phrase (exact_phrase), not split word-by-word")
-        self.assertNotEqual(phrase_result["translated"], UNKNOWN_FOR_REVIEW)
-        self.assertEqual(phrase_result["translated"], "Unsad kó",
-                         "Phrase match must return the stored phrase translation, not a word-by-word composite")
-        self.assertEqual(phrase_result["confidence"], 1.0,
-                         "exact_phrase must report confidence=1.0")
+        self.assertEqual(phrase_result["translated"], "Sit down")
+        self.assertEqual(phrase_result["method"], "unknown_for_review")
+        self.assertEqual(phrase_result["confidence"], 0.0)
+        self.assertTrue(phrase_result["review_required"])
+        self.assertIn("Conflicting", " ".join(phrase_result["warnings"]))
 
     # ------------------------------------------------------------------ TC-E06
     def test_tc_e06_unknown_word_is_retained_and_marked(self):
@@ -5910,12 +5931,12 @@ class AppendixETranslationTests(TestCase):
         """Tagabawa diacritics survive translation lookup and database round-trip; source text is never normalized."""
         from translator.services import _sync_structure_models
 
-        # "Hello" → "Madigár" (á = U+00E1 must survive)
-        hello_result = self.dataset.translate_phrase_with_metadata("Hello", "english", "tagabawa")
-        self.assertIn("á", hello_result["translated"],
+        # Use an existing resource; 'Hello' is absent from the current files.
+        return_result = self.dataset.translate_phrase_with_metadata(
+            "I'll return it this afternoon.", "english", "tagabawa")
+        self.assertIn("á", return_result["translated"],
                       "Tagabawa acute accent (á, U+00E1) must be present in translated output")
-        self.assertEqual(hello_result["translated"], "Madigár",
-                         "Full Tagabawa word with accent must match stored value exactly")
+        self.assertEqual(return_result["translated"], "Ulián ku dád kanik mapun.")
 
         # "Visiting" → "Ágpanumbalé" (Á = U+00C1, é = U+00E9 must survive)
         visiting_result = self.dataset.translate_phrase_with_metadata("Visiting", "english", "tagabawa")
@@ -5925,14 +5946,14 @@ class AppendixETranslationTests(TestCase):
                       "Lowercase é (U+00E9) must be preserved in the Tagabawa translation")
 
         # Tagabawa source text with accents stored verbatim in TranslationSegment
-        tagabawa_source = "Madigár"
+        tagabawa_source = return_result["translated"]
         job = self._create_job(self.alice)
         structure_path = self._write_structure(job, {
             "extraction_method": "direct_pdf_text",
             "pages": [{"page_number": 1, "width": 612, "height": 792, "rotation": 0,
                 "blocks": [{"type": "text", "bbox": [72, 100, 540, 120], "lines": [{
                     "text": tagabawa_source,
-                    "translated_text": "Hello",
+                    "translated_text": "I'll return it this afternoon.",
                     "translation_method": "exact_phrase",
                     "translation_confidence": 1.0,
                     "bbox": [72, 100, 540, 120],
@@ -6096,7 +6117,8 @@ class AppendixETranslationTests(TestCase):
         error_msg = "Translation phase failed: dataset file is unreadable"
         mock_pipeline.side_effect = Exception(error_msg)
         job = self._create_job(self.alice, status="queued")
-        _run_translation_job(job.job_id, job.input_file_path, "pdf", "auto", "tagabawa", None)
+        with patch("translator.services.close_old_connections"):
+            _run_translation_job(job.job_id, job.input_file_path, "pdf", "auto", "tagabawa", None)
         job.refresh_from_db()
 
         self.assertEqual(job.status, TranslationJob.Status.FAILED,
@@ -6533,7 +6555,7 @@ class AppendixGDownloadTests(TestCase):
     def test_tc_g01_completed_bilingual_document_downloads(self):
         """COMPLETED job with a real output file returns 200, Content-Type application/pdf,
         and a Content-Disposition attachment header whose filename matches the expected
-        format translated_<first-8-chars-of-job-id>.pdf. No mocking is used."""
+        format original_SOURCE_to_TARGET.pdf. No mocking is used."""
         job = self._create_job(self.alice)
         output_path = self._write_job_output(job)
         job.output_file_path = output_path
@@ -6552,19 +6574,21 @@ class AppendixGDownloadTests(TestCase):
             disposition = response.headers.get("Content-Disposition", "")
             self.assertIn("attachment", disposition,
                           "Content-Disposition must include 'attachment' to force a browser download")
-            expected_filename = f"translated_{job.job_id[:8]}.pdf"
+            expected_filename = "g_test_doc_EN_to_TBW.pdf"
             self.assertIn(
                 expected_filename, disposition,
                 f"Content-Disposition filename must be '{expected_filename}' "
-                "(prefix 'translated_' + first 8 chars of job UUID + '.pdf')",
+                "(original stem and persisted language direction)",
             )
+            self.assertEqual(b"".join(response.streaming_content), Path(output_path).read_bytes())
         finally:
-            response.close()
+            if not response.closed:
+                response.close()
 
     # ------------------------------------------------------------------ TC-G02
     def test_tc_g02_downloaded_output_preserves_bilingual_order(self):
         """Part A: _create_output_pdf with a 2-page layout_data creates a valid 2-page PDF.
-        Part B: ?format=bilingual serves the bilingual file with the filename prefix 'bilingual_'.
+        Part B: ?format=bilingual serves a descriptively named bilingual file.
         Together these confirm that the output generation pipeline and the bilingual download
         path function correctly end-to-end."""
         import fitz
@@ -6612,6 +6636,7 @@ class AppendixGDownloadTests(TestCase):
         self.assertIn("Mataas ang kagubatan.", full_text)
 
         # Part B — bilingual download path: ?format=bilingual serves the bilingual file
+        from django.contrib.auth.models import Group
         job = self._create_job(self.alice)
         translated_path = self._write_job_output(job, "translated.pdf")
         bilingual_path = self._write_job_output(job, "bilingual.pdf")
@@ -6619,7 +6644,10 @@ class AppendixGDownloadTests(TestCase):
         job.bilingual_file_path = bilingual_path
         job.save(update_fields=["output_file_path", "bilingual_file_path"])
         self.client.force_login(self.alice)
-
+        denied = self.client.get(reverse("translator:job_download", args=[job.id]) + "?format=bilingual")
+        self.assertEqual(denied.status_code, 403, "Learners must not receive teacher-only downloads")
+        teacher_group, _ = Group.objects.get_or_create(name="Teacher")
+        self.alice.groups.add(teacher_group)
         response = self.client.get(
             reverse("translator:job_download", args=[job.id]) + "?format=bilingual"
         )
@@ -6627,13 +6655,15 @@ class AppendixGDownloadTests(TestCase):
             self.assertEqual(response.status_code, 200,
                              "?format=bilingual must return HTTP 200 when the bilingual PDF exists in the job directory")
             disposition = response.headers.get("Content-Disposition", "")
-            expected_bilingual_filename = f"bilingual_{job.job_id[:8]}.pdf"
+            expected_bilingual_filename = "g_test_doc_EN_to_TBW_bilingual.pdf"
             self.assertIn(
                 expected_bilingual_filename, disposition,
                 f"Bilingual download Content-Disposition filename must be '{expected_bilingual_filename}'",
             )
+            self.assertEqual(b"".join(response.streaming_content), Path(bilingual_path).read_bytes())
         finally:
-            response.close()
+            if not response.closed:
+                response.close()
 
     def test_reconstruct_pdf_rejects_layout_that_omits_source_pages(self):
         from translator.services.reconstruction_service import ReconstructionService
@@ -8391,6 +8421,11 @@ class TranslatorNeuralSyncAndOutputTests(TestCase):
     password = "Bagobo-Neural-Sync-2026!"
 
     def setUp(self):
+        # Connection recycling belongs to the worker, outside TestCase's
+        # transaction. Keep that transaction open for these persistence checks.
+        connections_patch = patch("translator.services.close_old_connections")
+        connections_patch.start()
+        self.addCleanup(connections_patch.stop)
         self.temp_dir = tempfile.TemporaryDirectory()
         self.media_root = Path(self.temp_dir.name)
         self.settings_override = override_settings(MEDIA_ROOT=self.media_root)
@@ -8420,6 +8455,13 @@ class TranslatorNeuralSyncAndOutputTests(TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
         return path
+
+    def _write_completion_output(self, job):
+        """Supply the real output artifact required by T03 atomic completion."""
+        import fitz
+        with fitz.open() as document:
+            document.new_page().insert_text((72, 100), "Good day")
+            self._write_job_file(job, "translated", "translated.pdf", document.tobytes())
 
     def test_byt5_segments_are_always_needs_review_with_no_confidence(self):
         from translator.services.neural_translation_service import (
@@ -8456,6 +8498,7 @@ class TranslatorNeuralSyncAndOutputTests(TestCase):
             }).encode("utf-8"),
         )
 
+        self._write_completion_output(job)
         sync_pipeline_job(
             SimpleNamespace(
                 job_id=job.job_id,
@@ -8524,6 +8567,7 @@ class TranslatorNeuralSyncAndOutputTests(TestCase):
             }).encode("utf-8"),
         )
 
+        self._write_completion_output(job)
         sync_pipeline_job(
             SimpleNamespace(
                 job_id=job.job_id,
@@ -9566,9 +9610,9 @@ class TranslationPunctuationPreservationTests(TestCase):
         self.assertIn(result["method"], ("exact_phrase", "normalized_phrase"))
 
     def test_question_mark_is_preserved_after_phrasebook_match(self):
-        result = self.dataset.translate_phrase_with_metadata("Hello?", "english", "tagabawa")
+        result = self.dataset.translate_phrase_with_metadata("alert?", "english", "tagabawa")
         self.assertEqual(
-            result["translated"], "Madigár?",
+            result["translated"], "matasik?",
             "Trailing question mark must be re-attached to the translated phrase",
         )
 
@@ -9579,12 +9623,13 @@ class TranslationPunctuationPreservationTests(TestCase):
             "Trailing exclamation point must be re-attached to the translated phrase",
         )
 
-    def test_comma_is_preserved_after_phrasebook_match(self):
+    def test_comma_conflict_retains_original_for_review(self):
         result = self.dataset.translate_phrase_with_metadata("Sit down,", "english", "tagabawa")
-        self.assertEqual(
-            result["translated"], "Unsad kó,",
-            "Trailing comma must be re-attached to the translated phrase",
-        )
+        # Existing resources disagree for this source; selecting a first row
+        # would silently approve one of the conflicting translations.
+        self.assertEqual(result["translated"], "Sit down,")
+        self.assertEqual(result["method"], "unknown_for_review")
+        self.assertTrue(result["needs_review"])
 
     def test_no_double_punctuation_when_translated_already_ends_with_it(self):
         """Real dataset row where BOTH source and stored translation already
@@ -9801,7 +9846,7 @@ class CrosslingualDirectionTests(TestCase):
                 self.assertEqual(result["translated"], expected)
                 self.assertEqual(result["method"], "exact_phrase")
                 self.assertEqual(result["confidence"], 1.0)
-                self.assertFalse(result["needs_review"])
+                self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_normalized_match_works_in_both_directions(self):
         # Case/punctuation-tolerant lookup must also hold per direction.
@@ -9811,7 +9856,7 @@ class CrosslingualDirectionTests(TestCase):
         self.assertEqual(result["translated"], "TGB-good-morning!")
         self.assertEqual(result["method"], "normalized_phrase")
         self.assertEqual(result["confidence"], 1.0)
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
         reverse = self.dataset.translate_phrase_with_metadata(
             "tgb-thank-you", source_lang="tagabawa", target_lang="english"
@@ -9819,7 +9864,7 @@ class CrosslingualDirectionTests(TestCase):
         self.assertEqual(reverse["translated"].lower(), "thank you")
         self.assertIn(reverse["method"], ("exact_phrase", "normalized_phrase"))
         self.assertEqual(reverse["confidence"], 1.0)
-        self.assertFalse(reverse["needs_review"])
+        self.assertTrue(reverse["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_bisaya_alias_behaves_as_cebuano_target(self):
         result = self.dataset.translate_phrase_with_metadata(
@@ -9828,7 +9873,7 @@ class CrosslingualDirectionTests(TestCase):
         self.assertEqual(result["translated"], "CEB-good-morning")
         self.assertEqual(result["method"], "exact_phrase")
         self.assertEqual(result["confidence"], 1.0)
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_bisaya_alias_behaves_as_cebuano_source(self):
         result = self.dataset.translate_phrase_with_metadata(
@@ -9837,7 +9882,7 @@ class CrosslingualDirectionTests(TestCase):
         self.assertEqual(result["translated"], "TGB-good-morning")
         self.assertEqual(result["method"], "exact_phrase")
         self.assertEqual(result["confidence"], 1.0)
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_unknown_phrase_stays_original_in_every_direction(self):
         unknown = "Xylo qwerty zzz unmatched"
@@ -9869,7 +9914,8 @@ class CrosslingualDirectionTests(TestCase):
                 if not value or value[-1] in ".?!,":
                     return False
                 bucket = dataset._phrase_indices[lang].get(value.lower(), [])
-                if len(bucket) != 1:
+                if len({tuple(r.get(f"{language}_source", "").casefold()
+                              for language in SUPPORTED_LANGS) for r in bucket}) != 1:
                     return False
             return True
 
@@ -9890,7 +9936,7 @@ class CrosslingualDirectionTests(TestCase):
                 self.assertEqual(result["translated"].lower(), expected.lower())
                 self.assertEqual(result["method"], "exact_phrase")
                 self.assertEqual(result["confidence"], 1.0)
-                self.assertFalse(result["needs_review"])
+                self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
 
 class PhraseCleanupAndSegmentationTests(TestCase):
@@ -9920,13 +9966,13 @@ class PhraseCleanupAndSegmentationTests(TestCase):
         self.assertEqual(result["translated"], "Can you speak Tagalog?")
         self.assertEqual(result["method"], "normalized_phrase")
         self.assertEqual(result["confidence"], 1.0)
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_phrase_with_glued_underscores_still_translates(self):
         result = self._translate("Kahibalo ka ba magsulti ug Bisaya?______________")
         self.assertEqual(result["translated"], "Can you speak Visayan?")
         self.assertEqual(result["method"], "normalized_phrase")
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_underscores_do_not_match_unrelated_phrases(self):
         # Filler must be treated as absence of text, never as a wildcard.
@@ -9946,7 +9992,7 @@ class PhraseCleanupAndSegmentationTests(TestCase):
         self.assertEqual(result["method"], "segmented_phrase")
         self.assertEqual(result["cascade_stage"], "segmented_phrase")
         self.assertEqual(result["confidence"], 1.0)
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_fused_sentences_with_space_also_split(self):
         result = self._translate(
@@ -9963,7 +10009,7 @@ class PhraseCleanupAndSegmentationTests(TestCase):
         self.assertEqual(result["translated"], "Who made it? I made it myself.")
         self.assertEqual(result["method"], "segmented_phrase")
         self.assertEqual(result["confidence"], 1.0)
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_fully_unknown_fused_line_stays_original(self):
         original = "Xyzzy plugh wibble. Qwerty asdf zzz."
@@ -9992,10 +10038,10 @@ class PhraseCleanupAndSegmentationTests(TestCase):
         self.assertEqual(result["translated"], "What does that mean?")
 
     def test_punctuation_preservation_still_works(self):
-        result = self._translate("Hello?", source_lang="english", target_lang="tagabawa")
-        self.assertEqual(result["translated"], "Madigár?")
+        result = self._translate("alert?", source_lang="english", target_lang="tagabawa")
+        self.assertEqual(result["translated"], "matasik?")
         self.assertEqual(result["method"], "normalized_phrase")
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
 
 class FontAndLookupRobustnessTests(TestCase):
@@ -10031,14 +10077,14 @@ class FontAndLookupRobustnessTests(TestCase):
         )
         self.assertEqual(result["translated"], "Can you speak Tagalog?")
         self.assertIn(result["method"], ("exact_phrase", "normalized_phrase"))
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
 
     def test_known_sentence_with_curly_apostrophe_still_translates(self):
         # PDFs typically carry U+2019 for apostrophes while the dataset row
         # stores a straight quote.
         result = self._translate("I’ll return it this afternoon.")
         self.assertIn(result["method"], ("exact_phrase", "normalized_phrase"))
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])  # Unverified fixtures still require SME review.
         self.assertNotEqual(
             result["translated"].lower(),
             "i’ll return it this afternoon.",
@@ -10276,7 +10322,7 @@ class ValidatedImportWorkflowTests(TestCase):
         self.assertEqual(new_result["translated"], "TGB-validated-sentence.")
         self.assertEqual(new_result["method"], "exact_phrase")
         self.assertEqual(new_result["confidence"], 1.0)
-        self.assertFalse(new_result["needs_review"])
+        self.assertTrue(new_result["needs_review"])  # Unverified fixtures still require SME review.
 
         reverse = dataset.translate_phrase_with_metadata(
             "TGB-validated-sentence.", source_lang="tagabawa", target_lang="english"

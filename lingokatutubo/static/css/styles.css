@@ -2096,13 +2096,13 @@ h1 {
 .translating-state {
   display: grid;
   justify-items: center;
-  gap: var(--space-4);
-  width: min(100%, 380px);
-  padding: var(--space-8);
+  gap: var(--space-3);
+  width: min(100%, 420px);
+  padding: clamp(16px, 3vw, 24px);
   color: var(--ink);
   text-align: center;
   background: var(--paper);
-  border: 1px solid hsl(150 46% 25% / 0.25);
+  border: 0;
   border-radius: var(--radius-lg, 16px);
   box-shadow: 0 20px 48px -8px rgba(6, 59, 42, 0.28), 0 8px 20px -4px rgba(0, 0, 0, 0.12);
   animation: modal-pop 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -2163,6 +2163,59 @@ h1 {
   color: var(--primary-dark);
   font-size: clamp(1.5rem, 4vw, 2rem);
   line-height: 1.15;
+}
+
+/* Native translation dialogs retain the existing cards and backdrop. */
+dialog[data-translation-dialog] {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  padding: clamp(12px, 3vw, 24px);
+  overflow: auto;
+  align-items: safe center;
+}
+dialog[data-translation-dialog]:not([open]) { display: none; }
+dialog[data-translation-dialog]::backdrop { background: transparent; }
+dialog[data-translation-dialog] .translating-state,
+dialog[data-translation-dialog] .translation-terminal-state {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.translating-state h2 {
+  margin: 0;
+  color: var(--primary-dark);
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
+  line-height: 1.15;
+}
+.translating-state .translation-document-icon {
+  width: 32px;
+  height: 32px;
+  animation: none;
+}
+.translating-state .translation-language-line { animation: none; }
+.translation-loading-description { margin: 0; color: var(--muted); }
+.translation-status-close { min-width: 96px; }
+.translation-status-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-3);
+}
+.translation-status-controls > p { flex-basis: 100%; margin: 0; }
+dialog[data-translation-dialog] :is(button, a) {
+  max-width: 100%;
+  min-height: 44px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog[data-translation-dialog] .translating-state,
+  dialog[data-translation-dialog] .translation-document-icon { animation: none; }
 }
 
 .translation-document-icon {
@@ -4732,6 +4785,62 @@ body.user-scrolled .hero-arrow,
 .translating-state,
 .translation-terminal-state { border-radius: var(--radius-lg); box-shadow: 0 28px 88px hsl(154 44% 9% / 0.32); }
 .translation-terminal-icon { width: 76px; height: 76px; }
+
+/* Compact completed status only; processing and failure cards keep their UI. */
+.translation-terminal-state.is-complete {
+  position: relative;
+  width: min(100%, 400px);
+  gap: 12px;
+  padding: 32px 24px 24px;
+  border-radius: 16px;
+  box-shadow: 0 16px 40px hsl(154 44% 9% / 0.22);
+}
+.translation-terminal-state.is-complete .translation-terminal-icon { width: 48px; height: 48px; }
+.translation-terminal-state.is-complete h2 { font-family: var(--font-sans); font-size: clamp(1.25rem, 3.5vw, 1.5rem); }
+.translation-complete-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.translation-complete-close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.translation-complete-close:hover { color: var(--primary-dark); background: var(--color-primary-100); }
+.translation-complete-actions { display: grid; gap: 10px; width: 100%; margin-top: 4px; }
+.translation-complete-actions .button {
+  width: 100%;
+  min-height: 46px;
+  justify-content: center;
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 700;
+  box-shadow: none;
+  transform: none;
+}
+.translation-complete-actions .button.secondary { border: 1px solid var(--primary); color: var(--primary); background: transparent; }
+.translation-complete-actions .button.secondary:hover { background: var(--color-primary-100); }
+.translation-complete-actions .button:hover { box-shadow: none; transform: none; }
+.translation-complete-actions p { margin: 0; color: var(--muted); font-size: var(--fs-helper); }
+.translation-terminal-state.is-complete [data-preview-error] { margin: 0; text-align: left; font-size: var(--fs-helper); }
+.translation-terminal-state.is-complete :is(a, button):focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+@media (max-height: 420px) {
+  .translation-terminal-state.is-complete { gap: 8px; padding: 16px 20px; }
+  .translation-terminal-state.is-complete .translation-terminal-icon { width: 32px; height: 32px; }
+  .translation-terminal-state.is-complete h2 { font-size: 1.25rem; }
+  .translation-complete-actions { gap: 8px; margin-top: 0; }
+  .translation-complete-actions .button { min-height: 44px; padding-block: 9px; }
+  .translation-complete-close { top: 4px; right: 4px; }
+}
 
 .preview-page { padding-top: clamp(var(--space-6), 3vw, var(--space-10)); }
 .preview-header { padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }

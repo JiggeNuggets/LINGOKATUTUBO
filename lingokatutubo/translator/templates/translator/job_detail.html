@@ -15,17 +15,26 @@
     </div>
   </header>
 
-  {% include "translator/partials/_action_bar.html" with job=job can_preview=can_preview can_download=can_download show_check_action=is_processing show_download_action=is_processing %}
+  {% include "translator/partials/_action_bar.html" with job=job can_preview=can_preview can_download=can_download show_check_action=True show_download_action=True %}
 
-  <section class="translation-job-status" data-status-poller data-job-id="{{ job.job_id }}" data-initial-status="{{ job.status }}" data-status-url="{{ status_api_url }}" data-preview-url="{% url 'translator:job_preview' job.id %}" aria-busy="{% if is_processing %}true{% else %}false{% endif %}">
+  <p id="translation-status-summary" role="status" aria-live="polite" aria-atomic="true">{% if is_processing %}Translation is continuing in the background.{% elif has_failed %}{{ failure_message }}{% else %}Translation is complete. Available actions are below.{% endif %}</p>
+  <button id="translation-status-toggle" type="button" class="button secondary" aria-haspopup="dialog" aria-expanded="true" aria-controls="{% if is_processing %}translation-job-processing-overlay{% else %}translation-terminal-overlay{% endif %}">View translation status</button>
+  {% if is_processing %}
+  <div class="translation-status-controls" role="group" aria-label="Translation status actions">
+    <button id="reload-status-button" type="button" class="button secondary">Check status now</button>
+    <a class="button-link" href="{% url 'translator:history' %}">View document history</a>
+    <p id="status-monitor-network" role="status" aria-live="polite" hidden></p>
+  </div>
+  {% endif %}
+  <section class="translation-job-status" data-status-poller data-job-id="{{ job.job_id }}" data-initial-status="{{ job.status }}" data-status-url="{{ status_api_url }}" data-preview-url="{% url 'translator:job_preview' job.id %}">
     {% if is_processing %}
-      <div id="translation-job-processing-overlay" class="translation-processing-overlay job-processing-overlay" aria-hidden="false" aria-busy="true">
-        {% include "translator/partials/_translating_state.html" with icon_id="translation-state-icon" state_word_id="translation-state-word" state_description_id="translation-state-description" progress_wrap_id="translation-progress-wrap" progress_id="translation-progress" loading_description="Translation is continuing in the background." %}
-      </div>
+      <dialog id="translation-job-processing-overlay" class="translation-processing-overlay job-processing-overlay" data-translation-dialog open aria-modal="true" aria-labelledby="translation-state-word" aria-describedby="translation-state-description" aria-hidden="false">
+        {% include "translator/partials/_translating_state.html" with icon_id="translation-state-icon" state_word_id="translation-state-word" state_description_id="translation-state-description" progress_wrap_id="translation-progress-wrap" progress_id="translation-progress" loading_description="Translation is continuing in the background." show_status_controls=True %}
+      </dialog>
     {% else %}
-    <div id="translation-terminal-overlay" class="translation-terminal-overlay" role="dialog" aria-modal="true" aria-labelledby="translation-terminal-title" aria-hidden="false">
+    <dialog id="translation-terminal-overlay" class="translation-terminal-overlay" data-translation-dialog open aria-modal="true" aria-labelledby="translation-terminal-title" aria-hidden="false">
       {% include "translator/partials/_translation_terminal_state.html" with job=job is_failed=has_failed %}
-    </div>
+    </dialog>
 
     {% if has_retained_text and not can_view_validation_markers %}
       <p class="alert warning" style="margin-top: var(--space-s);">Some text may remain unchanged when a suitable translation is unavailable.</p>
@@ -81,9 +90,9 @@
     </section>
     <section class="card" aria-labelledby="download-choices-heading">
       <h2 id="download-choices-heading">Download choices</h2><p class="section-subtitle">Available files depend on job status and your Django permissions.</p>
-      <div class="download-grid"><article class="download-card"><h3>Clean translated document</h3><p>For reading or sharing a completed translation.</p>{% if can_download %}<a class="button primary" href="{% url 'translator:job_download' job.id %}">Download translated document</a>{% else %}<span class="button secondary" aria-disabled="true">Available when complete</span>{% endif %}</article>{% if can_download_teacher_copy %}<article class="download-card"><h3>Teacher review copy</h3><p>For classroom review with the original and translation together.</p><a class="button secondary" href="{% url 'translator:job_download' job.id %}?format=bilingual">Download teacher review copy</a></article>{% endif %}{% if can_download_validator_copy %}<article class="download-card"><h3>Validator review copy</h3><p>Detailed validation markers and review information.</p><a class="button secondary" href="{% url 'translator:job_preview' job.id %}?review=1">Open validator review copy</a><a class="button-link" href="{% url 'translator:review_manifest' job.id %}">Download review manifest</a></article>{% endif %}<article class="download-card"><h3>Original Document</h3><p>The source file you uploaded, retained for comparison.</p><a class="button secondary" href="{% url 'translator:job_download_original' job.id %}">Download original</a></article></div>
+      <div class="download-grid"><article class="download-card"><h3>Clean translated document</h3><p>For reading or sharing a completed translation.</p>{% if can_download %}<a class="button primary" href="{% url 'translator:job_download' job.id %}">Download translated document</a>{% else %}<span class="button secondary" aria-disabled="true">Available when complete</span>{% endif %}</article>{% if can_download_teacher_copy and can_download_bilingual %}<article class="download-card"><h3>Teacher review copy</h3><p>For classroom review with the original and translation together.</p><a class="button secondary" href="{% url 'translator:job_download' job.id %}?format=bilingual">Download teacher review copy</a></article>{% endif %}{% if can_download_validator_copy %}<article class="download-card"><h3>Validator review copy</h3><p>Detailed validation markers and review information.</p><a class="button secondary" href="{% url 'translator:job_preview' job.id %}?review=1">Open validator review copy</a><a class="button-link" href="{% url 'translator:review_manifest' job.id %}">Download review manifest</a></article>{% endif %}<article class="download-card"><h3>Original Document</h3><p>The source file you uploaded, retained for comparison.</p><a class="button secondary" href="{% url 'translator:job_download_original' job.id %}">Download original</a></article></div>
     </section>
-  {% elif job.status == "completed" and can_download_teacher_copy %}
+  {% elif job.status == "completed" and can_download_teacher_copy and can_download_bilingual %}
     <section class="hero-actions compact-result-actions" aria-label="Teacher review action">
       <a class="button secondary" href="{% url 'translator:job_download' job.id %}?format=bilingual">Teacher review copy</a>
     </section>

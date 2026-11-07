@@ -245,83 +245,76 @@ class ExtractionService:
     
     @staticmethod
     def extract_docx_text_and_layout(docx_path: str) -> List[Dict[str, Any]]:
-        """Extract text from DOCX file with automatic page-breaking.
+        """Extract DOCX body order for a simplified, reflowed PDF, not Word pagination."""
+        import base64
+        from docx.text.paragraph import Paragraph
+        from docx.table import Table
+        doc = Document(docx_path)
+        pages, blocks, warnings = [], [], [
+            "DOCX output uses simplified PDF flow; exact Word pagination, fonts, headers, and footers are not preserved."
+        ]
+        y = 72.0
 
-        DOCX has no native page concept, so we simulate pages using a
-        fixed usable height.  Each paragraph occupies LINE_HEIGHT points.
-        When a paragraph would overflow the page it starts a fresh one,
-        preventing silent text clipping in the reconstructed output PDF.
-        """
-        PAGE_W: float = 612.0
-        PAGE_H: float = 792.0
-        LEFT: float = 72.0
-        RIGHT: float = 540.0
-        TOP_MARGIN: float = 72.0
-        BOTTOM_MARGIN: float = 720.0   # 72 pt bottom gutter
-        LINE_H: float = 20.0
+        def flush():
+            nonlocal blocks
+            pages.append({"page": len(pages), "width": 612.0, "height": 792.0,
+                          "rotation": 0, "blocks": blocks, "warnings": list(dict.fromkeys(warnings)),
+                          "flow_layout": True})
+            blocks = []
 
-        pages_data: List[Dict[str, Any]] = []
-        current_blocks: List[Dict[str, Any]] = []
-        current_y: float = TOP_MARGIN
+        def paragraph(para):
+            nonlocal y
+            text = clean_invisible_unicode(para.text).strip()
+            if text:
+                if y + 20 > 720:
+                    flush()
+                    y = 72.0
+                bbox = [72.0, y, 540.0, y + 20]
+                blocks.append({"type": "text", "bbox": bbox, "lines": [{
+                    "text": text, "bbox": bbox, "font": para.style.font.name or "Calibri",
+                    "size": 12, "is_heading": para.style.name.startswith("Heading"),
+                }]})
+                y += 20
+            for blip in para._p.xpath(".//a:blip"):
+                relation = blip.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed")
+                part = para.part.related_parts.get(relation)
+                if part is None:
+                    raise ValueError("DOCX contains an image that cannot be read safely")
+                pix = fitz.Pixmap(part.blob)
+                width, height = pix.width, pix.height
+                scale = min(468 / width, 600 / height, 1.0)
+                width, height = width * scale, height * scale
+                if y + height > 720:
+                    flush()
+                    y = 72.0
+                blocks.append({"type": "image", "bbox": [72, y, 72 + width, y + height],
+                               "image_base64": base64.b64encode(part.blob).decode("ascii")})
+                y += height + 12
+                warnings.append("DOCX inline images are preserved after their paragraph; anchored positioning and text wrapping are approximate.")
 
-        def _flush_page() -> None:
-            pages_data.append({
-                "page": len(pages_data),
-                "width": PAGE_W,
-                "height": PAGE_H,
-                "rotation": 0,
-                "blocks": current_blocks.copy(),
-            })
-            current_blocks.clear()
+        def table(item):
+            warnings.append("DOCX table cells are rendered in row order; table borders, merged-cell geometry, and column widths are not preserved.")
+            seen = set()
+            for row in item.rows:
+                for cell in row.cells:
+                    if cell._tc in seen:
+                        continue
+                    seen.add(cell._tc)
+                    for element in cell._tc:
+                        if element.tag.endswith("}p"):
+                            paragraph(Paragraph(element, cell))
+                        elif element.tag.endswith("}tbl"):
+                            table(Table(element, cell))
 
-        try:
-            doc = Document(docx_path)
-
-            for para in doc.paragraphs:
-                text = clean_invisible_unicode(para.text).strip()
-                if not text:
-                    continue
-
-                # Start a new page when the next paragraph would overflow.
-                if current_y + LINE_H > BOTTOM_MARGIN:
-                    _flush_page()
-                    current_y = TOP_MARGIN
-
-                is_heading = para.style.name.startswith("Heading")
-                try:
-                    font_name = para.style.font.name or "Calibri"
-                except Exception:
-                    font_name = "Calibri"
-
-                bbox = [LEFT, current_y, RIGHT, current_y + LINE_H]
-                block_data = {
-                    "type": "text",
-                    "bbox": bbox,
-                    "lines": [{
-                        "text": text,
-                        "bbox": bbox,
-                        "font": font_name,
-                        "is_heading": is_heading,
-                    }],
-                }
-                current_blocks.append(block_data)
-                current_y += LINE_H
-
-            # Always emit at least one page (even if the document is empty).
-            _flush_page()
-
-        except Exception as e:
-            safe_print(f"[Extraction] Error extracting DOCX: {e}")
-            if not pages_data:
-                pages_data.append({
-                    "page": 0,
-                    "width": PAGE_W,
-                    "height": PAGE_H,
-                    "rotation": 0,
-                    "blocks": [],
-                })
-
-        return pages_data
+        for element in doc.element.body:
+            if element.tag.endswith("}p"):
+                paragraph(Paragraph(element, doc))
+            elif element.tag.endswith("}tbl"):
+                table(Table(element, doc))
+        flush()
+        for page in pages:
+            page["warnings"] = list(dict.fromkeys(warnings))
+        return pages
     
     @staticmethod
     def extract_text_from_layout(pages_data: List[Dict[str, Any]]) -> List[TextSegment]:

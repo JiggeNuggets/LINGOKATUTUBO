@@ -12,6 +12,15 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
+# Evidence travels unchanged from lookup through structure.json to segment metadata.
+TRANSLATION_EVIDENCE_FIELDS = (
+    "match_method", "review_required", "validation_status", "runtime_approval_status",
+    "matched_entry_id", "matched_entry_revision", "unknown_tokens", "warnings",
+    "provenance_status", "restriction_status", "matched_term", "match_score",
+    "resource_metadata", "components", "source_language", "target_language",
+)
+
+
 @dataclass
 class TranslationResult:
     source_text: str

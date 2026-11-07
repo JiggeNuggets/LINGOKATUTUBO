@@ -8,6 +8,10 @@ import re
 from typing import Optional, Dict, Any, Callable, List, Sequence, Union
 from datetime import datetime
 import json
+import logging
+import time
+
+from django.conf import settings
 
 from .models import FileType, DetectionType
 from .file_service import get_file_service
@@ -15,7 +19,8 @@ from .detection_service import get_detection_service
 from .extraction_service import get_extraction_service
 from .reconstruction_service import get_reconstruction_service
 from .display_utils import clean_invisible_unicode, safe_print
-from .translation_dataset import UNKNOWN_FOR_REVIEW, get_translation_dataset
+from .translation_dataset import UNKNOWN_FOR_REVIEW, get_translation_dataset, LanguageResourceUnavailable
+from .translation_result import TRANSLATION_EVIDENCE_FIELDS
 from .translation_display import (
     get_display_translation_text,
     is_display_fallback_translation,
@@ -23,6 +28,12 @@ from .translation_display import (
 from .neural_translation_service import NEURAL_METHOD
 from .language_detection_service import get_language_detection_service
 from .ocr_stage import OCRUnavailableError, get_ocr_service
+from .job_lifecycle import (
+    JobDeadlineExceeded, JobPersistenceError,
+    PROCESSING_FAILURE_MESSAGE, PERSISTENCE_UNCERTAIN_MESSAGE,
+)
+
+logger = logging.getLogger(__name__)
 
 
 PIPELINE_PHASES = {
@@ -88,6 +99,7 @@ class JobStatus:
         self.detection_type = None
         self.file_type = None
         self.created_at = datetime.now()
+        self.started_monotonic = time.monotonic()
         self.completed_at = None
         self.metadata = {
             "phase_started_at": self.created_at.isoformat(),
@@ -118,10 +130,21 @@ class PipelineService:
         self.job_update_callback = callback
 
     def _persist_job(self, job: JobStatus) -> None:
+        if job.status in {"queued", "processing"}:
+            timeout = getattr(settings, "LINGOKATUTUBO_TASK_TIMEOUT_SECONDS", 900)
+            if time.monotonic() - job.started_monotonic >= timeout:
+                raise JobDeadlineExceeded("Translation processing exceeded its configured deadline.")
         callback = getattr(self, "job_update_callback", None)
         if not callback:
             return
-        callback(job)
+        try:
+            if callback(job) is False:
+                raise JobPersistenceError("Job is no longer active; processing was stopped.")
+        except Exception as exc:
+            job.metadata["persistence_uncertain"] = True
+            job.phase_message = PERSISTENCE_UNCERTAIN_MESSAGE
+            logger.exception("State synchronization failed for job %s; persisted outcome is uncertain", job.job_id)
+            raise JobPersistenceError(PERSISTENCE_UNCERTAIN_MESSAGE) from exc
 
     @staticmethod
     def _run_ocr_for_scanned(input_file_path: str) -> dict:
@@ -258,9 +281,8 @@ class PipelineService:
         job.file_type = file_type
         job.status = "processing"
         self.jobs[job_id] = job
-        self._persist_job(job)
-        
         try:
+            self._persist_job(job)
             self._set_job_phase(job, "detecting")
 
             safe_print(f"[Pipeline] Job {job_id} started")
@@ -292,34 +314,28 @@ class PipelineService:
                 ocr_languages=ocr_languages,
             )
 
-            if job.detection_type == DetectionType.DIGITAL:
-                if file_type == FileType.PDF:
-                    # Use per-page hybrid extraction so mixed digital/scanned
-                    # PDFs route each page to the right extraction method.
-                    layout_data, ocr_unavailable_msg = self._extract_hybrid_pdf(
-                        input_file_path,
-                        requested_ocr_languages,
-                        job,
-                    )
-                elif file_type == FileType.DOCX:
+            if file_type == FileType.PDF:
+                # PDFs use native text only. Image-only pages are retained as
+                # document content rather than sent through OCR.
+                layout_data, ocr_unavailable_msg = self._extract_hybrid_pdf(
+                    input_file_path,
+                    requested_ocr_languages,
+                    job,
+                )
+            elif job.detection_type == DetectionType.DIGITAL:
+                if file_type == FileType.DOCX:
                     layout_data = self.extraction_service.extract_docx_text_and_layout(input_file_path)
                     job.metadata["extraction_method"] = "docx_text"
                 elif file_type == FileType.TXT:
                     layout_data = self._extract_txt_text_and_layout(input_file_path)
                     job.metadata["extraction_method"] = "plain_text"
             else:
-                # Scanned input: route through Tesseract OCR. No mock fallback.
+                # Preserve the legacy direct-image path; PDFs never enter OCR.
                 self._set_job_phase(job, "ocr")
                 ocr_summary_data: Optional[Dict[str, Any]] = None
                 try:
                     ocr_dpi = getattr(self.ocr_service, "dpi", "default")
-                    if file_type == FileType.PDF:
-                        safe_print(f"[Pipeline] SCANNED PDF - running Tesseract OCR at {ocr_dpi} DPI")
-                        layout_data = self.ocr_service.extract_pdf_text_and_layout(
-                            input_file_path,
-                            languages=requested_ocr_languages,
-                        )
-                    elif file_type in (FileType.JPG, FileType.PNG):
+                    if file_type in (FileType.JPG, FileType.PNG):
                         safe_print(f"[Pipeline] Image input - running Tesseract OCR at {ocr_dpi} DPI")
                         layout_data = self.ocr_service.extract_image_text_and_layout(
                             input_file_path,
@@ -446,6 +462,13 @@ class PipelineService:
                 )
             )
             if text_block_count == 0:
+                if file_type == FileType.PDF:
+                    if ocr_unavailable_msg:
+                        raise Exception(f"Could not read PDF document: {ocr_unavailable_msg}")
+                    raise Exception(
+                        "This PDF has no readable native text. Scanned or textless PDFs "
+                        "are not supported; upload a text-based PDF or DOCX document."
+                    )
                 if ocr_unavailable_msg:
                     raise Exception(
                         f"OCR engine unavailable: {ocr_unavailable_msg}. "
@@ -537,13 +560,7 @@ class PipelineService:
                 )
                 if not success:
                     layout_warnings.append(
-                        "Exact PDF layout reconstruction failed; generated a clean translated-text PDF instead."
-                    )
-                    success = self._create_output_pdf(
-                        layout_data,
-                        translations,
-                        output_pdf_path,
-                        layout_warnings=layout_warnings,
+                        "PDF reconstruction could not preserve all text and layout safely; no replacement PDF was published."
                     )
             else:
                 # For DOCX/images, create a simple PDF output
@@ -556,13 +573,12 @@ class PipelineService:
                     layout_warnings=layout_warnings,
                 )
             
-            if not success:
-                raise Exception("Failed to reconstruct PDF")
-
             if layout_warnings:
                 job.metadata["layout_warnings"] = layout_warnings
                 self._append_structure_warnings(job_id, layout_warnings)
                 self._persist_job(job)
+            if not success:
+                raise Exception("Failed to reconstruct the complete document safely")
 
             if not os.path.exists(output_pdf_path):
                 raise Exception(f"Output PDF was not created at: {output_pdf_path}")
@@ -572,6 +588,12 @@ class PipelineService:
                 if file_type == FileType.PDF and source_page_count is not None
                 else max(1, len(layout_data))
             )
+            if file_type == FileType.DOCX:
+                # DOCX pages are estimates, not fixed source PDF pages.
+                # The flow renderer validates every text item and may paginate.
+                expected_output_page_count = self._count_pdf_pages(output_pdf_path)
+                if not expected_output_page_count:
+                    raise Exception("DOCX output has no readable pages.")
             translated_page_count = self._require_pdf_page_count(
                 output_pdf_path,
                 expected_output_page_count,
@@ -667,12 +689,18 @@ class PipelineService:
             safe_print(f"[Pipeline] Job {job_id} completed successfully")
             return True
         
+        except JobPersistenceError:
+            # Outputs may already exist. Do not misclassify an uncertain
+            # database write as a processing failure or repeat the work.
+            raise
         except Exception as e:
+            logger.exception("Translation processing failed for job %s", job_id)
             failed_at = datetime.now()
             self._record_phase_transition(job, "failed")
             job.status = "failed"
             job.error = str(e)
-            job.phase_message = str(e)
+            job.phase_message = PROCESSING_FAILURE_MESSAGE
+            job.completed_at = failed_at
             job.current_phase = "failed"
             job.current_step = "Translation failed"
             job.metadata["phase_message"] = job.phase_message
@@ -745,6 +773,8 @@ class PipelineService:
         Returns:
             Dict mapping line/block/source keys to translation records.
         """
+        if getattr(self.translation_dataset, "is_loaded", True) is False:
+            raise LanguageResourceUnavailable("Required language resources are unavailable")
         translations = {}
         # Extractors commonly repeat headers, footers, labels, and identical
         # lines across pages.  Dataset and fuzzy lookup results are deterministic
@@ -817,6 +847,8 @@ class PipelineService:
                     block_id = f"{page_index}_{block_index}"
                     line_id = f"{page_index}_{block_index}_{line_index}"
                     record = {
+                        **{key: translation_meta[key] for key in TRANSLATION_EVIDENCE_FIELDS
+                           if key in translation_meta},
                         "original": original,
                         "translated": clean_invisible_unicode(
                             translation_meta.get("translated", original)
@@ -826,6 +858,7 @@ class PipelineService:
                         "confidence": translation_meta.get("confidence"),
                         "needs_review": (
                             bool(translation_meta.get("needs_review"))
+                            or bool(translation_meta.get("review_required"))
                             or self._is_unmatched(translation_meta)
                             or translation_meta.get("method") == NEURAL_METHOD
                         ),
@@ -1062,7 +1095,9 @@ class PipelineService:
         in `warnings`.
         """
         detected_type = self._format_detected_type(file_type, job.detection_type)
-        is_scanned = job.detection_type == DetectionType.SCANNED
+        # Scanned/textless PDFs are rejected by the native-only PDF scope.
+        # Building their diagnostics must not initialize OCR dependencies.
+        is_scanned = job.detection_type == DetectionType.SCANNED and file_type != FileType.PDF
         warnings: list = []
         pages_out: list = []
 
@@ -1071,10 +1106,13 @@ class PipelineService:
                 warnings.append(message)
 
         if ocr_unavailable_msg:
-            add_warning(
-                "OCR engine unavailable; scanned input could not be processed. "
-                f"Detail: {ocr_unavailable_msg}"
-            )
+            if file_type == FileType.PDF:
+                add_warning(f"Could not read PDF document: {ocr_unavailable_msg}")
+            else:
+                add_warning(
+                    "OCR engine unavailable; scanned input could not be processed. "
+                    f"Detail: {ocr_unavailable_msg}"
+                )
         elif is_scanned and not self.ocr_service.is_available():
             add_warning(
                 "Tesseract OCR is not available on this system. "
@@ -1093,6 +1131,8 @@ class PipelineService:
             page_warn = page_data.get("ocr_warning")
             if page_warn:
                 add_warning(f"Page {page_idx + 1}: {page_warn}")
+            for warning in page_data.get("warnings", []):
+                add_warning(str(warning))
 
             for block in page_data.get("blocks", []):
                 block_type = block.get("type", "unknown")
@@ -1164,6 +1204,9 @@ class PipelineService:
                 "rotation": page_data.get("rotation", 0),
                 "blocks": blocks_out,
             })
+
+        if file_type == FileType.PDF and total_text_blocks == 0:
+            add_warning("This PDF has no readable native text; scanned or textless PDFs are not supported.")
 
         # If scanned and OCR found nothing, still surface page geometry so
         # the frontend can render an empty preview, and add a clear warning.
@@ -1283,6 +1326,8 @@ class PipelineService:
                         line["translation_confidence"] = confidence
                         line["translation_warning"] = warning
                         line["needs_review"] = needs_review
+                        line.update({key: record[key] for key in TRANSLATION_EVIDENCE_FIELDS
+                                     if key in record})
 
                         if display_translated:
                             line_translations.append(str(display_translated))
@@ -1430,40 +1475,23 @@ class PipelineService:
         requested_ocr_languages: Optional[List[str]],
         job: "JobStatus",
     ) -> tuple:
-        """Per-page hybrid extraction: digital pages use PyMuPDF, scanned use OCR.
+        """Extract native PDF text and preserve pages without readable text.
 
-        Returns (layout_data, ocr_unavailable_msg).
+        Retains the existing method signature and (layout_data, error) return
+        contract. PDF image content is preserved, never translated with OCR.
 
-        Each page is classified independently using MIN_CHARS_PER_PAGE.
-        The extraction_method stored in job.metadata is:
-        - "direct_pdf_text"  when every page is digital
-        - "ocr_image"        when every page is scanned
-        - "hybrid"           when both methods are used
-
-        Per-page extraction method is stored in metadata["page_extraction_methods"].
+        Each page uses the detector's native-text eligibility rule, including
+        readable native text below the character-count shortcut. Pages without
+        it keep their image/graphic layout and receive no text translations.
+        The caller rejects documents with no readable text on any page.
         """
-        from .detection_service import MIN_CHARS_PER_PAGE
+        from .detection_service import DetectionService
         from .extraction_service import ExtractionService
 
         import fitz
 
         layout_data: List[Dict[str, Any]] = []
-        ocr_unavailable_msg: Optional[str] = None
         page_methods: Dict[int, str] = {}
-        digital_count = 0
-        scanned_count = 0
-
-        lang = "eng"
-        language_warnings: List[str] = []
-        if requested_ocr_languages:
-            try:
-                lang, language_warnings = self.ocr_service.resolve_tesseract_language(
-                    requested_ocr_languages
-                )
-            except Exception:
-                pass
-
-        scale = 72.0 / float(getattr(self.ocr_service, "dpi", 300))
 
         try:
             doc = fitz.open(pdf_path)
@@ -1473,83 +1501,26 @@ class PipelineService:
         try:
             for page_idx in range(doc.page_count):
                 page = doc[page_idx]
-                text = clean_invisible_unicode(page.get_text())
-                char_count = len(
-                    text.replace(" ", "").replace("\n", "").replace("\t", "")
-                )
-
-                if char_count >= MIN_CHARS_PER_PAGE:
-                    page_data = ExtractionService._extract_page_digital(page, page_idx)
+                has_native_text = DetectionService.page_has_native_text(page)
+                page_data = ExtractionService._extract_page_digital(page, page_idx)
+                if has_native_text:
                     page_methods[page_idx] = "digital"
-                    digital_count += 1
                 else:
-                    if ocr_unavailable_msg:
-                        page_data = {
-                            "page": page_idx,
-                            "width": float(page.rect.width),
-                            "height": float(page.rect.height),
-                            "rotation": page.rotation,
-                            "blocks": [],
-                            "ocr_warning": "OCR unavailable; page was not extracted.",
-                        }
-                    else:
-                        try:
-                            from PIL import Image
-                            import io as _io
-                            dpi = getattr(self.ocr_service, "dpi", 300)
-                            mat = fitz.Matrix(dpi / 72.0, dpi / 72.0)
-                            pix = page.get_pixmap(matrix=mat, alpha=False)
-                            img = Image.open(_io.BytesIO(pix.tobytes("png")))
-                            page_data = self.ocr_service._ocr_image(
-                                img,
-                                page_idx,
-                                float(page.rect.width),
-                                float(page.rect.height),
-                                scale,
-                                lang=lang,
-                                language_warnings=language_warnings if page_idx == 0 else None,
-                            )
-                        except OCRUnavailableError as exc:
-                            ocr_unavailable_msg = str(exc)
-                            page_data = {
-                                "page": page_idx,
-                                "width": float(page.rect.width),
-                                "height": float(page.rect.height),
-                                "rotation": page.rotation,
-                                "blocks": [],
-                                "ocr_warning": f"OCR unavailable: {exc}",
-                            }
-                        except Exception as exc:
-                            page_data = {
-                                "page": page_idx,
-                                "width": float(page.rect.width),
-                                "height": float(page.rect.height),
-                                "rotation": page.rotation,
-                                "blocks": [],
-                                "ocr_error": str(exc),
-                            }
-                    page_methods[page_idx] = "ocr"
-                    scanned_count += 1
+                    page_data["blocks"] = [
+                        block for block in page_data["blocks"]
+                        if block.get("type") != "text"
+                    ]
+                    page_methods[page_idx] = "preserved"
 
                 layout_data.append(page_data)
         finally:
             doc.close()
 
-        if digital_count > 0 and scanned_count > 0:
-            method = "hybrid"
-        elif scanned_count > 0:
-            method = "ocr_image"
-        else:
-            method = "direct_pdf_text"
-
-        job.metadata["extraction_method"] = method
+        job.metadata["extraction_method"] = "direct_pdf_text"
         job.metadata["page_extraction_methods"] = {
             str(k): v for k, v in page_methods.items()
         }
-        if language_warnings:
-            job.metadata.setdefault("ocr_warnings", []).extend(language_warnings)
-
-        return layout_data, ocr_unavailable_msg
+        return layout_data, None
 
     def _build_source_preview_pdf(
         self,
@@ -1610,6 +1581,11 @@ class PipelineService:
         For image inputs, the original raster image is placed as the page
         background before translated OCR text is overlaid.
         """
+        if file_type == FileType.DOCX:
+            return self.reconstruction_service.create_docx_pdf(
+                layout_data, translations, output_path, layout_warnings,
+            )
+        doc = None
         try:
             import fitz
             doc = fitz.open()
@@ -1699,13 +1675,24 @@ class PipelineService:
                             if layout_warnings is not None:
                                 layout_warnings.append(
                                     f"Page {page_idx + 1}, block {block_idx}, line {line_idx}: "
-                                    "invalid text bbox; translated text was skipped."
+                                    "invalid text bbox; output was not completed."
                                 )
-                            continue
+                            return False
 
                         line_for_insert = dict(line)
                         line_for_insert.setdefault("block_bbox", block.get("bbox"))
-                        self.reconstruction_service._insert_text_in_rect(
+                        obstacles = [
+                            self.reconstruction_service._rect_from_bbox(item.get("bbox"), page.rect, padding=0.75)
+                            for item_block in blocks for item in item_block.get("lines", [])
+                        ]
+                        line_for_insert["available_bbox"] = list(self.reconstruction_service._available_rect(
+                            rect, page, [item for item in obstacles if item is not None],
+                        ))
+                        if input_file_path and file_type in (FileType.JPG, FileType.PNG):
+                            # Legacy image-backed output still needs its source
+                            # glyphs masked, confined to the original text region.
+                            page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1), width=0, overlay=True)
+                        inserted = self.reconstruction_service._insert_text_in_rect(
                             page,
                             rect,
                             clean_invisible_unicode(translated),
@@ -1716,6 +1703,11 @@ class PipelineService:
                             line_idx,
                             fallback_text=original,
                         )
+                        if not inserted:
+                            return False
+                        self.reconstruction_service._add_review_indicator(
+                            page, rect, record or None, original, layout_warnings, page_idx + 1,
+                        )
             
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             doc.save(output_path)
@@ -1725,6 +1717,9 @@ class PipelineService:
         except Exception as e:
             safe_print(f"[Pipeline] Error creating output PDF: {e}")
             return False
+        finally:
+            if doc is not None and not doc.is_closed:
+                doc.close()
 
     def _build_bilingual_first_page(
         self,
@@ -1768,7 +1763,8 @@ class PipelineService:
                     cascade_stage,
                 )
                 needs_review = (
-                    is_display_fallback_translation(raw_translated_text, method, cascade_stage)
+                    bool(record.get("needs_review")) or bool(record.get("review_required"))
+                    or is_display_fallback_translation(raw_translated_text, method, cascade_stage)
                     or method == NEURAL_METHOD
                 )
                 blocks_output.append(
@@ -1831,4 +1827,11 @@ def get_pipeline_service() -> PipelineService:
     global _pipeline_service
     if _pipeline_service is None:
         _pipeline_service = PipelineService()
+    else:
+        # Resource management invalidates the dataset cache deliberately.
+        # Refresh a cached worker service for subsequent jobs as well.
+        dataset = get_translation_dataset()
+        if _pipeline_service.translation_dataset is not dataset:
+            _pipeline_service.translation_dataset = dataset
+            _pipeline_service.language_service = get_language_detection_service(dataset)
     return _pipeline_service

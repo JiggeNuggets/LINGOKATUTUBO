@@ -4,33 +4,26 @@
 {% block title %}Translate a Document{% endblock %}
 {% block meta_description %}Upload a PDF or DOCX document for Bagobo-Tagabawa translation.{% endblock %}
 {% block body_class %}translate-flow-page{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/translate-flow.css' %}?v=1">{% endblock %}
-{% block extra_js %}<script src="{% static 'js/translate-flow.js' %}?v=1" defer></script>{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/translate-flow.css' %}?v=compact-1">{% endblock %}
+{% block extra_js %}<script src="{% static 'js/translate-flow.js' %}?v=compact-1" defer></script>{% endblock %}
 
 {% block content %}
 <main class="translate-flow" id="translate-main">
   <div class="translate-flow__shell">
     <div class="translate-flow__title-row">
-      <div>
-        <h1>Translate a document</h1>
-        <p>Upload a PDF or DOCX, choose the language direction, and follow its progress.</p>
-      </div>
-      <a href="{% url 'translator:history' %}">View history <span aria-hidden="true">↗</span></a>
+      <h1>Translate a document</h1>
     </div>
 
-    <form id="translate-flow-form" class="translate-flow__grid" method="post" enctype="multipart/form-data" data-upload-url="{% url 'translator:upload' %}" data-job-url="{% url 'translator:job_detail' '00000000-0000-0000-0000-000000000000' %}" data-max-file-bytes="52428800">
+    <p id="translate-upload-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+    <form id="translate-flow-form" class="translate-flow__grid" method="post" enctype="multipart/form-data" aria-busy="false" data-upload-url="{% url 'translator:upload' %}" data-job-url="{% url 'translator:job_detail' '00000000-0000-0000-0000-000000000000' %}" data-history-url="{% url 'translator:history' %}" data-workflow-key="{{ request.user.pk }}" data-max-file-bytes="52428800">
       {% csrf_token %}
       <section class="translate-flow__card translate-flow__upload" aria-labelledby="translate-upload-title">
-        <div class="translate-flow__card-heading">
-          <div><span class="translate-flow__step" aria-hidden="true">01</span><h2 id="translate-upload-title">Add your document</h2></div>
-          <span class="translate-flow__accepted">PDF · DOCX</span>
-        </div>
+        <h2 id="translate-upload-title" class="sr-only">1. Upload a document</h2>
         <div id="translate-upload-stage">
           <label class="translate-flow__drop" id="translate-drop-zone" for="translate-file">
-            <input id="translate-file" name="file" type="file" accept=".pdf,.docx" aria-describedby="translate-file-help translate-file-feedback">
+            <input id="translate-file" name="file" type="file" accept=".pdf,.docx" aria-label="Upload PDF or DOCX" aria-describedby="translate-file-help translate-file-feedback">
             <svg class="translate-flow__file-icon" viewBox="0 0 48 56" fill="none" aria-hidden="true"><path d="M7 2h22l12 12v36a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4Z" stroke="currentColor" stroke-width="2"/><path d="M29 2v12h12M14 29h17M14 36h17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            <span class="translate-flow__drop-copy"><strong>Choose a document</strong><small id="translate-file-help">PDF or DOCX · up to 50 MB</small></span>
-            <span class="translate-flow__browse">Browse files</span>
+            <span class="translate-flow__drop-copy"><strong>Upload PDF or DOCX</strong><small id="translate-file-help">Choose a document · up to 50 MB</small></span>
           </label>
           <div class="translate-flow__selected" id="translate-selected" hidden>
             <span class="translate-flow__file-type" id="translate-file-type" aria-hidden="true">PDF</span>
@@ -38,37 +31,39 @@
             <button type="button" id="translate-remove-file">Remove</button>
           </div>
         </div>
-        <div class="translate-flow__status" id="translate-uploading" hidden role="status" aria-live="polite">
+        <div class="translate-flow__status" id="translate-uploading" hidden role="region" aria-labelledby="translate-uploading-title" tabindex="-1">
           <span class="translate-flow__status-line" aria-hidden="true"></span>
-          <h3>Uploading your document</h3>
+          <h3 id="translate-uploading-title">Uploading your document</h3>
           <p id="translate-uploading-file">Your document is being sent. Keep this page open until the upload finishes.</p>
-          <small>Translation begins after the upload is accepted.</small>
+          <button type="button" id="translate-stop-waiting" class="translate-flow__outline">Stop waiting and check status</button>
         </div>
         <div class="translate-flow__status translate-flow__status--error" id="translate-error-stage" hidden role="alert">
           <span class="translate-flow__status-line" aria-hidden="true"></span>
-          <h3>We couldn’t upload this document</h3>
+          <h3 id="translate-error-title">We couldn’t accept this document</h3>
           <p id="translate-error-description"></p>
-          <button type="button" id="translate-try-again" class="translate-flow__outline">Choose a document to try again</button>
+          <div class="translate-flow__recovery-actions">
+            <a id="translate-review-upload" class="translate-flow__outline" hidden>Check document history</a>
+            <button type="button" id="translate-try-again" class="translate-flow__secondary" aria-describedby="translate-error-title translate-error-description">Choose a document to try again</button>
+          </div>
         </div>
         <p id="translate-file-feedback" class="translate-flow__feedback" role="status" aria-live="polite"></p>
       </section>
 
       <section class="translate-flow__card translate-flow__settings" aria-labelledby="translate-settings-title">
-        <div class="translate-flow__card-heading"><div><span class="translate-flow__step" aria-hidden="true">02</span><h2 id="translate-settings-title">Language direction</h2></div></div>
+        <h2 id="translate-settings-title" class="sr-only">2. Language direction</h2>
         <div class="translate-flow__fields">
           <label for="translate-source">From</label>
           <select id="translate-source" name="source_language"><option value="auto">Auto-detect</option><option value="english">English</option><option value="filipino">Filipino / Tagalog</option><option value="cebuano">Cebuano</option><option value="tagabawa">Bagobo-Tagabawa</option></select>
-          <button type="button" id="translate-swap" aria-label="Swap source and target languages" title="Choose a source language to swap" disabled>⇅ <span>Swap languages</span></button>
+          <button type="button" id="translate-swap" aria-label="Swap source and target languages" title="Choose a source language to swap" disabled><span aria-hidden="true">↔</span></button>
           <label for="translate-target">To</label>
           <select id="translate-target" name="target_language"><option value="tagabawa">Bagobo-Tagabawa</option><option value="english">English</option><option value="filipino">Filipino / Tagalog</option><option value="cebuano">Cebuano</option></select>
         </div>
-        <div class="translate-flow__action"><button id="translate-start" type="submit" disabled>Start translation <span aria-hidden="true">→</span></button><p id="translate-action-help">Choose a document to continue.</p></div>
+        <div class="translate-flow__action"><button id="translate-start" type="submit" aria-describedby="translate-action-help" disabled><span id="translate-start-label">Translate Document</span><span aria-hidden="true">→</span></button><p id="translate-action-help" class="sr-only">Choose a document to continue.</p></div>
       </section>
     </form>
 
-    <p class="translate-flow__support"><strong>Keep track of your document.</strong> View its status and available downloads from your account history.</p>
     <section class="translate-flow__recent" aria-labelledby="translate-recent-title">
-      <div class="translate-flow__recent-head"><div><h2 id="translate-recent-title">Recent documents</h2><p>Pick up where you left off.</p></div><a href="{% url 'translator:history' %}">View all history <span aria-hidden="true">↗</span></a></div>
+      <div class="translate-flow__recent-head"><div><h2 id="translate-recent-title">Recent documents</h2></div><a href="{% url 'translator:history' %}">View history <span aria-hidden="true">↗</span></a></div>
       {% if recent_jobs %}
       <div class="translate-flow__recent-list">
         {% for state in recent_jobs %}

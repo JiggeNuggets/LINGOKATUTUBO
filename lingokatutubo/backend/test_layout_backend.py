@@ -311,7 +311,11 @@ class ReconstructionTests(unittest.TestCase):
         drawn instead, possibly overflowing the original bbox."""
         input_pdf = self.tmp_path / "input.pdf"
         output_pdf = self.tmp_path / "translated-fallback.pdf"
-        self._write_base_pdf(input_pdf)
+        # Keep the source glyphs inside the deliberately tiny layout bbox.
+        # The former 12pt source extended beyond it, leaving unredacted "ello".
+        with fitz.open() as source:
+            source.new_page(width=320, height=220).insert_text((40, 61), "Hello", fontsize=2)
+            source.save(input_pdf)
 
         layout_data = [{
             "page": 0,
@@ -435,7 +439,11 @@ class ReconstructionTests(unittest.TestCase):
         extracted = out_doc[0].get_text()
         out_doc.close()
 
-        self.assertIn("[UNKNOWN_FOR_REVIEW]", extracted)
+        self.assertIn("Hello", extracted)
+        self.assertNotIn("[UNKNOWN_FOR_REVIEW]", extracted)
+        with fitz.open(output_pdf) as output:
+            notes = [a.info.get("content", "") for a in output[0].annots()]
+        self.assertTrue(any("Original text retained" in note and "validation" in note for note in notes))
 
     def test_preview_prefixes_prevent_original_translated_overwrite(self):
         input_pdf = self.tmp_path / "input.pdf"
@@ -501,7 +509,10 @@ class ReconstructionTests(unittest.TestCase):
         extracted = out_doc[0].get_text()
         out_doc.close()
         self.assertIn("kann\u0119", extracted)
-        self.assertTrue(any("Unicode" in warning for warning in warnings))
+        # Successful embedding is normal behavior, not an error warning.
+        self.assertFalse(any("no Unicode" in warning for warning in warnings))
+        with fitz.open(output_pdf) as output:
+            self.assertTrue(any(font[1] in {"ttf", "otf"} for font in output[0].get_fonts()))
 
 
 class StructureJsonTests(unittest.TestCase):

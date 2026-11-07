@@ -6,6 +6,7 @@ import copy
 import csv
 import io
 import uuid
+import logging
 from functools import wraps
 from pathlib import Path
 from urllib.parse import urlparse
@@ -17,10 +18,11 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
-from django.db import connection, transaction
+from django.db import DatabaseError, connection, transaction
 from django.db.models import Avg, Count, Prefetch, Q
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from .download_filenames import translated_download_filename
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -61,7 +63,9 @@ from .services import (
     save_uploaded_file,
     start_translation_job,
     translation_dataset_loaded,
+    _fail_translation_job,
 )
+from .services.job_lifecycle import PERSISTENCE_UNCERTAIN_MESSAGE
 from .services.display_utils import clean_invisible_unicode
 from .services.translation_display import get_display_translation, get_display_translation_text
 from .services.governance import review_entry
@@ -94,6 +98,7 @@ TRANSLATE_PAGE_RECENT_JOB_LIMIT = 2
 GENERIC_TRANSLATION_FAILURE_MESSAGE = (
     "Translation could not be completed. Please try another file or contact the administrator."
 )
+logger = logging.getLogger(__name__)
 
 # Path prefixes the frontend only ever talks to via fetch() + response.json().
 # Auth/CSRF/permission failures on these must stay JSON — a redirect or an
@@ -908,6 +913,18 @@ def preview(request, job_id):
 @api_login_required
 @require_POST
 def api_translate(request):
+    try:
+        return _accept_translation_upload(request)
+    except DatabaseError:
+        logger.exception("Upload acceptance database check failed; no acceptance is confirmed")
+        return JsonResponse(
+            {"ok": False, "error": "The translation service is temporarily unavailable. Check your history before submitting again.",
+             "error_code": "database_unavailable", "status_uncertain": True},
+            status=503,
+        )
+
+
+def _accept_translation_upload(request):
     # 1. Active jobs limit check (Maximum 2 queued/processing jobs per user)
     active_jobs = TranslationJob.objects.filter(
         owner=request.user,
@@ -948,6 +965,7 @@ def api_translate(request):
         return JsonResponse({"detail": "Please upload a PDF or DOCX document."}, status=400)
 
     job = None
+    dispatched = False
     try:
         job = TranslationJob.objects.create(
             owner=request.user,
@@ -959,78 +977,84 @@ def api_translate(request):
             phase_message="Document is waiting to be processed.",
         )
 
-        stored_paths = save_uploaded_file(uploaded, job.job_id)
+        with transaction.atomic():
+            _initialize_uploaded_document(request, job, uploaded, file_type)
 
-        job.input_file_path = stored_paths["input_file_path"]
-        job.upload_file_path = stored_paths["upload_file_path"]
-        job.save(update_fields=["input_file_path", "upload_file_path", "updated_at"])
-
-        UploadedDocument.objects.create(
-            owner=request.user,
-            job=job,
-            original_filename=uploaded.name,
-            file_type=file_type,
-            file_path=stored_paths["upload_file_path"],
-            file_size_bytes=uploaded.size,
-            checksum_sha256=_sha256_file(stored_paths["upload_file_path"]),
-            metadata={
-                "content_type": getattr(uploaded, "content_type", ""),
-                "source_language": job.source_language,
-                "target_language": job.target_language,
-            },
-        )
-
-        job.metadata = {
-            **(job.metadata or {}),
-            "original_content_type": getattr(uploaded, "content_type", ""),
-            "original_file_size_bytes": uploaded.size,
-        }
-        job.save(update_fields=["metadata", "updated_at"])
-
-        UserActivityLog.objects.create(
-            user=request.user,
-            action="upload_document",
-            object_type="TranslationJob",
-            object_id=job.job_id,
-            metadata={"filename": uploaded.name, "file_type": file_type},
-        )
-
-        SystemEventLog.objects.create(
-            actor=request.user,
-            job=job,
-            event_type="translation_job_created",
-            message="Translation job created from document upload.",
-            metadata={"filename": uploaded.name, "file_type": file_type},
-        )
-
-        start_translation_job(job)
-
+        dispatch_outcome = start_translation_job(job)
+        dispatched = True
+        if dispatch_outcome and dispatch_outcome.get("status") == "uncertain":
+            return JsonResponse(
+                {"ok": False, "error": PERSISTENCE_UNCERTAIN_MESSAGE,
+                 "error_code": "dispatch_uncertain", "status_uncertain": True,
+                 "job_id": job.job_id}, status=503,
+            )
+        job.refresh_from_db()
         payload = _job_payload(job, request.user)
-        payload["message"] = "Translation started"
+        payload["message"] = "Translation started" if job.status in {"queued", "processing"} else _status_message(job.status)
 
         return JsonResponse(payload, status=202)
-    except Exception as exc:
-        SystemEventLog.objects.create(
-            actor=request.user,
-            job=job,
-            level=SystemEventLog.Level.ERROR,
-            event_type="upload_request_failed",
-            message=f"Upload request failed: {exc}",
-            metadata={"filename": uploaded.name},
+    except DatabaseError:
+        logger.exception("Upload state is uncertain for job %s; no automatic failure or retry", job.job_id if job else "uncreated")
+        return JsonResponse(
+            {"ok": False, "error": PERSISTENCE_UNCERTAIN_MESSAGE,
+             "error_code": "database_unavailable", "status_uncertain": True,
+             "job_id": job.job_id if job else None}, status=503,
         )
-        error_payload = {"ok": False, "error": GENERIC_TRANSLATION_FAILURE_MESSAGE}
-        if request.user.is_staff:
-            error_payload["technical_detail"] = str(exc)
-        return JsonResponse(error_payload, status=500)
+    except Exception as exc:
+        logger.exception("Upload request failed for job %s", job.job_id if job else "uncreated")
+        persisted = bool(job and not dispatched and _fail_translation_job(
+            job.job_id, str(exc), event_type="upload_request_failed",
+            retained_paths={"input_file_path": job.input_file_path, "upload_file_path": job.upload_file_path},
+        ))
+        uncertain = bool(job and not persisted)
+        return JsonResponse(
+            {"ok": False, "error": PERSISTENCE_UNCERTAIN_MESSAGE if uncertain else GENERIC_TRANSLATION_FAILURE_MESSAGE,
+             "error_code": "job_status_uncertain" if uncertain else "upload_failed",
+             "status_uncertain": uncertain, "job_id": job.job_id if job else None},
+            status=503 if uncertain else 500,
+        )
+
+
+def _initialize_uploaded_document(request, job, uploaded, file_type):
+    stored_paths = save_uploaded_file(uploaded, job.job_id)
+    job.input_file_path = stored_paths["input_file_path"]
+    job.upload_file_path = stored_paths["upload_file_path"]
+    job.metadata = {
+        **(job.metadata or {}), "original_content_type": getattr(uploaded, "content_type", ""),
+        "original_file_size_bytes": uploaded.size,
+    }
+    job.save(update_fields=["input_file_path", "upload_file_path", "metadata", "updated_at"])
+    UploadedDocument.objects.create(
+        owner=request.user, job=job, original_filename=uploaded.name,
+        file_type=file_type, file_path=stored_paths["upload_file_path"],
+        file_size_bytes=uploaded.size, checksum_sha256=_sha256_file(stored_paths["upload_file_path"]),
+        metadata={"content_type": getattr(uploaded, "content_type", ""),
+                  "source_language": job.source_language, "target_language": job.target_language},
+    )
+    UserActivityLog.objects.create(
+        user=request.user, action="upload_document", object_type="TranslationJob",
+        object_id=job.job_id, metadata={"filename": uploaded.name, "file_type": file_type},
+    )
+    SystemEventLog.objects.create(
+        actor=request.user, job=job, event_type="translation_job_created",
+        message="Translation job created from document upload.",
+        metadata={"filename": uploaded.name, "file_type": file_type},
+    )
 
 
 @api_login_required
 def api_job_status(request, job_id):
     try:
         job = _get_owned_job(request, job_id)
+        return JsonResponse(_job_payload(job, request.user))
     except Http404:
         return JsonResponse({"ok": False, "error": "Job not found."}, status=404)
-    return JsonResponse(_job_payload(job, request.user))
+    except DatabaseError:
+        logger.exception("Status is temporarily unavailable for job %s", job_id)
+        return JsonResponse(
+            {"ok": False, "error": PERSISTENCE_UNCERTAIN_MESSAGE,
+             "error_code": "database_unavailable", "status_uncertain": True}, status=503,
+        )
 
 
 @api_login_required
@@ -1165,25 +1189,17 @@ def preview_image(request, job_id, image_name):
 @login_required
 def download_job(request, job_id):
     job = _get_owned_job(request, job_id)
-    state = _job_state_context(job)
     requested_format = request.GET.get("format", "translated")
 
     if requested_format == "bilingual" and not can_download_teacher_copy(request.user):
         raise PermissionDenied("Teacher review copies are not available for this role.")
 
-    if not state["can_download"]:
-        if job.status != TranslationJob.Status.COMPLETED:
-            messages.info(
-                request,
-                "The translated PDF will be available after processing is complete.",
-            )
-        else:
-            messages.error(request, "The translated PDF is not available for this job.")
-
+    if job.status != TranslationJob.Status.COMPLETED:
+        messages.info(request, "The translated PDF will be available after processing is complete.")
         return redirect("translator:job_detail", job_id=job.id)
 
     if requested_format == "bilingual":
-        resolved_path = _resolve_job_file(job, job.bilingual_file_path)
+        resolved_path = _bilingual_output_path(job)
     else:
         resolved_path = _translated_output_path(job)
 
@@ -1191,12 +1207,10 @@ def download_job(request, job_id):
         messages.error(request, "The translated PDF is missing or no longer available.")
         return redirect("translator:job_detail", job_id=job.id)
 
-    filename_prefix = "bilingual" if requested_format == "bilingual" else "translated"
-
     return FileResponse(
         open(resolved_path, "rb"),
         as_attachment=True,
-        filename=f"{filename_prefix}_{job.job_id[:8]}.pdf",
+        filename=translated_download_filename(job, bilingual=requested_format == "bilingual"),
         content_type="application/pdf",
     )
 
@@ -1205,7 +1219,7 @@ def download_job(request, job_id):
 def download_original(request, job_id):
     """Return the owner's original upload without widening cross-user access."""
     job = _get_owned_job(request, job_id)
-    resolved_path = _resolve_job_file(job, job.upload_file_path or job.input_file_path)
+    resolved_path = _original_document_path(job)
     if not resolved_path or not resolved_path.exists():
         messages.error(request, "The original document is missing or no longer available.")
         return redirect("translator:job_detail", job_id=job.id)
@@ -1635,7 +1649,7 @@ def _job_payload(job: TranslationJob, user=None) -> dict:
         "progress_available": progress_available,
         "current_phase": job.current_phase,
         "current_step": job.current_step,
-        "phase_message": job.phase_message or _status_message(job.status),
+        "phase_message": GENERIC_TRANSLATION_FAILURE_MESSAGE if state["has_failed"] else (job.phase_message or _status_message(job.status)),
         "created_at": job.created_at.isoformat(),
         "started_at": job.created_at.isoformat(),
         "updated_at": job.updated_at.isoformat(),
@@ -1791,6 +1805,7 @@ def _job_card_context(job: TranslationJob, user=None) -> dict:
             "completed_at": job.completed_at,
             "has_retained_text": translation_quality["translation_has_review_items"],
             "can_download_teacher_copy": can_download_teacher_copy(user),
+            "can_download_bilingual": job.status == TranslationJob.Status.COMPLETED and _bilingual_output_path(job) is not None,
             "can_download_validator_copy": can_download_validator_copy(user),
             **permissions,
             "page_count": int(
@@ -2147,6 +2162,34 @@ def _failure_message(job: TranslationJob) -> str:
 
 def _translated_output_exists(job: TranslationJob) -> bool:
     return _translated_output_path(job) is not None
+
+
+def _bilingual_output_path(job: TranslationJob):
+    paths = [job.bilingual_file_path, *job.generated_outputs.filter(
+        output_type=GeneratedOutput.OutputType.BILINGUAL_ALTERNATING,
+    ).values_list("file_path", flat=True)]
+    for path in paths:
+        resolved = _resolve_job_file(job, path)
+        if resolved and resolved.is_file():
+            return resolved
+    return None
+
+
+def _original_document_path(job: TranslationJob):
+    paths = [job.upload_file_path, job.input_file_path]
+    try:
+        paths.append(job.uploaded_document.file_path)
+    except UploadedDocument.DoesNotExist:
+        pass
+    roots = [Path(job_directory_path(job.job_id)).resolve(),
+             (Path(settings.MEDIA_ROOT) / "uploads" / job.job_id).resolve()]
+    for path in paths:
+        if not path:
+            continue
+        candidate = Path(path).resolve()
+        if candidate.is_file() and any(candidate.is_relative_to(root) for root in roots):
+            return candidate
+    return None
 
 
 def _translated_output_path(job: TranslationJob):

@@ -1,10 +1,11 @@
 import asyncio
 import json
 import os
+import logging
 from typing import Any, Dict, Optional
 
 from django.conf import settings
-from django.db import close_old_connections, transaction
+from django.db import DatabaseError, close_old_connections, transaction
 from django.utils import timezone
 
 from translator.models import (
@@ -14,6 +15,7 @@ from translator.models import (
     SystemEventLog,
     TranslationJob,
     TranslationSegment,
+    UnknownTranslationRecord,
 )
 
 from . import file_service as file_service_module
@@ -23,9 +25,12 @@ from .pipeline_service import get_pipeline_service
 from .task_runner import submit_translation_task
 from .display_utils import clean_invisible_unicode
 from .translation_display import is_display_fallback_translation
-from .translation_dataset import get_translation_dataset
+from .translation_dataset import get_translation_dataset, LanguageResourceUnavailable
+from .translation_result import TRANSLATION_EVIDENCE_FIELDS
+from .job_lifecycle import JobPersistenceError, PROCESSING_FAILURE_MESSAGE
 
 _CALLBACK_REGISTERED = False
+logger = logging.getLogger(__name__)
 
 
 def _get_file_service():
@@ -93,11 +98,10 @@ def _job_paths(job_id: str, metadata: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
-def sync_pipeline_job(pipeline_job) -> None:
+def sync_pipeline_job(pipeline_job) -> bool:
     close_old_connections()
     job_id = str(pipeline_job.job_id)
     metadata = dict(getattr(pipeline_job, "metadata", {}) or {})
-    paths = _job_paths(job_id, metadata)
     completed_at = getattr(pipeline_job, "completed_at", None)
 
     updates = {
@@ -110,8 +114,11 @@ def sync_pipeline_job(pipeline_job) -> None:
         "detection_type": _enum_value(getattr(pipeline_job, "detection_type", None)),
         "metadata": metadata,
         "updated_at": timezone.now(),
-        **paths,
     }
+    if updates["status"] not in {
+        TranslationJob.Status.PROCESSING, TranslationJob.Status.COMPLETED, TranslationJob.Status.FAILED,
+    }:
+        return False
     if getattr(pipeline_job, "file_type", None):
         updates["file_type"] = _enum_value(pipeline_job.file_type)
     if completed_at:
@@ -122,33 +129,64 @@ def sync_pipeline_job(pipeline_job) -> None:
     }:
         updates["completed_at"] = timezone.now()
 
-    TranslationJob.objects.filter(id=job_id).update(**updates)
     is_terminal = updates["status"] in {
         TranslationJob.Status.COMPLETED,
         TranslationJob.Status.FAILED,
     }
-    if updates["status"] == TranslationJob.Status.FAILED:
-        _log_failed_job(job_id, updates["error"] or updates["phase_message"])
     # Page/segment synchronization is intentionally deferred until the job is
     # terminal.  Checkpoint updates happen many times per job; re-reading the
     # entire structure and upserting every page and segment at each checkpoint
     # made processing time grow with both document size and phase count.
-    if is_terminal:
-        _sync_generated_outputs(job_id, paths)
-        if paths.get("structure_file_path"):
-            _sync_structure_models(job_id, paths["structure_file_path"])
+    if updates["status"] == TranslationJob.Status.FAILED:
+        updates["phase_message"] = PROCESSING_FAILURE_MESSAGE
+    # Publish completion only when related records commit with the state.
+    # Locking also prevents late callbacks from resurrecting terminal jobs.
+    with transaction.atomic():
+        current = TranslationJob.objects.select_for_update().filter(id=job_id).first()
+        if not current or current.is_deleted or current.status in {
+            TranslationJob.Status.COMPLETED, TranslationJob.Status.FAILED,
+        }:
+            return False
+        if updates["status"] == TranslationJob.Status.PROCESSING and current.status != TranslationJob.Status.PROCESSING:
+            return False
+        # Failure persistence must not depend on filesystem diagnostics.
+        paths = {} if updates["status"] == TranslationJob.Status.FAILED else _job_paths(job_id, metadata)
+        updates.update({key: value for key, value in paths.items() if value})
+        if updates["status"] == TranslationJob.Status.COMPLETED:
+            if current.status != TranslationJob.Status.PROCESSING:
+                return False
+            if not paths["output_file_path"] or not paths["structure_file_path"]:
+                raise JobPersistenceError("Completion artifacts are unavailable; completion was not published.")
+            _sync_generated_outputs(job_id, paths)
+            _sync_structure_models(job_id, paths["structure_file_path"], strict=True)
+        # A missing artifact must not erase a previously retained reference.
+        for key, value in paths.items():
+            if not value:
+                updates.pop(key, None)
+        TranslationJob.objects.filter(id=job_id).update(**updates)
+    if is_terminal and updates["status"] == TranslationJob.Status.FAILED:
+        _log_failed_job(job_id, updates["error"] or PROCESSING_FAILURE_MESSAGE)
+        try:
+            with transaction.atomic():
+                paths = _job_paths(job_id, metadata)
+                TranslationJob.objects.filter(id=job_id, status=TranslationJob.Status.FAILED).update(
+                    **{key: value for key, value in paths.items() if value}
+                )
+                _sync_generated_outputs(job_id, paths)
+                if paths.get("structure_file_path"):
+                    _sync_structure_models(job_id, paths["structure_file_path"])
+        except Exception:
+            logger.exception("Failure diagnostics could not be synchronized for job %s; failure state was already committed", job_id)
+    return True
 
 
 def register_pipeline_callback() -> None:
     global _CALLBACK_REGISTERED
-    if _CALLBACK_REGISTERED:
-        return
     _get_pipeline_service().set_job_update_callback(sync_pipeline_job)
     _CALLBACK_REGISTERED = True
 
 
-def start_translation_job(job: TranslationJob) -> None:
-    register_pipeline_callback()
+def start_translation_job(job: TranslationJob) -> dict:
     file_type = _get_file_type_enum()(job.file_type)
     args = (
         job.job_id,
@@ -158,27 +196,36 @@ def start_translation_job(job: TranslationJob) -> None:
         job.target_language,
         job.ocr_languages or None,
     )
+    outcome = {"status": "scheduled"}
 
     def dispatch() -> None:
         try:
             submit_translation_task(_run_translation_job, *args)
-            SystemEventLog.objects.create(
-                actor=job.owner,
-                job=job,
-                event_type="translation_job_dispatched",
-                message="Translation job dispatched to the background runner.",
-                metadata={
-                    "task_mode": getattr(settings, "LINGOKATUTUBO_TASK_MODE", "thread"),
-                },
-            )
+        except JobPersistenceError:
+            outcome["status"] = "uncertain"
+            logger.exception("Worker dispatch outcome is uncertain for job %s; no failure or retry is assumed", job.job_id)
+            _record_dispatch_uncertainty(job.job_id)
+            return
         except Exception as exc:
-            _fail_translation_job(
+            logger.exception("Translation worker dispatch failed for job %s", job.job_id)
+            persisted = _fail_translation_job(
                 job.job_id,
                 f"Translation worker dispatch failed: {exc}",
                 event_type="translation_job_dispatch_failed",
             )
+            outcome["status"] = "failed" if persisted else "uncertain"
+            return
+        # Audit logging is best effort after acceptance. It must never turn an
+        # accepted worker into a dispatch failure or trigger another dispatch.
+        outcome["status"] = "accepted"
+        _record_job_event(
+            job.job_id, "translation_job_dispatched",
+            "Translation job dispatched to the background runner.",
+            metadata={"task_mode": getattr(settings, "LINGOKATUTUBO_TASK_MODE", "thread")},
+        )
 
     transaction.on_commit(dispatch)
+    return outcome
 
 
 def _run_translation_job(
@@ -190,16 +237,18 @@ def _run_translation_job(
     ocr_languages: Optional[str],
 ) -> None:
     close_old_connections()
+    claimed = False
     try:
         if not _claim_translation_job(job_id):
             return
+        claimed = True
         register_pipeline_callback()
         file_type_enum = (
             file_type
             if isinstance(file_type, _get_file_type_enum())
             else _get_file_type_enum()(file_type)
         )
-        _get_pipeline_service().process_translation(
+        result = _get_pipeline_service().process_translation(
             job_id=job_id,
             input_file_path=input_file_path,
             file_type=file_type_enum,
@@ -207,8 +256,14 @@ def _run_translation_job(
             target_language=target_language,
             ocr_languages=ocr_languages,
         )
-    except Exception as exc:
-        _fail_translation_job(job_id, str(exc))
+        if result is False:
+            _fail_translation_job(job_id, "Translation pipeline did not complete.")
+    except (DatabaseError, JobPersistenceError):
+        logger.exception("Job %s persistence is uncertain; no failure or retry is assumed", job_id)
+    except (Exception, KeyboardInterrupt, SystemExit) as exc:
+        logger.exception("Translation worker stopped for job %s", job_id)
+        if claimed:
+            _fail_translation_job(job_id, str(exc) or "Translation worker was interrupted.")
     finally:
         close_old_connections()
 
@@ -220,6 +275,8 @@ def quick_translate_text(
 ) -> Dict[str, Any]:
     text = clean_invisible_unicode(text)
     dataset = _get_translation_dataset()
+    if not dataset.is_loaded:
+        raise LanguageResourceUnavailable("Required language resources are unavailable")
     detected_language = source_language
     detection_confidence = None
 
@@ -237,6 +294,8 @@ def quick_translate_text(
     )
     return {
         "original": text,
+        **{key: translation_meta[key] for key in TRANSLATION_EVIDENCE_FIELDS
+           if key in translation_meta},
         "translated": translation_meta["translated"],
         "source_language": detected_language,
         "target_language": target_language,
@@ -307,7 +366,7 @@ def _engine_label_from_method(extraction_method: str) -> str:
     return mapping.get(extraction_method, "text_extraction")
 
 
-def _sync_structure_models(job_id: str, structure_path: str) -> None:
+def _sync_structure_models(job_id: str, structure_path: str, *, strict: bool = False) -> None:
     try:
         job = TranslationJob.objects.get(id=job_id)
     except TranslationJob.DoesNotExist:
@@ -316,6 +375,8 @@ def _sync_structure_models(job_id: str, structure_path: str) -> None:
         with open(structure_path, "r", encoding="utf-8") as handle:
             structure = json.load(handle)
     except Exception as exc:
+        if strict:
+            raise
         SystemEventLog.objects.create(
             job=job,
             level=SystemEventLog.Level.WARNING,
@@ -369,6 +430,8 @@ def _sync_structure_models(job_id: str, structure_path: str) -> None:
                     "translation_method": block.get("translation_method"),
                     "translation_confidence": block.get("translation_confidence"),
                     "translation_warning": block.get("translation_warning"),
+                    "needs_review": block.get("needs_review", False),
+                    **{key: block[key] for key in TRANSLATION_EVIDENCE_FIELDS if key in block},
                     "bbox": block.get("bbox"),
                 }
             ]
@@ -386,6 +449,7 @@ def _sync_structure_models(job_id: str, structure_path: str) -> None:
                 warning = line.get("translation_warning") or block.get("translation_warning")
                 segment_index += 1
                 segment_metadata = {
+                    **{key: line[key] for key in TRANSLATION_EVIDENCE_FIELDS if key in line},
                     "block_id": block.get("block_id"),
                     "ocr_confidence": line.get("ocr_confidence") or block.get("ocr_confidence"),
                 }
@@ -395,19 +459,20 @@ def _sync_structure_models(job_id: str, structure_path: str) -> None:
                     confidence = None
                     if warning:
                         segment_metadata["warning"] = warning
-                TranslationSegment.objects.update_or_create(
+                segment, _ = TranslationSegment.objects.update_or_create(
                     job=job,
                     segment_index=segment_index,
                     defaults={
                         "page": page,
                         "source_text": source_text,
                         "translated_text": translated_text,
-                        "source_language": job.source_language,
+                        "source_language": line.get("source_language") or (job.metadata or {}).get("detected_language") or job.source_language,
                         "target_language": job.target_language,
                         "method": method,
                         "confidence": confidence,
                         "needs_review": (
-                            is_display_fallback_translation(
+                            bool(line.get("needs_review")) or bool(line.get("review_required"))
+                            or is_display_fallback_translation(
                                 translated_text,
                                 method,
                                 line.get("cascade_stage"),
@@ -418,6 +483,22 @@ def _sync_structure_models(job_id: str, structure_path: str) -> None:
                         "metadata": segment_metadata,
                     },
                 )
+                # Queue only actual unmatched outcomes, not a pre-translation
+                # structure or every unverified/fuzzy suggestion. Existing SME
+                # decisions are retained if structure synchronization repeats.
+                if method and (method in {"unknown", "unknown_for_review", "untranslated_needs_review"}
+                               or is_display_fallback_translation(translated_text, method, line.get("cascade_stage"))):
+                    UnknownTranslationRecord.objects.get_or_create(
+                        segment=segment,
+                        defaults={
+                            "job": job, "page": page, "source_text": source_text,
+                            "normalized_text": " ".join(source_text.casefold().split()),
+                            "source_language": segment.source_language,
+                            "target_language": segment.target_language,
+                            "ocr_confidence": segment_metadata.get("ocr_confidence"),
+                            "reason": "no_safe_match",
+                        },
+                    )
     if seen_pages:
         DocumentPage.objects.filter(job=job).exclude(page_number__in=seen_pages).delete()
     TranslationSegment.objects.filter(job=job, segment_index__gt=segment_index).delete()
@@ -509,33 +590,13 @@ def _claim_translation_job(job_id: str) -> bool:
         updated_at=now,
     )
     if claimed:
-        try:
-            job = TranslationJob.objects.get(id=job_id)
-        except TranslationJob.DoesNotExist:
-            return False
-        SystemEventLog.objects.create(
-            actor=job.owner,
-            job=job,
-            event_type="translation_job_started",
-            message="Translation worker claimed the job for processing.",
-        )
+        _record_job_event(job_id, "translation_job_started", "Translation worker claimed the job for processing.")
         return True
 
-    try:
-        job = TranslationJob.objects.get(id=job_id)
-    except TranslationJob.DoesNotExist:
-        return False
-
-    SystemEventLog.objects.create(
-        actor=job.owner,
-        job=job,
+    _record_job_event(
+        job_id, "translation_job_duplicate_ignored",
+        "Duplicate translation task was ignored because the job was not queued or retrying.",
         level=SystemEventLog.Level.WARNING,
-        event_type="translation_job_duplicate_ignored",
-        message=(
-            "Duplicate translation task was ignored because the job was not "
-            "queued or retrying."
-        ),
-        metadata={"status": job.status},
     )
     return False
 
@@ -545,21 +606,66 @@ def _fail_translation_job(
     message: str,
     *,
     event_type: str = "translation_job_failed",
-) -> None:
+    retained_paths: Optional[Dict[str, str]] = None,
+) -> bool:
     now = timezone.now()
     safe_message = message or "Translation job failed."
-    TranslationJob.objects.filter(id=job_id).exclude(
-        status=TranslationJob.Status.COMPLETED
-    ).update(
+    updates = dict(
         status=TranslationJob.Status.FAILED,
         error=safe_message,
-        phase_message=safe_message,
+        phase_message=PROCESSING_FAILURE_MESSAGE,
         current_step="Translation failed",
         current_phase="failed",
         updated_at=now,
         completed_at=now,
     )
-    _log_failed_job(job_id, safe_message, event_type=event_type)
+    for key in ("input_file_path", "upload_file_path"):
+        value = (retained_paths or {}).get(key)
+        if value and os.path.isfile(value):
+            updates[key] = value
+    try:
+        changed = TranslationJob.objects.filter(
+            id=job_id, is_deleted=False,
+            status__in=[TranslationJob.Status.QUEUED, TranslationJob.Status.RETRYING, TranslationJob.Status.PROCESSING],
+        ).update(**updates)
+    except DatabaseError:
+        logger.exception("Could not persist failure for job %s; persisted status is uncertain", job_id)
+        return False
+    if changed:
+        _log_failed_job(job_id, safe_message, event_type=event_type)
+    return bool(changed)
+
+
+def _record_job_event(job_id: str, event_type: str, message: str, *, level="info", metadata=None) -> bool:
+    try:
+        job = TranslationJob.objects.get(id=job_id)
+        SystemEventLog.objects.create(
+            actor=job.owner, job=job, event_type=event_type,
+            level=level, message=message, metadata=metadata or {},
+        )
+        return True
+    except TranslationJob.DoesNotExist:
+        return False
+    except Exception:
+        logger.exception("Could not record event %s for job %s", event_type, job_id)
+        return False
+
+
+def _record_dispatch_uncertainty(job_id: str) -> None:
+    """Retain the ambiguity for operator inspection without changing status."""
+    try:
+        with transaction.atomic():
+            job = TranslationJob.objects.select_for_update().filter(
+                id=job_id, status__in=[TranslationJob.Status.QUEUED, TranslationJob.Status.RETRYING],
+                is_deleted=False,
+            ).first()
+            if job:
+                TranslationJob.objects.filter(id=job_id).update(
+                    metadata={**(job.metadata or {}), "dispatch_uncertain": True},
+                    updated_at=timezone.now(),
+                )
+    except DatabaseError:
+        logger.exception("Could not record dispatch uncertainty for job %s; no persistence is claimed", job_id)
 
 
 def _log_failed_job(
@@ -570,18 +676,15 @@ def _log_failed_job(
 ) -> None:
     try:
         job = TranslationJob.objects.get(id=job_id)
+        if SystemEventLog.objects.filter(
+            job=job, event_type=event_type, message=message or "Translation job failed.",
+        ).exists():
+            return
+        SystemEventLog.objects.create(
+            actor=job.owner, job=job, level=SystemEventLog.Level.ERROR,
+            event_type=event_type, message=message or "Translation job failed.",
+        )
     except TranslationJob.DoesNotExist:
         return
-    if SystemEventLog.objects.filter(
-        job=job,
-        event_type=event_type,
-        message=message or "Translation job failed.",
-    ).exists():
-        return
-    SystemEventLog.objects.create(
-        actor=job.owner,
-        job=job,
-        level=SystemEventLog.Level.ERROR,
-        event_type=event_type,
-        message=message or "Translation job failed.",
-    )
+    except Exception:
+        logger.exception("Could not record failure diagnostics for job %s", job_id)

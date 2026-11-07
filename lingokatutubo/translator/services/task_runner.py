@@ -2,6 +2,7 @@ import threading
 from typing import Any, Callable
 
 from django.conf import settings
+from .job_lifecycle import JobPersistenceError
 
 
 def submit_translation_task(func: Callable[..., None], *args: Any) -> None:
@@ -18,9 +19,17 @@ def submit_translation_task(func: Callable[..., None], *args: Any) -> None:
 
     if mode == "celery":
         from translator.tasks import process_translation_job
+        from celery.exceptions import OperationalError
 
-        process_translation_job.delay(*args)
+        try:
+            # Lost broker acknowledgements are ambiguous; do not republish.
+            process_translation_job.apply_async(args=args, retry=False)
+        except (OperationalError, ConnectionError, TimeoutError) as exc:
+            raise JobPersistenceError("Worker dispatch could not be confirmed; do not submit a replacement job.") from exc
         return
+
+    if mode != "thread":
+        raise ValueError("Unsupported translation task mode; expected thread, inline, or celery.")
 
     thread = threading.Thread(
         target=func,

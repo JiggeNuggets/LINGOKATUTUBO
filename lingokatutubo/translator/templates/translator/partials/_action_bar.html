@@ -3,7 +3,7 @@
     <a class="button secondary" href="{% url 'translator:history' %}">&larr; History</a>
 
     {% if can_preview %}
-      {% if show_check_action %}<a id="job-preview-action" class="button primary js-preview-link" data-loading-text="Preparing document preview&hellip;" href="{% url 'translator:job_preview' job.id %}">CHECK</a>{% endif %}
+      {% if show_check_action %}<a id="job-preview-action" class="button primary js-preview-link" data-loading-text="Preparing document preview&hellip;" href="{% url 'translator:job_preview' job.id %}">Preview Document</a>{% endif %}
     {% else %}
       <a id="job-preview-action" class="button primary js-preview-link" data-loading-text="Preparing document preview&hellip;" href="{% url 'translator:job_preview' job.id %}" hidden></a>
     {% endif %}

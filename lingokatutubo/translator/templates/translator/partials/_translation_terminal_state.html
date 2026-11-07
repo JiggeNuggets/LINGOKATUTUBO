@@ -1,13 +1,23 @@
-<div class="translation-terminal-state{% if is_failed %} is-failed{% else %} is-complete{% endif %}" role="{% if is_failed %}alert{% else %}status{% endif %}" aria-live="polite" aria-atomic="true">
+<div class="translation-terminal-state{% if is_failed %} is-failed{% else %} is-complete{% endif %}">
+  {% if not is_failed %}
+  <button type="button" class="translation-complete-close" data-close-translation-status aria-label="Close translation status">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>
+  </button>
+  {% endif %}
   <svg class="translation-terminal-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
     <circle cx="32" cy="32" r="23"/>
     {% if is_failed %}<path d="m24 24 16 16m0-16L24 40"/>{% else %}<path d="m20 33 8 8 17-19"/>{% endif %}
   </svg>
-  <h2 id="translation-terminal-title">{% if is_failed %}Translation Failed{% else %}Translation Complete{% endif %}</h2>
+  <h2 id="translation-terminal-title"{% if is_failed %} tabindex="-1"{% endif %}>{% if is_failed %}Translation Failed{% else %}Translation Complete{% endif %}</h2>
+  <p class="alert error" data-preview-error role="alert" hidden></p>
   {% if is_failed %}
     <p class="translation-terminal-message">Translation could not be completed. Please try another file or contact the administrator.</p>
     <a class="button primary" data-terminal-action href="{% url 'translator:translate' %}">Try Again</a>
   {% else %}
-    <a id="job-preview-action" class="button primary js-preview-link" data-terminal-action data-loading-text="Preparing document preview&hellip;" href="{% url 'translator:job_preview' job.id %}">CHECK</a>
+    <div class="translation-complete-actions">
+      {% if can_preview %}<a id="job-terminal-preview-action" class="button primary js-preview-link" data-terminal-action data-loading-text="Preparing document preview&hellip;" href="{% url 'translator:job_preview' job.id %}">Preview Document</a>{% else %}<p>Preview is currently unavailable.</p>{% endif %}
+      {% if can_download %}<a id="job-terminal-download-action" class="button secondary" data-terminal-action href="{% url 'translator:job_download' job.id %}">Download PDF</a>{% else %}<p>The translated download is currently unavailable.</p>{% endif %}
+    </div>
   {% endif %}
+  {% if is_failed %}<button type="button" class="button secondary" data-close-translation-status>Close status</button>{% endif %}
 </div>
